@@ -32,7 +32,7 @@ BIFROST_ETH_URL = 'http://127.0.0.1:10144'
 # WS_URL = 'ws://127.0.0.1:9944'
 # ETH_URL = 'http://127.0.0.1:9933'
 
-AUTOTEST_URI = os.environ.get('AUTOTEST_WS_URL')
+AUTOTEST_URI = os.environ.get('AUTOTEST_URI')
 
 if AUTOTEST_URI:
     WS_URL = 'ws://' + AUTOTEST_URI
