@@ -1,17 +1,15 @@
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.utils import transfer, calculate_evm_account, calculate_evm_addr, calculate_evm_account_hex
-from tools.utils import WS_URL, ETH_URL, get_eth_chain_id
-from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex
-from tools.peaq_eth_utils import TX_SUCCESS_STATUS
+from tools.utils import calculate_evm_addr
+from tools.utils import WS_URL, ETH_URL
+from peaq.eth import get_eth_chain_id, calculate_evm_account, calculate_evm_account_hex
+from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex, GAS_LIMIT, TX_SUCCESS_STATUS
 from web3 import Web3
 import enum
-
 import unittest
-
+from peaq.extrinsic import transfer
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
-GAS_LIMIT = 4294967
 
 
 # Keypair to use for dispatches
