@@ -5,7 +5,7 @@ import copy
 import time
 
 
-PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
+# PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
 
 XCM_VER = 'V3'  # So far not tested with V2!
 
@@ -71,18 +71,32 @@ PEAQ_ASSET_LOCATION = {
             'interior': 'Here'
         }
     },
-    'para': {
-        XCM_VER: {
-            'parents': '1',
-            'interior': {'X1': {'Parachain': PEAQ_PD_CHAIN_ID}}
-        }
-    },
+    # Please use the get_peaq_asset_location_para to get it
+    # 'para': {
+    #     XCM_VER: {
+    #         'parents': '1',
+    #         'interior': {'X1': {'Parachain': PEAQ_PD_CHAIN_ID}}
+    #     }
+    # },
 }
 PEAQ_METADATA = {
     'name': 'Peaq Token',
     'symbol': 'AGUNG',
     'decimals': 18,
 }
+
+
+def get_peaq_asset_location_para():
+    peaq_chain_id = get_peaq_chain_id()
+    peaq_asset_para = {
+        'para': {
+            XCM_VER: {
+                'parents': '1',
+                'interior': {'X1': {'Parachain': peaq_chain_id}}
+            }
+        },
+    }
+    return peaq_asset_para['para']
 
 
 def batch_register_location(batch, asset_id, location):

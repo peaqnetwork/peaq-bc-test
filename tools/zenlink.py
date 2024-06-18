@@ -1,14 +1,13 @@
 from tools.utils import get_peaq_chain_id
 
 
-PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
-
-
 def calc_deadline(substrate):
     return substrate.get_block_number(None) + 10
 
 
 def compose_zdex_lppair_params(tok_idx, w_str=True):
+    PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
+
     if w_str:
         chain_id = str(PEAQ_PD_CHAIN_ID)
         zero = '0'

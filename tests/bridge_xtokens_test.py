@@ -13,7 +13,7 @@ from tools.utils import KP_GLOBAL_SUDO, ACA_PD_CHAIN_ID
 from tools.asset import batch_register_location, batch_set_units_per_second, setup_xc_register_if_not_exist
 from tools.asset import setup_aca_asset_if_not_exist
 from tools.asset import UNITS_PER_SECOND
-from tools.asset import PEAQ_ASSET_LOCATION
+from tools.asset import get_peaq_asset_location_para
 from tools.asset import PEAQ_METADATA, PEAQ_ASSET_ID
 from tools.utils import get_peaq_chain_id
 from tools.asset import batch_create_asset, batch_mint, batch_set_metadata, batch_force_create_asset
@@ -262,7 +262,7 @@ class TestBridgeXTokens(unittest.TestCase):
     @pytest.mark.xcm
     def test_native_from_peaq_to_aca(self):
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
@@ -305,7 +305,7 @@ class TestBridgeXTokens(unittest.TestCase):
     @pytest.mark.xcm
     def test_bridge_xtoken_single_transfer_multi_asset(self):
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
@@ -332,7 +332,7 @@ class TestBridgeXTokens(unittest.TestCase):
             self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -361,7 +361,7 @@ class TestBridgeXTokens(unittest.TestCase):
             self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)

@@ -13,7 +13,8 @@ from tools.utils import KP_GLOBAL_SUDO
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
 from tools.asset import setup_aca_asset_if_not_exist
-from tools.asset import PEAQ_ASSET_LOCATION, PEAQ_METADATA
+from tools.asset import PEAQ_METADATA
+from tools.asset import get_peaq_asset_location_para
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_tokens
 from tools.xcm_setup import setup_hrmp_channel
@@ -192,7 +193,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
         self.si_aca = SubstrateInterface(url=ACA_WS_URL)
 
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         self._fund_eth_account()

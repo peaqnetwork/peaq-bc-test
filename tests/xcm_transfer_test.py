@@ -15,7 +15,7 @@ from tools.asset import setup_asset_if_not_exist
 from tools.asset import batch_register_location, batch_set_units_per_second, setup_xc_register_if_not_exist
 from tools.asset import setup_aca_asset_if_not_exist
 from tools.asset import UNITS_PER_SECOND
-from tools.asset import ACA_ASSET_LOCATION, ACA_METADATA, PEAQ_ASSET_LOCATION
+from tools.asset import ACA_ASSET_LOCATION, ACA_METADATA, get_peaq_asset_location_para
 from tools.asset import RELAY_ASSET_LOCATION, RELAY_METADATA, RELAY_ASSET_ID
 from tools.asset import PEAQ_METADATA, PEAQ_ASSET_ID
 from tools.asset import ACA_ASSET_ID
@@ -434,7 +434,7 @@ class TestXCMTransfer(unittest.TestCase):
     @pytest.mark.xcm
     def test_native_from_peaq_to_aca(self):
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, get_peaq_asset_location_para(), PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
