@@ -32,8 +32,10 @@ def gen_eth_signature(sub_pk, eth_sk, chain_id, block_zero_hash):
         }
     }
     signature = ETHAccount.sign_message(encode_structured_data(message), eth_sk)
-
-    return signature.signature.hex()
+    sig = signature.signature.hex()
+    if not sig.startswith('0x'):
+        return f'0x{sig}'
+    return sig
 
 
 def calculate_claim_signature(substrate, sub_ss58, eth_sk, eth_chain_id):
