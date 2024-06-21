@@ -64,6 +64,8 @@ def upgrade(runtime_path):
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
     show_extrinsic(receipt, 'upgrade?')
+    if not receipt.is_success:
+        raise IOError('Cannot upgrade')
     wait_relay_upgrade_block()
 
 
@@ -127,6 +129,7 @@ def do_runtime_upgrade(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
 
     substrate = SubstrateInterface(url=WS_URL)
+    old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     # Remove the asset id 1: relay chain
     remove_asset_id(substrate)
 
@@ -146,10 +149,13 @@ def do_runtime_upgrade(wasm_path):
     batch = ExtrinsicBatch(substrate, KP_COLLATOR)
     batch.compose_call('ParachainStaking', 'candidate_stake_more', {'more': 50000 * 10 ** 18})
     batch.execute()
+    new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+    if old_version == new_version:
+        raise IOError(f'Runtime ugprade fails: {old_version} == {new_verion}')
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Upgrade the runtime')
+    parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
     parser.add_argument('-r', '--runtime', type=str, help='Your runtime poisiton')
     parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
 
