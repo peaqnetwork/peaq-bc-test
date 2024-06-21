@@ -35,3 +35,12 @@ def is_not_dev_chain():
     chain_name = get_chain(ws)
     print(f'chain_name: {chain_name}')
     return chain_name not in ['peaq-dev', 'peaq-dev-fork']
+
+
+def is_local_new_chain():
+    substrate = SubstrateInterface(url=WS_URL)
+    chain_spec = get_chain(substrate)
+
+    return 'peaq-dev-fork' != chain_spec and \
+        'krest-network-fork' != chain_spec and \
+        'peaq-network-fork' != chain_spec

@@ -58,13 +58,10 @@ INFLATION_YEAR = {
 }
 
 INFLATION_RECALCULATION = {
-    'peaq-network': 2628000,
+    'peaq-network': 3617954,
     'krest-network': 2915990,
-    'peaq-dev': 2628000
+    'peaq-dev': 5084632,
 }
-
-# Expected recalculation target at genesis
-RECALCULATION_AFTER = 2628000
 
 
 class InflationState(Enum):
