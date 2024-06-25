@@ -152,6 +152,7 @@ def do_runtime_upgrade(wasm_path):
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
+    print(f'Upgrade from {old_version} to the {new_version}')
 
 
 def main():
