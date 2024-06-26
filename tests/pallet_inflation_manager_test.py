@@ -53,14 +53,19 @@ INFLATION_PARAMETERS = {
 
 INFLATION_YEAR = {
     'peaq-network': 1,
+    'peaq-dev': 1,
+    # Because of the delay TGE
     'krest-network': 0,
-    'peaq-dev': 1
 }
 
 INFLATION_RECALCULATION = {
-    'peaq-network': 3617954,
+    'peaq-network': 2628000,
+    'peaq-network-fork': 3617954,
+    'peaq-dev': 2628000,
+    'peaq-dev-fork': 5084632,
+    # Because of the delay TGE
     'krest-network': 2915990,
-    'peaq-dev': 5084632,
+    'krest-network-fork': 2915990,
 }
 
 
@@ -85,8 +90,8 @@ class TestPalletInflationManager(unittest.TestCase):
 
     def setUp(self):
         self.substrate = SubstrateInterface(url=WS_URL)
-        self.chain_spec = get_chain(self.substrate)
-        self.chain_spec = get_modified_chain_spec(self.chain_spec)
+        self.detail_chain_spec = get_chain(self.substrate)
+        self.chain_spec = get_modified_chain_spec(self.detail_chain_spec)
 
     # Will fail after 1 year
     def test_now_state(self):
@@ -115,4 +120,4 @@ class TestPalletInflationManager(unittest.TestCase):
         self.assertEqual(golden_inflation_parameters, onchain_base_inflation_parameters)
         self.assertEqual(onchain_year, golden_year)
         # If it's forked chain, it should be after 1 year + upgrade time
-        self.assertEqual(onchain_do_recalculation_at, INFLATION_RECALCULATION[self.chain_spec])
+        self.assertEqual(onchain_do_recalculation_at, INFLATION_RECALCULATION[self.detail_chain_spec])
