@@ -130,9 +130,9 @@ class TestRewardDistribution(unittest.TestCase):
         block_len = (second_receipt.block_number + 1) - (first_receipt.block_number + 1)
         block_reward = self._get_block_issue_reward()
 
-        expected_reward = int(int(transaction_fee * (1 + self._fee_percentage)) * self._collator_percentage) + \
-                          int(transaction_tip * self._collator_percentage) + \
-                          int(block_reward * block_len * self._collator_percentage)
+        expected_reward = (int(int(transaction_fee * (1 + self._fee_percentage)) * self._collator_percentage) +
+                           int(transaction_tip * self._collator_percentage) +
+                           int(block_reward * block_len * self._collator_percentage))
         print(f'Expected reward: {expected_reward}')
         print(f'Pot transferable balance: {pot_transferable_balance}')
         self.assertAlmostEqual(
@@ -151,8 +151,8 @@ class TestRewardDistribution(unittest.TestCase):
         self.assertNotEqual(
             tx_reward, None,
             f'Cannot find the block event for transaction reward {tx_reward}')
-        tx_fee_ori = self._get_transaction_fee_paid(block_hash, 'fee') + \
-                     self._get_transaction_fee_paid(block_hash, 'tip')
+        tx_fee_ori = (self._get_transaction_fee_paid(block_hash, 'fee') +
+                      self._get_transaction_fee_paid(block_hash, 'tip'))
         self.assertNotEqual(
             tx_fee_ori, None,
             f'Cannot find the block event for transaction reward {tx_fee_ori}')
