@@ -410,7 +410,6 @@ def _is_it_this_event(e_obj, module, event, attributes) -> bool:
 
 
 def get_event(substrate, block_hash, pallet, event_name):
-    block_hash = substrate.get_block_hash()
     for event in substrate.get_events(block_hash):
         if event.value['module_id'] != pallet or \
            event.value['event_id'] != event_name:
