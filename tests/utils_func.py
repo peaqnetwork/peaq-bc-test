@@ -3,7 +3,6 @@ import os
 from tools.utils import WS_URL
 from peaq.utils import get_chain
 from tools.restart import restart_parachain_launch
-from tools.utils import get_modified_chain_spec
 from tools.runtime_upgrade import do_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface
