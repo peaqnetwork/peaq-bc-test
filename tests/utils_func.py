@@ -37,6 +37,12 @@ def is_not_dev_chain():
     return chain_name not in ['peaq-dev', 'peaq-dev-fork']
 
 
+def is_krest_related_chain():
+    ws = SubstrateInterface(url=WS_URL)
+    chain_name = get_chain(ws)
+    return chain_name in ['krest-network', 'krest-network-fork']
+
+
 def is_local_new_chain():
     substrate = SubstrateInterface(url=WS_URL)
     chain_spec = get_chain(substrate)
