@@ -71,9 +71,11 @@ INFLATION_RECALCULATION = {
     'peaq-dev': 2628000,
     'peaq-dev-fork': 5084632,
     # Because of the delay TGE
-    'krest-network': 2915990,
-    'krest-network-fork': 2915990,
+    'krest-network': 3469624,
+    'krest-network-fork': 3469624,
 }
+
+WAIT_BLOCKS = 5
 
 
 class InflationState(Enum):
@@ -107,7 +109,7 @@ class TestPalletInflationManager(unittest.TestCase):
     def test_set_recalculation_time_on_delay_tge(self):
         # Setup and trigger the delay TGE
         block_height = get_block_height(self.substrate)
-        trigger_height = block_height + 2
+        trigger_height = block_height + WAIT_BLOCKS
         total_supply = 1 * 10 ** 9 * 10 ** 18
         batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
         batch.compose_sudo_call(
@@ -138,7 +140,7 @@ class TestPalletInflationManager(unittest.TestCase):
         # Setup and trigger the recalculation time
         # It's the main purpose for testing
         block_height = get_block_height(self.substrate)
-        trigger_height = block_height + 3
+        trigger_height = block_height + WAIT_BLOCKS
         batch.compose_sudo_call(
             'InflationManager',
             'set_recalculation_time',
@@ -176,7 +178,7 @@ class TestPalletInflationManager(unittest.TestCase):
     @pytest.mark.skipif(is_krest_related_chain() is True, reason='Only need to test non krestchain')
     def test_set_delay_tge_fail_non_krest(self):
         block_height = get_block_height(self.substrate)
-        trigger_height = block_height + 2
+        trigger_height = block_height + WAIT_BLOCKS
         # 9 Billion
         total_supply = 1 * 10 ** 9 * 10 ** 18
         batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
@@ -205,7 +207,7 @@ class TestPalletInflationManager(unittest.TestCase):
         # Setup and trigger the recalculation time
         # It's the main purpose for testing
         block_height = get_block_height(self.substrate)
-        trigger_height = block_height + 3
+        trigger_height = block_height + WAIT_BLOCKS
         batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
         batch.compose_sudo_call(
             'InflationManager',
@@ -245,7 +247,7 @@ class TestPalletInflationManager(unittest.TestCase):
     @pytest.mark.skipif(is_krest_related_chain() is False, reason='Only need to test on the krest chain')
     def test_set_delay_tge_more(self):
         block_height = get_block_height(self.substrate)
-        trigger_height = block_height + 2
+        trigger_height = block_height + WAIT_BLOCKS
         # 9 Billion
         total_supply = 1 * 10 ** 9 * 10 ** 18
         batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
@@ -259,6 +261,8 @@ class TestPalletInflationManager(unittest.TestCase):
         )
         receipt = batch.execute_n_clear()
         self.assertTrue(receipt.is_success, f'Failed to set delay TGE: {receipt}')
+        event = get_event(self.substrate, receipt.block_hash, 'Sudo', 'Sudid')
+        self.assertFalse('Err' in event.value['attributes']['sudo_result'])
 
         for i in range(10 * 2):
             now_height = get_block_height(self.substrate)
