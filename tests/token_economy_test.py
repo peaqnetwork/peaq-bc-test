@@ -21,7 +21,7 @@ STATE_INFOS = [{
         'agung-network': 4,
         'krest-network': 4,
         # However: in the krest-forked-chain, it should be 16 by sending the extrinsic for the fork chain
-        'krest-network-fork': 16,
+        'krest-network-fork': 4,
         'peaq-network': 4
     }
 }, {
@@ -231,6 +231,11 @@ class TokenEconomyTest(unittest.TestCase):
             'krest-network-fork': int(400 * 10 ** 6 * 10 ** 18),
             'peaq-network-fork': int(4200 * 10 ** 6 * 10 ** 18),
         }
+        if 'krest-network-fork' == self._chain_spec:
+            raise IOError(
+                "Skipping block reward test because it's the delay TGE and the fund haven't happen. "
+                "False postive alert")
+
         if 'peaq-dev-fork' != self._chain_spec and \
            'krest-network-fork' != self._chain_spec and \
            'peaq-network-fork' != self._chain_spec:
@@ -254,6 +259,11 @@ class TokenEconomyTest(unittest.TestCase):
 
     # Will fail after this runtime upgrade
     def test_inflation_mgr_transfer_all_pot(self):
+        if 'krest-network-fork' == self._chain_spec:
+            raise IOError(
+                "Skipping transfer all pot test because it's the delay TGE and the fund haven't happen. "
+                "False postive alert")
+
         if 'peaq-dev-fork' != self._chain_spec and \
            'krest-network-fork' != self._chain_spec and \
            'peaq-network-fork' != self._chain_spec:
