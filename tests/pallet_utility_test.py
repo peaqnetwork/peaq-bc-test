@@ -38,7 +38,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
@@ -87,7 +87,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
@@ -135,7 +135,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
@@ -192,7 +192,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE

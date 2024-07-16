@@ -11,7 +11,7 @@ def transfer(substrate, kp_src, kp_dst_addr, token_num):
 
     call = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_dst_addr,
             'value': token_num * TOKEN_NUM_BASE

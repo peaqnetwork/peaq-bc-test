@@ -39,7 +39,7 @@ TEST_METADATA = {
 def batch_transfer(batch, addr_dst, token_num):
     batch.compose_call(
         'Balances',
-        'transfer',
+        'transfer_keep_alive',
         {
             'dest': addr_dst,
             'value': token_num
