@@ -269,7 +269,7 @@ class TestPalletEvmAccounts(unittest.TestCase):
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': calculate_evm_default_addr(kp_sub.public_key),
                 'value': FUND_NUMBER
