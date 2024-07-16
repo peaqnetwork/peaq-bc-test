@@ -51,7 +51,7 @@ def compose_balances_transfer(batch, kp_beneficiary, amount):
         'dest': kp_beneficiary.ss58_address,
         'value': str(amount),
     }
-    batch.compose_call('Balances', 'transfer', params)
+    batch.compose_call('Balances', 'transfer_keep_alive', params)
 
 
 def compose_balances_setbalance(batch, who, amount):

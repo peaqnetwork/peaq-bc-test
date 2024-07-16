@@ -27,7 +27,7 @@ class PalletMultisig(unittest.TestCase):
 
         payload = self.substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': self.kp_src.ss58_address,
                 'value': num * TOKEN_NUM_BASE

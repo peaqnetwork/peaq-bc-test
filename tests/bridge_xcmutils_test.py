@@ -38,7 +38,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
                 'value': 100 * 10 ** 18,

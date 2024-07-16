@@ -96,7 +96,7 @@ def deposit_money_to_multsig_wallet(substrate, kp_consumer, kp_provider, token_n
     multi_sig_addr = calculate_multi_sig(signators, threshold)
     return substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': multi_sig_addr,
             'value': token_num * TOKEN_NUM_BASE
@@ -120,7 +120,7 @@ def send_spent_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, t
     print('----- Provider asks the spent token')
     payload = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_provider.ss58_address,
             'value': token_num * TOKEN_NUM_BASE
@@ -162,7 +162,7 @@ def send_refund_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, 
     print('----- Provider asks the refund token')
     payload = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_consumer.ss58_address,
             'value': token_num * TOKEN_NUM_BASE

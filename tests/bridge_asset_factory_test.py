@@ -33,7 +33,7 @@ class bridge_asset_factory_test(unittest.TestCase):
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': self._kp_creator['substrate'],
                 'value': 100 * 10 ** 18,
@@ -41,7 +41,7 @@ class bridge_asset_factory_test(unittest.TestCase):
         )
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': self._kp_admin['substrate'],
                 'value': 100 * 10 ** 18,
