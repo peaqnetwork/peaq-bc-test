@@ -57,7 +57,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
@@ -106,7 +106,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
@@ -164,7 +164,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
                         f'{substrate.get_events(receipt.block_hash)}')
@@ -221,7 +221,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         # check account balances after transaciton
         show_account(substrate, kp_src.ss58_address, "Src bal after trans")

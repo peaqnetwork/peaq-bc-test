@@ -14,7 +14,7 @@ from websocket import WebSocketConnectionClosedException
 
 def restart_parachain_launch():
     projects = docker.compose.ls()
-    project = [p for p in projects if 'parachain-launch' in str(p.config_files[0])]
+    project = [p for p in projects if 'parachain-launch' in str(p.config_files[0]) or 'yoyo' == p.name]
     if len(project) == 0 or len(project) > 1:
         raise IOError(f'Found {len(project)} parachain-launch projects, {project}')
 

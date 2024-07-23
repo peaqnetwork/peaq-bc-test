@@ -1,3 +1,6 @@
+import sys
+sys.path.append('./')
+
 from substrateinterface import SubstrateInterface
 from tools.utils import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
 from peaq.utils import ExtrinsicBatch
@@ -56,3 +59,7 @@ def setup_hrmp_channel(url=RELAYCHAIN_WS_URL):
 
     receipt = batch.execute()
     print(f'HRMP channel established, success: {receipt.is_success}')
+
+
+if __name__ == '__main__':
+    setup_hrmp_channel()

@@ -145,7 +145,7 @@ def send_spent_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, t
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'as_multi')
     info = receipt.get_extrinsic_identifier().split('-')
     return {
@@ -187,7 +187,7 @@ def send_refund_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, 
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'as_multi')
     info = receipt.get_extrinsic_identifier().split('-')
     return {
@@ -221,7 +221,7 @@ def send_spent_token_service_delievered(
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'service_delivered')
 
 
@@ -249,7 +249,7 @@ def send_refund_token_service_delievered(
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'service_delivered')
 
 
