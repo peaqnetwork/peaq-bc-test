@@ -111,7 +111,7 @@ class TestTreasury(unittest.TestCase):
             nonce=nonce
         )
 
-        receipt = self.substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = self.substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         self.assertTrue(receipt.is_success,
                         f'Extrinsic Failed: {receipt.error_message}' +
