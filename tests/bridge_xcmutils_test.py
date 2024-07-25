@@ -24,6 +24,8 @@ ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
 
+@pytest.mark.eth
+@pytest.mark.xcm
 class TestBridgeXCMUtils(unittest.TestCase):
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)

@@ -1,5 +1,6 @@
 import unittest
 import time
+import pytest
 
 from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
@@ -18,6 +19,7 @@ VEST_ADDR = '0x0000000000000000000000000000000000000808'
 VEST_PERIOD = 100
 
 
+@pytest.mark.eth
 class TestBridgeVest(unittest.TestCase):
     def setUp(self):
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))

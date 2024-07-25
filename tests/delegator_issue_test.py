@@ -1,74 +1,80 @@
 import unittest
 import time
+import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, get_collators, batch_fund
 from tools.utils import KP_GLOBAL_SUDO, exist_pallet, KP_COLLATOR
-from tools.payload import sudo_call_compose, sudo_extrinsic_send, user_extrinsic_send
 from peaq.utils import get_block_height, get_block_hash, get_chain
 from peaq.utils import ExtrinsicBatch, get_account_balance
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 import warnings
 
 
-@user_extrinsic_send
 def add_delegator(substrate, kp_delegator, addr_collator, stake_number):
-    return substrate.compose_call(
-        call_module='ParachainStaking',
-        call_function='join_delegators',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_delegator)
+    batch.compose_call(
+        'ParachainStaking',
+        'join_delegators',
+        {
             'collator': addr_collator,
             'amount': stake_number,
-        })
+        }
+    )
+    return batch.execute()
 
 
-@user_extrinsic_send
 def collator_stake_more(substrate, kp_collator, stake_number):
-    return substrate.compose_call(
-        call_module='ParachainStaking',
-        call_function='candidate_stake_more',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_collator)
+    batch.compose_call(
+        'ParachainStaking',
+        'candidate_stake_more',
+        {
             'more': stake_number,
-        })
+        }
+    )
+    return batch.execute()
 
 
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def set_coefficient(substrate, coefficient):
-    return substrate.compose_call(
-        call_module='StakingCoefficientRewardCalculator',
-        call_function='set_coefficient',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'StakingCoefficientRewardCalculator',
+        'set_coefficient',
+        {
             'coefficient': coefficient,
         }
     )
+    return batch.execute()
 
 
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def set_max_candidate_stake(substrate, stake):
-    return substrate.compose_call(
-        call_module='ParachainStaking',
-        call_function='set_max_candidate_stake',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'ParachainStaking',
+        'set_max_candidate_stake',
+        {
             'new': stake,
         }
     )
+    return batch.execute()
 
 
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def set_reward_rate(substrate, collator, delegator):
-    return substrate.compose_call(
-        call_module='StakingFixedRewardCalculator',
-        call_function='set_reward_rate',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'StakingFixedRewardCalculator',
+        'set_reward_rate',
+        {
             'collator_rate': collator,
             'delegator_rate': delegator,
         }
     )
+    return batch.execute()
 
 
+@pytest.mark.relaunch
+@pytest.mark.substrate
 class TestDelegator(unittest.TestCase):
     def setUp(self):
         self.substrate = SubstrateInterface(

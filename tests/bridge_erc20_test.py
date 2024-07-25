@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface, Keypair
 from tools.asset import batch_create_asset, get_valid_asset_id, batch_set_metadata, batch_mint
@@ -30,6 +31,7 @@ def batch_transfer(batch, addr_dst, token_num):
     )
 
 
+@pytest.mark.eth
 class erc20_asset_test(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)

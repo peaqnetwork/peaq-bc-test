@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import TOKEN_NUM_BASE, WS_URL
 from tools.utils import show_account, send_approval, send_proposal, get_as_multi_extrinsic_id
@@ -7,6 +8,7 @@ from peaq.utils import calculate_multi_sig
 import random
 
 
+@pytest.mark.substrate
 class PalletMultisig(unittest.TestCase):
 
     def setUp(self):

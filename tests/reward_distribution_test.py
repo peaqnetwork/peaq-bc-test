@@ -13,7 +13,7 @@ import unittest
 from tests import utils_func as TestUtils
 
 WAIT_BLOCK_NUMBER = 10
-WAIT_ONLY_ONE_BLOCK_PERIOD = 12
+WAIT_ONLY_ONE_BLOCK_PERIOD = 6
 
 EOT_FEE_PERCENTAGE = {
     'peaq-network': 0.0,
@@ -43,6 +43,7 @@ COLLATOR_DELEGATOR_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 DIVISION_FACTOR = pow(10, 7)
 
 
+@pytest.mark.substrate
 class TestRewardDistribution(unittest.TestCase):
     _kp_bob = Keypair.create_from_uri('//Bob')
     _kp_eve = Keypair.create_from_uri('//Eve')
@@ -167,9 +168,8 @@ class TestRewardDistribution(unittest.TestCase):
             # The fee of extrinsic in the previous block becomes the reward of this block,
             # but we have three default extrinisc
             #   timestamp.set
-            #   dynamicFee.noteMinGasPriceTarget
             #   parachainSystem.setValidationData)
-            if len(self._substrate.get_block(prev_hash)['extrinsics']) != 3:
+            if len(self._substrate.get_block(prev_hash)['extrinsics']) != 2:
                 time.sleep(WAIT_ONLY_ONE_BLOCK_PERIOD)
                 continue
             event = self._get_event(now_hash, 'Balances', 'Transfer')
@@ -253,7 +253,7 @@ class TestRewardDistribution(unittest.TestCase):
         self._check_transaction_fee_reward_event(receipt.block_hash, TIP)
         next_height = self._substrate.get_block(receipt.block_hash)['header']['number'] + 1
         while self._substrate.get_block()['header']['number'] < next_height:
-            time.sleep(12)
+            time.sleep(6)
         prev_balance = get_account_balance(self._substrate, KP_COLLATOR.ss58_address, block_hash=receipt.block_hash)
 
         now_block_hash = self._substrate.get_block_hash(next_height)

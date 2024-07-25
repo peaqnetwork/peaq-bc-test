@@ -1,3 +1,5 @@
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
@@ -73,6 +75,7 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
     return True
 
 
+@pytest.mark.eth
 class TestEVMEthRPC(unittest.TestCase):
     def setUp(self):
         self._conn = SubstrateInterface(url=WS_URL)

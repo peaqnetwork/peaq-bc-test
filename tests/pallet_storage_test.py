@@ -1,4 +1,5 @@
 import time
+import pytest
 from tools.utils import WS_URL
 from tools.utils import get_balance_reserve_value
 from substrateinterface import SubstrateInterface, Keypair
@@ -16,6 +17,7 @@ def storage_remove_payload(batch, item_type):
     )
 
 
+@pytest.mark.substrate
 class TestPalletStorage(unittest.TestCase):
 
     def setUp(self):

@@ -1,3 +1,5 @@
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.utils import calculate_evm_addr
 from tools.utils import WS_URL, ETH_URL
@@ -77,6 +79,7 @@ def _sign_and_submit_transaction(tx, w3, signer):
     return w3.eth.wait_for_transaction_receipt(tx_hash)
 
 
+@pytest.mark.eth
 # NOTE: fetch_user_roles will return an error if the user has no roles
 class TestBridgeRbac(unittest.TestCase):
 

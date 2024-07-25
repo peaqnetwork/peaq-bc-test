@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface
 from tools.utils import WS_URL, get_modified_chain_spec
@@ -80,6 +81,7 @@ class InflationState(Enum):
     RecalculationAt = 'DoRecalculationAt'
 
 
+@pytest.mark.substrate
 class TestPalletInflationManager(unittest.TestCase):
     # Fetches storage at latest block unless a blocknumber is provided
     def _fetch_pallet_storage(self, storage_name, block_number=None):

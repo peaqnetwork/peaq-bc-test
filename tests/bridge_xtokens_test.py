@@ -2,6 +2,7 @@ import sys
 sys.path.append('./')
 
 import unittest
+import pytest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface, Keypair
@@ -25,7 +26,6 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_tokens
 from tools.xcm_setup import setup_hrmp_channel
-# import pytest
 
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
@@ -192,6 +192,8 @@ def send_xtoken_transfer_multi_assets(w3, eth_chain_id, kp_sign, kp_dst, paracha
     return tx_receipt
 
 
+@pytest.mark.relaunch
+@pytest.mark.eth
 class TestBridgeXTokens(unittest.TestCase):
     def get_parachain_id(self, relay_substrate):
         result = relay_substrate.query(

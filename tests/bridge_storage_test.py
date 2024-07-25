@@ -1,3 +1,5 @@
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account_hex, calculate_evm_addr, calculate_evm_account
 from peaq.extrinsic import transfer
@@ -58,6 +60,7 @@ def _eth_update_item(substrate, w3, contract, eth_kp_src, item_type, item):
     return tx_receipt
 
 
+@pytest.mark.eth
 class TestBridgeStorage(unittest.TestCase):
 
     def setUp(self):

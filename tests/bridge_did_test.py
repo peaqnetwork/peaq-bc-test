@@ -1,3 +1,4 @@
+import pytest
 import unittest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
@@ -24,6 +25,7 @@ VALIDITY = 1000
 ABI_FILE = 'ETH/did/did.sol.json'
 
 
+@pytest.mark.eth
 class TestBridgeDid(unittest.TestCase):
 
     def _eth_add_attribute(self, contract, eth_kp_src, evm_addr, key, value):
