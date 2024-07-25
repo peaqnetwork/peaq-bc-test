@@ -1,6 +1,7 @@
 import sys
 import traceback
 import unittest
+import pytest
 
 sys.path.append('./')
 
@@ -553,6 +554,8 @@ def zenlink_empty_lp_swap_test(si_relay, si_peaq):
     assert receipt.is_success
 
 
+@pytest.mark.relaunch
+@pytest.mark.xcm
 class TestZenlinkDex(unittest.TestCase):
     def setUp(self):
         restart_parachain_and_runtime_upgrade()

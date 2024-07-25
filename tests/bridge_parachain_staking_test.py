@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
@@ -18,6 +19,8 @@ PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 
 
+@pytest.mark.relaunch
+@pytest.mark.eth
 class bridge_parachain_staking_test(unittest.TestCase):
     def setUp(self):
         restart_parachain_and_runtime_upgrade()

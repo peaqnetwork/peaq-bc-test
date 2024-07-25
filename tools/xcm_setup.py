@@ -1,8 +1,8 @@
 import sys
 sys.path.append('./')
 
-from substrateinterface import SubstrateInterface
 from tools.utils import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
+from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 
 
@@ -36,8 +36,8 @@ def setup_hrmp_channel(url=RELAYCHAIN_WS_URL):
     batch = ExtrinsicBatch(relay_substrate, KP_GLOBAL_SUDO)
 
     batch.compose_sudo_call(
-        'ParasSudoWrapper',
-        'sudo_establish_hrmp_channel',
+        'Hrmp',
+        'force_open_hrmp_channel',
         {
             'sender': para_ids[0],
             'recipient': para_ids[1],
@@ -47,8 +47,8 @@ def setup_hrmp_channel(url=RELAYCHAIN_WS_URL):
     )
 
     batch.compose_sudo_call(
-        'ParasSudoWrapper',
-        'sudo_establish_hrmp_channel',
+        'Hrmp',
+        'force_open_hrmp_channel',
         {
             'sender': para_ids[1],
             'recipient': para_ids[0],

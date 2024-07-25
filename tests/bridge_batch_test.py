@@ -1,4 +1,5 @@
 import unittest
+import pytest
 
 from tools.utils import WS_URL, ETH_URL
 # from tools.runtime_upgrade import wait_until_block_height
@@ -27,6 +28,7 @@ STORAGE_ABI_FILE = 'ETH/storage/storage.sol.json'
 STORAGE_ADDRESS = '0x0000000000000000000000000000000000000801'
 
 
+@pytest.mark.eth
 class TestBridgeBatch(unittest.TestCase):
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)

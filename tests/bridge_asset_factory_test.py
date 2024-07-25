@@ -1,4 +1,6 @@
 import unittest
+import pytest
+
 from substrateinterface import SubstrateInterface
 from tools.asset import get_valid_asset_id
 from tools.utils import WS_URL, ETH_URL
@@ -20,6 +22,7 @@ BATCH_ADDRESS = '0x0000000000000000000000000000000000000805'
 IERC20PLUS_ABI_FILE = 'ETH/erc20/plus.abi'
 
 
+@pytest.mark.eth
 class bridge_asset_factory_test(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)

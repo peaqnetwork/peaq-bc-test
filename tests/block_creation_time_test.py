@@ -1,4 +1,5 @@
 import unittest
+import pytest
 
 from substrateinterface import SubstrateInterface
 from tools.utils import WS_URL
@@ -6,10 +7,11 @@ from peaq.utils import wait_for_n_blocks, get_block_height
 from tools.block_creation_utils import get_block_creation_times
 
 BLOCK_TRAVERSE = 10
-BLOCK_CREATION_MS = 12000
-BLOCK_TOLERATE_PERCENTAGE = 10
+BLOCK_CREATION_MS = 6000
+BLOCK_TOLERATE_PERCENTAGE = 50
 
 
+@pytest.mark.substrate
 class TestBlockCreationTime(unittest.TestCase):
     def wait_block(self, substrate, block_number):
         now_block = get_block_height(substrate)

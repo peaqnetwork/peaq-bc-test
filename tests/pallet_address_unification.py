@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.utils import WS_URL, ETH_URL
 from tools.utils import KP_GLOBAL_SUDO
@@ -71,6 +72,7 @@ def get_eth_account_balance(eth_addr):
     return w3.eth.get_balance(eth_addr)
 
 
+@pytest.mark.substrate
 class TestPalletEvmAccounts(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
