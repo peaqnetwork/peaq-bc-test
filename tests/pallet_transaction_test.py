@@ -1,7 +1,7 @@
 import unittest
-from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL
-from tools.payload import user_extrinsic_send
+from peaq.utils import ExtrinsicBatch
+from substrateinterface import SubstrateInterface, Keypair
 
 
 def get_service_request_call(substrate, kp_dst, token_num):
@@ -14,21 +14,29 @@ def get_service_request_call(substrate, kp_dst, token_num):
         })
 
 
-@user_extrinsic_send
 def service_request(substrate, kp_src, kp_dst, token_num):
-    return get_service_request_call(substrate, kp_dst, token_num)
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'Transaction',
+        'service_requested',
+        {
+            'provider': kp_dst.ss58_address,
+            'token_deposited': token_num
+        }
+    )
+    return batch.execute()
 
 
-@user_extrinsic_send
 def service_deliver(substrate, kp_src, kp_dst, receipt, call):
     # Do the request service
     info = receipt.get_extrinsic_identifier().split('-')
     timepoint = {'height': int(info[0]), 'index': int(info[1])}
 
-    return substrate.compose_call(
-        call_module='Transaction',
-        call_function='service_delivered',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'Transaction',
+        'service_delivered',
+        {
             'consumer': kp_dst.ss58_address,
             'refund_info': {
                 'token_num': 10,
@@ -42,7 +50,9 @@ def service_deliver(substrate, kp_src, kp_dst, receipt, call):
                 'time_point': timepoint,
                 'call_hash': f'0x{call.call_hash.hex()}',
             }
-        })
+        }
+    )
+    return batch.execute()
 
 
 class TestPalletTransaction(unittest.TestCase):

@@ -1,8 +1,7 @@
+from tools.utils import WS_URL, TOKEN_NUM_BASE, get_collators
+
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import get_chain
-
-from tools.payload import user_extrinsic_send
-from tools.utils import WS_URL, TOKEN_NUM_BASE, get_collators
 from peaq.extrinsic import transfer_with_tip, transfer
 from peaq.utils import get_account_balance
 from tools.utils import get_event, get_modified_chain_spec
@@ -40,15 +39,16 @@ COLLATOR_DELEGATOR_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 DIVISION_FACTOR = pow(10, 7)
 
 
-@user_extrinsic_send
 def set_commission(substrate, candidate_address, commission_permill):
-    return substrate.compose_call(
-        call_module='ParachainStaking',
-        call_function='set_commission',
-        call_params={
+    batch = ExtrinsicBatch(substrate, candidate_address)
+    batch.compose_call(
+        'ParachainStaking',
+        'set_commission',
+        {
             'commission': commission_permill
         }
     )
+    return batch.execute()
 
 
 class TestRewardDistribution(unittest.TestCase):

@@ -1,9 +1,8 @@
-from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
+from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import show_extrinsic
 from peaq.utils import ExtrinsicBatch
 from tools.utils import batch_fund, get_event
-from tools.payload import sudo_call_compose, sudo_extrinsic_send, user_extrinsic_send
 import unittest
 
 # Assumptions
@@ -29,16 +28,17 @@ TOTAL_AMOUNT = 20 ** 5 * 10 ** 18
 DIVISION_FACTOR = pow(10, 7)
 
 
-@user_extrinsic_send
 def cast_vote(substrate, kp_member, proposal_hash, proposal_index, vote):
-    return substrate.compose_call(
-        call_module='Council',
-        call_function='vote',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_member)
+    batch.compose_call(
+        'Council',
+        'vote',
+        {
             'proposal': proposal_hash,
             'index': proposal_index,
             'approve': vote
         })
+    return batch.execute()
 
 
 def set_member_by_sudo(batch, members, kp_prime_member, old_count, kp_prime):
@@ -52,31 +52,35 @@ def set_member_by_sudo(batch, members, kp_prime_member, old_count, kp_prime):
         })
 
 
-@user_extrinsic_send
 def close_vote(substrate, kp_member, proposal_hash, proposal_index, weight_bond,
                length_bond):
-    return substrate.compose_call(
-        call_module='Council',
-        call_function='close',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_member)
+    batch.compose_call(
+        'Council',
+        'close',
+        {
             'proposal_hash': proposal_hash,
             'index': proposal_index,
             'proposal_weight_bound': weight_bond,
             'length_bound': length_bond
-        })
+        }
+    )
+    return batch.execute()
 
 
 # To directly spend funds from treasury
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def spend(substrate, value, beneficiary):
-    return substrate.compose_call(
-        call_module='Treasury',
-        call_function='spend',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'Treasury',
+        'spend',
+        {
+            'asset_kind': [],
             'amount': value * TOKEN_NUM_BASE_DEV,
-            'beneficiary': beneficiary.ss58_address
+            'beneficiary': beneficiary.ss58_address,
+            'valid_from': None,
         })
+    return batch.execute()
 
 
 class TestTreasury(unittest.TestCase):
@@ -202,12 +206,12 @@ class TestTreasury(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
 
     def treasury_rewards_test(self):
-
         # To get current block reward as configured in BlockReward.BlockIssueReward
         result = get_event(
             self.substrate,
             self.substrate.get_block_hash(),
             'BlockReward', 'BlockRewardsDistributed')
+        print(f'self.substrate.get_block_hash(): {self.substrate.get_block_hash()}')
         self.assertIsNotNone(result, 'BlockReward event not found')
         block_reward = result.value['attributes']
         print("Block reward:", block_reward)
@@ -232,6 +236,7 @@ class TestTreasury(unittest.TestCase):
             if event.value['attributes']['who'] != KP_TREASURY:
                 continue
             actual_reward_dist_to_treasury = event.value['attributes']['amount']
+            break
 
         print("Treasury actual reward: ", actual_reward_dist_to_treasury)
 
