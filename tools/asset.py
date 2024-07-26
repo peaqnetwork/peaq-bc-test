@@ -160,7 +160,7 @@ class AlwaysTrueReceipt():
 
 # This function is only for ACA chain, now deprecated because we are no longer use ACA chain
 def setup_aca_asset_if_not_exist(si_aca, kp_sudo, location, metadata, min_balance=100):
-    resp = si_aca.query('AssetRegistry', 'LocationToCurrencyIds', [location['V3']])
+    resp = si_aca.query('AssetRegistry', 'LocationToCurrencyIds', [location['V4']])
     if resp.value:
         return AlwaysTrueReceipt()
 
