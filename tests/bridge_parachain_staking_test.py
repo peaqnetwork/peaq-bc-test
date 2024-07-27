@@ -22,8 +22,13 @@ PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 @pytest.mark.relaunch
 @pytest.mark.eth
 class bridge_parachain_staking_test(unittest.TestCase):
-    def setUp(self):
+
+    @classmethod
+    def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+
+    def setUp(self):
         wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
 
         self._substrate = SubstrateInterface(url=WS_URL)

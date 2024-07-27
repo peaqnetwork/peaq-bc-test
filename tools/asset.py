@@ -1,7 +1,6 @@
 from peaq.utils import ExtrinsicBatch
 from tools.utils import ACA_PD_CHAIN_ID, get_peaq_chain_id
 from peaq.utils import get_account_balance
-import copy
 import time
 
 
@@ -159,23 +158,13 @@ class AlwaysTrueReceipt():
 
 
 # This function is only for ACA chain, now deprecated because we are no longer use ACA chain
-def setup_aca_asset_if_not_exist(si_aca, kp_sudo, location, metadata, min_balance=100):
-    resp = si_aca.query('AssetRegistry', 'LocationToCurrencyIds', [location['V4']])
-    if resp.value:
-        return AlwaysTrueReceipt()
+def setup_aca_asset_if_not_exist(si_aca, kp_sudo, asset_id, location, metadata, min_balance=100):
+    out = setup_asset_if_not_exist(si_aca, kp_sudo, asset_id, metadata, min_balance, True)
+    if not out.is_success:
+        return out
 
-    new_metadata = copy.deepcopy(metadata)
-    new_metadata['minimal_balance'] = min_balance
-    batch = ExtrinsicBatch(si_aca, kp_sudo)
-    batch.compose_sudo_call(
-        'AssetRegistry',
-        'register_foreign_asset',
-        {
-            'location': location,
-            'metadata': new_metadata,
-        }
-    )
-    return batch.execute()
+    out = setup_xc_register_if_not_exist(si_aca, kp_sudo, asset_id, location, UNITS_PER_SECOND)
+    return out
 
 
 def setup_asset_if_not_exist(si_peaq, kp_sudo, asset_id, metadata, min_balance=100, is_sufficient=False):
