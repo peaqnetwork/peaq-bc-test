@@ -3,6 +3,7 @@ import pytest
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.utils import WS_URL, ETH_URL
 from tools.utils import KP_GLOBAL_SUDO
+from tools.utils import sign_and_submit_evm_transaction
 from tools.asset import batch_create_asset, batch_mint, get_valid_asset_id
 from tools.asset import get_asset_balance
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
@@ -61,10 +62,7 @@ def evm_erc20_trasfer(asset_id, kp_eth_src, kp_eth_dst, amount, eth_chain_id):
         'nonce': nonce,
         'chainId': eth_chain_id})
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_eth_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_eth_src)
 
 
 def get_eth_account_balance(eth_addr):

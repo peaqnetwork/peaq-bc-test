@@ -8,8 +8,10 @@ from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import ETH_URL, RELAYCHAIN_WS_URL
 from tools.utils import WS_URL, ACA_WS_URL, PARACHAIN_WS_URL
+from tools.utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from peaq.utils import ExtrinsicBatch
+from tools.asset import convert_enum_to_asset_id
 from tools.utils import KP_GLOBAL_SUDO, ACA_PD_CHAIN_ID
 from tools.asset import batch_register_location, batch_set_units_per_second, setup_xc_register_if_not_exist
 from tools.asset import setup_aca_asset_if_not_exist
@@ -25,7 +27,6 @@ from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_assets
-from tools.xcm_setup import setup_hrmp_channel
 
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
@@ -149,10 +150,7 @@ def send_xtoken_transfer(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_
             'chainId': eth_chain_id
         })
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
 
 
 def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token):
@@ -172,10 +170,7 @@ def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachai
             'chainId': eth_chain_id
         })
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
 
 
 def send_xtoken_transfer_multi_currencies(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token):
@@ -196,10 +191,7 @@ def send_xtoken_transfer_multi_currencies(w3, eth_chain_id, kp_sign, kp_dst, par
             'chainId': eth_chain_id
         })
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
 
 
 def send_xtoken_transfer_multi_assets(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token):
@@ -220,14 +212,12 @@ def send_xtoken_transfer_multi_assets(w3, eth_chain_id, kp_sign, kp_dst, paracha
             'chainId': eth_chain_id
         })
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
 
 
 @pytest.mark.relaunch
 @pytest.mark.eth
+@pytest.mark.xcm
 class TestBridgeXTokens(unittest.TestCase):
     def get_parachain_id(self, relay_substrate):
         result = relay_substrate.query(
@@ -239,10 +229,9 @@ class TestBridgeXTokens(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
-        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
-        setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     def setUp(self):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
@@ -284,15 +273,24 @@ class TestBridgeXTokens(unittest.TestCase):
         return wait_for_account_asset_change_wrap(
             self.si_aca, addr, asset_id, prev_token, get_tokens_account_from_pallet_assets)
 
+    def is_asset_exist(self, asset_id, is_sufficient):
+        asset = self.si_peaq.query("Assets", "Asset", [convert_enum_to_asset_id({'Token': asset_id})])
+        if not asset.value:
+            return False
+        if asset.value['is_sufficient'] != is_sufficient:
+            raise IOError(f'Asset {asset_id} is not sufficient: {asset.value.is_sufficient}')
+        return True
+
     def _set_up_peaq_asset_on_peaq(self, asset_id, asset_location, para_addr, is_sufficent=False):
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
-        if is_sufficent:
-            batch_force_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
-        else:
-            batch_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
-        batch_set_metadata(
-            batch, asset_id,
-            TEST_ASSET_METADATA['name'], TEST_ASSET_METADATA['symbol'], TEST_ASSET_METADATA['decimals'])
+        if not self.is_asset_exist(asset_id, is_sufficent):
+            if is_sufficent:
+                batch_force_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
+            else:
+                batch_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
+            batch_set_metadata(
+                batch, asset_id,
+                TEST_ASSET_METADATA['name'], TEST_ASSET_METADATA['symbol'], TEST_ASSET_METADATA['decimals'])
         batch_mint(batch, para_addr, asset_id, 10 * TEST_TOKEN_NUM)
         receipt = batch.execute()
         self.assertTrue(receipt.is_success, f'Failed to create asset: {receipt.error_message}')

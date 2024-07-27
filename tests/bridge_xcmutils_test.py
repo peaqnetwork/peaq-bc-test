@@ -1,7 +1,8 @@
 import unittest
+from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.utils import WS_URL, ETH_URL, ACA_WS_URL
 from tools.utils import ACA_PD_CHAIN_ID
-from tools.utils import RELAYCHAIN_WS_URL, PARACHAIN_WS_URL
+from tools.utils import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
@@ -11,12 +12,12 @@ from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
 from tools.utils import KP_GLOBAL_SUDO
+from tools.utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
 from tools.asset import PEAQ_ASSET_LOCATION, PEAQ_METADATA, PEAQ_ASSET_ID
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_tokens
-from tools.xcm_setup import setup_hrmp_channel
 import pytest
 
 
@@ -24,14 +25,15 @@ ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
 
+@pytest.mark.relaunch
 @pytest.mark.eth
 @pytest.mark.xcm
 class TestBridgeXCMUtils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        restart_parachain_and_runtime_upgrade()
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
-        setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)
@@ -82,7 +84,6 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 }
             }
         }
-        # [TODO] V3? V4?
         message = {'V4': [[instr1, instr2]]}
         maxWeight = {'ref_time': 2 * 10 ** 21, 'proof_size': 10 ** 12}
 
@@ -102,10 +103,8 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'WithdrawAsset': [
                 [{
                   'id': {
-                    'Concrete': {
                         'parents': '0',
                         'interior': 'Here',
-                    }
                   },
                   'fun': {'Fungible': 10 ** 18},
                 }],
@@ -115,10 +114,8 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'BuyExecution': {
                 'fees': {
                     'id': {
-                        'Concrete': {
-                            'parents': '0',
-                            'interior': 'Here',
-                        }
+                        'parents': '0',
+                        'interior': 'Here',
                     },
                     'fun': {'Fungible': 10 ** 18},
                 },
@@ -132,15 +129,14 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'beneficiary': {
                     'parents': '0',
                     'interior': {
-                        'X1': {
+                        'X1': [{
                             'AccountId32': {'network': None, 'id': account}
-                        }
+                        }]
                     }
                 }
             }
         }
-        # [TODO] V3? V4?
-        message = {'V3': [[instr1, instr2, instr3]]}
+        message = {'V4': [[instr1, instr2, instr3]]}
 
         encoded_tx = self.si_peaq.compose_call(
             call_module='PolkadotXcm',
@@ -184,9 +180,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         balance = get_account_balance(self.si_peaq, kp_dst.ss58_address)
@@ -223,9 +217,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
         # Cannot test on remote side because Acala we used cannot resolve the origin (1, parachain, account)
 

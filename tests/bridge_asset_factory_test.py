@@ -10,6 +10,7 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.utils import KP_GLOBAL_SUDO
+from tools.utils import sign_and_submit_evm_transaction
 from web3 import Web3
 
 
@@ -63,10 +64,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_asset_create_code(self, contract, asset_id, eth_admin, min_balance):
         return contract.encodeABI(
@@ -131,10 +129,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_asset_finish_destroy(self, contract, eth_kp_src, asset_id):
         w3 = self._w3
@@ -149,10 +144,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_asset_destroy_accounts(self, contract, eth_kp_src, asset_id):
         w3 = self._w3
@@ -167,10 +159,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_asset_destroy_approvals(self, contract, eth_kp_src, asset_id):
         w3 = self._w3
@@ -185,10 +174,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def test_bridge_asset_create(self):
         self._fund_users()
@@ -230,9 +216,7 @@ class bridge_asset_factory_test(unittest.TestCase):
                 'nonce': nonce,
                 'chainId': self._eth_chain_id
             })
-        signed_txn = self._w3.eth.account.sign_transaction(tx, private_key=self._kp_creator['kp'].private_key)
-        tx_hash = self._w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        return self._w3.eth.wait_for_transaction_receipt(tx_hash)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._kp_creator['kp'])
 
     def test_bridge_asset_set_metadata(self):
         self._fund_users()

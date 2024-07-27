@@ -4,7 +4,7 @@ import unittest
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
-from tools.utils import get_modified_chain_spec
+from tools.utils import get_modified_chain_spec, sign_and_submit_evm_transaction
 from tools.utils import WS_URL, ETH_URL
 from tools.utils import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import get_contract
@@ -73,10 +73,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_erc20_approval(self, contract, eth_kp_src, eth_approval, token_num):
         w3 = self._w3
@@ -89,10 +86,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_balance_erc20_transfer_from(self, contract, eth_kp, eth_from, eth_to, token_num):
         w3 = self._w3
@@ -105,10 +99,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp)
 
     def test_balance_erc20_metadata(self):
         contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)

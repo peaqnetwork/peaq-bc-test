@@ -3,7 +3,6 @@ from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, TOKEN_NUM_BASE
 from peaq.utils import show_extrinsic
 from tools.utils import show_account
-from peaq.utils import ExtrinsicBatch
 import unittest
 
 # An arbitrary amount to be transfered from source to destination
