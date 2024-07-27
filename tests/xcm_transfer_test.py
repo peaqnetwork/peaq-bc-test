@@ -14,6 +14,7 @@ from peaq.sudo_extrinsic import fund
 from tools.utils import KP_GLOBAL_SUDO, ACA_PD_CHAIN_ID, batch_fund
 from tools.asset import setup_asset_if_not_exist
 from tools.asset import batch_register_location, batch_set_units_per_second, setup_xc_register_if_not_exist
+from tools.asset import setup_aca_asset_if_not_exist
 from tools.asset import UNITS_PER_SECOND
 from tools.asset import ACA_ASSET_LOCATION, ACA_METADATA, PEAQ_ASSET_LOCATION
 from tools.asset import RELAY_ASSET_LOCATION, RELAY_METADATA, RELAY_ASSET_ID
@@ -263,8 +264,8 @@ class TestXCMTransfer(unittest.TestCase):
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
-        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
-        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 3)
+        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 3)
         setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     def setUp(self):
@@ -426,13 +427,9 @@ class TestXCMTransfer(unittest.TestCase):
 
     # @pytest.mark.skip(reason="Success")
     def test_native_from_peaq_to_aca_non_sufficient(self):
-        asset_id = PEAQ_ASSET_ID['para']
-        receipt = setup_asset_if_not_exist(self.si_aca, KP_GLOBAL_SUDO, asset_id, PEAQ_METADATA)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-        receipt = setup_xc_register_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO,
-            asset_id, PEAQ_ASSET_LOCATION['para'], UNITS_PER_SECOND)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         kp_self_dst = kp_para_src
@@ -468,12 +465,9 @@ class TestXCMTransfer(unittest.TestCase):
         self._set_up_peaq_asset_on_peaq_if_not_exist(asset_id, kp_para_src, True)
 
         # register on aca
-        receipt = setup_asset_if_not_exist(self.si_aca, KP_GLOBAL_SUDO, asset_id, TEST_SUFF_ASSET_METADATA)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-        receipt = setup_xc_register_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO,
-            asset_id, TEST_SUFF_ASSET_TOKEN['para'], UNITS_PER_SECOND)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, TEST_SUFF_ASSET_ID['para'], TEST_SUFF_ASSET_TOKEN['para'], TEST_SUFF_ASSET_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_self_dst = kp_para_src
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -541,12 +535,9 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to create asset: {receipt.error_message}')
 
         # register on aca
-        receipt = setup_asset_if_not_exist(self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_ID['para'], TEST_ASSET_METADATA)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-        receipt = setup_xc_register_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO,
-            TEST_ASSET_ID['para'], TEST_ASSET_TOKEN['para'], UNITS_PER_SECOND)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_ID['para'], TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_self_dst = kp_para_src
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -609,12 +600,8 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
 
         # Register LP asset on ACA
-        receipt = setup_asset_if_not_exist(self.si_aca, KP_GLOBAL_SUDO, TEST_LP_ASSET_ID['para'], TEST_ASSET_METADATA)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-
-        receipt = setup_xc_register_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO,
-            TEST_LP_ASSET_ID['para'], TEST_LP_ASSET_TOKEN['para'], UNITS_PER_SECOND)
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, TEST_LP_ASSET_ID['para'], TEST_LP_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         # Transfe it to the ACA

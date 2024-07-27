@@ -24,7 +24,7 @@ from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.asset import wait_for_account_asset_change_wrap
-from tools.asset import get_tokens_account_from_pallet_tokens
+from tools.asset import get_tokens_account_from_pallet_assets
 from tools.xcm_setup import setup_hrmp_channel
 
 
@@ -38,7 +38,7 @@ INIT_TOKEN_NUM = 10 ** 18
 # For avoid exhaust tokens
 REMAIN_TOKEN_NUM = 10000
 
-XCM_VER = 'V3'  # So far not tested with V2!
+XCM_VER = 'V4'  # So far not tested with V2!
 
 # From 3000
 TEST_ASSET_METADATA = {
@@ -47,12 +47,10 @@ TEST_ASSET_METADATA = {
     'decimals': 18,
 }
 
-TEST_ASSET_IDX = 5
+TEST_ASSET_IDX = 4
 TEST_ASSET_ID = {
     'peaq': TEST_ASSET_IDX,
-    'para': {
-        'ForeignAsset': 0,
-    }
+    'para': TEST_ASSET_IDX,
 }
 
 TEST_ASSET_TOKEN = {
@@ -60,12 +58,12 @@ TEST_ASSET_TOKEN = {
         XCM_VER: {
             'parents': '0',
             'interior': {
-                'X1': {
+                'X1': [{
                     'GeneralKey': {
                         'length': 2,
                         'data': [0, TEST_ASSET_IDX] + [0] * 30,
                     }
-                }
+                }]
             }
         }
     },
@@ -77,6 +75,42 @@ TEST_ASSET_TOKEN = {
                     'GeneralKey': {
                         'length': 2,
                         'data': [0, TEST_ASSET_IDX] + [0] * 30,
+                    }
+                }]
+            }
+        }
+    }
+}
+
+
+TEST_SUFF_ASSET_IDX = 8
+TEST_SUFF_ASSET_ID = {
+    'peaq': TEST_SUFF_ASSET_IDX,
+    'para': TEST_SUFF_ASSET_IDX,
+}
+
+TEST_SUFF_ASSET_TOKEN = {
+    'peaq': {
+        XCM_VER: {
+            'parents': '0',
+            'interior': {
+                'X1': [{
+                    'GeneralKey': {
+                        'length': 2,
+                        'data': [0, TEST_SUFF_ASSET_IDX] + [0] * 30,
+                    }
+                }]
+            }
+        }
+    },
+    'para': {
+        XCM_VER: {
+            'parents': '1',
+            'interior': {
+                'X2': [{'Parachain': PEAQ_PD_CHAIN_ID}, {
+                    'GeneralKey': {
+                        'length': 2,
+                        'data': [0, TEST_SUFF_ASSET_IDX] + [0] * 30,
                     }
                 }]
             }
@@ -202,11 +236,17 @@ class TestBridgeXTokens(unittest.TestCase):
         )
         return result.value[0]
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
         setup_hrmp_channel(RELAYCHAIN_WS_URL)
+
+    def setUp(self):
+        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
 
         self.si_peaq = SubstrateInterface(url=WS_URL,)
         self.si_aca = SubstrateInterface(url=ACA_WS_URL)
@@ -242,9 +282,9 @@ class TestBridgeXTokens(unittest.TestCase):
 
     def wait_for_aca_account_token_change(self, addr, asset_id, prev_token=0):
         return wait_for_account_asset_change_wrap(
-            self.si_aca, addr, asset_id, prev_token, get_tokens_account_from_pallet_tokens)
+            self.si_aca, addr, asset_id, prev_token, get_tokens_account_from_pallet_assets)
 
-    def _set_up_peaq_asset_on_peaq(self, asset_id, para_addr, is_sufficent=False):
+    def _set_up_peaq_asset_on_peaq(self, asset_id, asset_location, para_addr, is_sufficent=False):
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
         if is_sufficent:
             batch_force_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
@@ -258,13 +298,13 @@ class TestBridgeXTokens(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to create asset: {receipt.error_message}')
         receipt = setup_xc_register_if_not_exist(
             self.si_peaq, KP_GLOBAL_SUDO, asset_id,
-            TEST_ASSET_TOKEN['peaq'], UNITS_PER_SECOND)
+            asset_location, UNITS_PER_SECOND)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
     # @pytest.mark.skip(reason="Success")
     def test_native_from_peaq_to_aca(self):
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
@@ -283,13 +323,17 @@ class TestBridgeXTokens(unittest.TestCase):
     # @pytest.mark.skip(reason="Success")
     def test_asset_from_peaq_to_aca_with_sufficient(self):
         # From Alice transfer to kp_para_src (other chain)
-        asset_id = TEST_ASSET_ID['peaq']
-        self._set_up_peaq_asset_on_peaq(asset_id, self.kp_eth['substrate'], True)
+        asset_id = TEST_SUFF_ASSET_ID['peaq']
+        self._set_up_peaq_asset_on_peaq(asset_id, TEST_SUFF_ASSET_TOKEN['peaq'], self.kp_eth['substrate'], True)
 
         kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         # register on aca
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
+            self.si_aca,
+            KP_GLOBAL_SUDO,
+            TEST_SUFF_ASSET_ID['para'],
+            TEST_SUFF_ASSET_TOKEN['para'],
+            TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -297,16 +341,16 @@ class TestBridgeXTokens(unittest.TestCase):
 
         evm_receipt = send_xtoken_transfer(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_src,
-            ACA_PD_CHAIN_ID, TEST_ASSET_ID['peaq'], TEST_TOKEN_NUM)
+            ACA_PD_CHAIN_ID, TEST_SUFF_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Extract...
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_SUFF_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)
 
     def test_bridge_xtoken_single_transfer_multi_asset(self):
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
@@ -324,15 +368,15 @@ class TestBridgeXTokens(unittest.TestCase):
     def test_bridge_xtoken_transfer_multi_currencies(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_ASSET_ID['peaq']
-        self._set_up_peaq_asset_on_peaq(asset_id, self.kp_eth['substrate'], True)
+        self._set_up_peaq_asset_on_peaq(asset_id, TEST_ASSET_TOKEN['peaq'], self.kp_eth['substrate'], True)
 
         kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         # register on aca
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_ID['para'], TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -345,22 +389,22 @@ class TestBridgeXTokens(unittest.TestCase):
 
         got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)
-        got_token = get_tokens_account_from_pallet_tokens(
+        got_token = get_tokens_account_from_pallet_assets(
             self.si_aca, kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)
 
     def test_bridge_xtoken_transfer_multi_assets(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_ASSET_ID['peaq']
-        self._set_up_peaq_asset_on_peaq(asset_id, self.kp_eth['substrate'], True)
+        self._set_up_peaq_asset_on_peaq(asset_id, TEST_ASSET_TOKEN['peaq'], self.kp_eth['substrate'], True)
 
         kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         # register on aca
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, TEST_ASSET_ID['para'], TEST_ASSET_TOKEN['para'], TEST_ASSET_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
         receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
@@ -373,6 +417,6 @@ class TestBridgeXTokens(unittest.TestCase):
 
         got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)
-        got_token = get_tokens_account_from_pallet_tokens(
+        got_token = get_tokens_account_from_pallet_assets(
             self.si_aca, kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)

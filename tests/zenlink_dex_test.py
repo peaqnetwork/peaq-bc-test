@@ -6,11 +6,10 @@ import pytest
 sys.path.append('./')
 
 from substrateinterface import SubstrateInterface
-from tools.utils import RELAYCHAIN_WS_URL, PARACHAIN_WS_URL, ACA_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
+from tools.utils import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance
-from tools.utils import get_peaq_chain_id
 from tools.currency import peaq, dot, aca
 from tools.runtime_upgrade import wait_until_block_height
 from tools.asset import setup_asset_if_not_exist
@@ -19,12 +18,9 @@ from tools.asset import RELAY_METADATA
 from tools.asset import get_valid_asset_id, batch_mint
 from tools.zenlink import compose_zdex_create_lppair, compose_zdex_lppair_params, compose_zdex_add_liquidity
 from tools.zenlink import calc_deadline
-from tools.xcm_setup import setup_hrmp_channel
 
 
 # Technical constants
-PARACHAIN_ID = get_peaq_chain_id()
-XCM_VER = 'V3'  # So far not tested with V2!
 XCM_RTA_TO = 45  # timeout for xcm-rta
 # Test parameter configurations
 TOK_LIQUIDITY = 50  # generic amount of tokens
@@ -451,11 +447,8 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
 class TestZenlinkDex(unittest.TestCase):
     def setUp(self):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
-        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
-        setup_hrmp_channel(RELAYCHAIN_WS_URL)
         show_title('Zenlink-DEX-Protocol Test')
         self.si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
-        self.si_bifrost = SubstrateInterface(url=ACA_WS_URL)
 
     def test_create_pair_swap(self):
         show_title('Zenlink-DEX-Protocol create pair swap Test')
