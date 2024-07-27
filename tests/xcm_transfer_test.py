@@ -29,9 +29,6 @@ from tools.asset import get_balance_account_from_pallet_balance
 from tools.asset import get_tokens_account_from_pallet_assets
 from peaq.utils import get_chain
 
-from tools.xcm_setup import setup_hrmp_channel
-# import pytest
-
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
 
@@ -263,10 +260,8 @@ class TestXCMTransfer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
-        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 3)
         wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 3)
-        setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL,)
@@ -344,43 +339,7 @@ class TestXCMTransfer(unittest.TestCase):
             f'Actual {now_balance} should > expected {prev_balance} tokens')
 
     # No fund dst account before receive the relay chain's token
-    def test_from_relay_to_peaq_with_sufficient(self):
-        receipt = setup_asset_if_not_exist(self.si_peaq, KP_GLOBAL_SUDO, RELAY_ASSET_ID['peaq'], RELAY_METADATA, 100, True)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-        receipt = setup_xc_register_if_not_exist(
-            self.si_peaq, KP_GLOBAL_SUDO,
-            RELAY_ASSET_ID['peaq'], RELAY_ASSET_LOCATION['peaq'], UNITS_PER_SECOND)
-        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
-
-        kp_remote_src = KP_CHARLIE
-        kp_self_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
-        receipt = fund(self.si_relay, KP_GLOBAL_SUDO, kp_remote_src, INIT_TOKEN_NUM)
-        self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
-
-        # Send foreigner tokens from the relay chain
-        receipt = self.send_relay_token_from_relay_to_peaq(kp_remote_src, kp_self_dst, TEST_TOKEN_NUM)
-        self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
-
-        now_token = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
-        self.assertGreater(
-            now_token, 0,
-            f'Actual {now_token} should > expected {TEST_TOKEN_NUM} tokens')
-
-        # Send from peaq to relay chain
-        prev_balance = get_account_balance(self.si_relay, kp_remote_src.ss58_address)
-
-        # For paying fee
-        receipt = fund(self.si_peaq, KP_GLOBAL_SUDO, kp_self_dst, INIT_TOKEN_NUM)
-        self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
-        token = now_token - REMAIN_TOKEN_NUM
-        receipt = send_token_from_peaq_to_relay(
-            self.si_peaq, kp_self_dst, kp_remote_src, RELAY_ASSET_ID['peaq'], token)
-        self.assertTrue(receipt.is_success, f'Failed to send token from peaq to relay chain: {receipt.error_message}')
-
-        now_balance = self.wait_for_account_change(self.si_relay, kp_remote_src, prev_balance)
-        self.assertGreater(
-            now_balance, prev_balance,
-            f'Actual {now_balance} should > expected {prev_balance} tokens')
+    # Remove test_from_relay_to_peaq_with_sufficient, because we've tested it in other asset
 
     # @pytest.mark.skip(reason="Success")
     # We don't need to test other token from aca to peaq because the flow is the same

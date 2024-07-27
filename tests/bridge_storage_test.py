@@ -4,6 +4,7 @@ from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account_hex, calculate_evm_addr, calculate_evm_account
 from peaq.extrinsic import transfer
 from tools.utils import WS_URL, ETH_URL
+from tools.utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
@@ -43,10 +44,7 @@ def _eth_add_item(substrate, w3, contract, eth_kp_src, item_type, item):
         _calcualte_evm_basic_req(substrate, w3, eth_kp_src.ss58_address)
     )
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
 
 def _eth_update_item(substrate, w3, contract, eth_kp_src, item_type, item):
@@ -54,10 +52,7 @@ def _eth_update_item(substrate, w3, contract, eth_kp_src, item_type, item):
         _calcualte_evm_basic_req(substrate, w3, eth_kp_src.ss58_address)
     )
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
 
 @pytest.mark.eth

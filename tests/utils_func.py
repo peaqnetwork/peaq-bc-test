@@ -1,11 +1,12 @@
 import os
 
-from tools.utils import WS_URL
+from tools.utils import WS_URL, RELAYCHAIN_WS_URL
 from peaq.utils import get_chain
 from tools.restart import restart_parachain_launch
 from tools.runtime_upgrade import do_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface
+from tools.xcm_setup import setup_hrmp_channel
 
 
 def is_runtime_upgrade_test():
@@ -19,6 +20,8 @@ def get_runtime_upgrade_path():
 # Will raise error
 def restart_parachain_and_runtime_upgrade():
     restart_parachain_launch()
+    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']

@@ -10,6 +10,7 @@ from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
 from tools.utils import KP_GLOBAL_SUDO
+from tools.utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import generate_random_hex
 
 
@@ -82,9 +83,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check
@@ -119,10 +118,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
             })
-
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check
@@ -158,9 +154,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check

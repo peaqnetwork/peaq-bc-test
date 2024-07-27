@@ -7,7 +7,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.utils import KP_GLOBAL_SUDO
 from tools.utils import WS_URL, ETH_URL
-from tools.utils import get_account_balance_locked
+from tools.utils import get_account_balance_locked, sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import get_eth_info
 from tools.utils import batch_fund
@@ -40,10 +40,7 @@ class TestBridgeVest(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_vest(self, contract, eth_kp_src):
         w3 = self._w3
@@ -56,10 +53,7 @@ class TestBridgeVest(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_vest_other(self, contract, eth_kp_src, evm_dst):
         w3 = self._w3
@@ -72,10 +66,7 @@ class TestBridgeVest(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def check_vested_transfer_from_event(self, event, caller, target, locked, per_block, starting_block):
         events = event.get_all_entries()

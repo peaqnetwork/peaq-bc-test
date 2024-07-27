@@ -1,7 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.utils import calculate_evm_addr
+from tools.utils import calculate_evm_addr, sign_and_submit_evm_transaction
 from tools.utils import WS_URL, ETH_URL
 from peaq.eth import calculate_evm_account
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -25,6 +25,9 @@ ETH_PRIVATE_KEY = generate_random_hex(15).encode("utf-8")
 ABI_FILE = 'ETH/rbac/rbac.sol.json'
 # Number of tokens with decimals
 TOKEN_NUM = 10000 * pow(10, 15)
+
+BATCH_ABI_FILE = 'ETH/batch/abi'
+BATCH_ADDRESS = '0x0000000000000000000000000000000000000805'
 
 
 def generate_random_id():
@@ -73,12 +76,6 @@ def _calcualte_evm_basic_req(substrate, w3, addr):
     }
 
 
-def _sign_and_submit_transaction(tx, w3, signer):
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    return w3.eth.wait_for_transaction_receipt(tx_hash)
-
-
 @pytest.mark.eth
 # NOTE: fetch_user_roles will return an error if the user has no roles
 class TestBridgeRbac(unittest.TestCase):
@@ -91,103 +88,139 @@ class TestBridgeRbac(unittest.TestCase):
         tx = self._contract.functions.addRole(role_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _evm_batch_call(self, fn_name, tuple_args):
+        addrs = [Web3.to_checksum_address(RBAC_ADDRESS) for _ in range(len(tuple_args))]
+        calls = [self._contract.encodeABI(fn_name=fn_name, args=[*tuple_arg])
+                 for tuple_arg in tuple_args]
+        empty = [0 for _ in range(len(tuple_args))]
+        tx = self._batch_contract.functions.batchAll(
+            addrs,
+            empty,
+            calls,
+            empty,
+            ).build_transaction(
+                _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
+            )
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _add_roles(self, roles):
+        return self._evm_batch_call('addRole', roles)
 
     def _update_role(self, role_id, name):
         tx = self._contract.functions.updateRole(role_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _disable_role(self, role_id):
         tx = self._contract.functions.disableRole(role_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _assign_role_to_user(self, role_id, user_id):
         tx = self._contract.functions.assignRoleToUser(role_id, user_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _assign_role_to_users(self, role_to_users):
+        return self._evm_batch_call('assignRoleToUser', role_to_users)
 
     def _unassign_role_to_user(self, role_id, user_id):
         tx = self._contract.functions.unassignRoleToUser(role_id, user_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _add_permission(self, permission_id, name):
         tx = self._contract.functions.addPermission(permission_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _add_permissions(self, permissions):
+        return self._evm_batch_call('addPermission', permissions)
 
     def _update_permission(self, permission_id, name):
         tx = self._contract.functions.updatePermission(permission_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _disable_permission(self, permission_id):
         tx = self._contract.functions.disablePermission(permission_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _assign_permission_to_role(self, permission_id, role_id):
         tx = self._contract.functions.assignPermissionToRole(permission_id, role_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _assign_permission_to_roles(self, permission_to_roles):
+        return self._evm_batch_call('assignPermissionToRole', permission_to_roles)
 
     def _unassign_permission_to_role(self, permission_id, role_id):
         tx = self._contract.functions.unassignPermissionToRole(permission_id, role_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _add_group(self, group_id, name):
         tx = self._contract.functions.addGroup(group_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _add_groups(self, groups):
+        return self._evm_batch_call('addGroup', groups)
 
     def _update_group(self, group_id, name):
         tx = self._contract.functions.updateGroup(group_id, name).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _disable_group(self, group_id):
         tx = self._contract.functions.disableGroup(group_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _assign_role_to_group(self, role_id, group_id):
         tx = self._contract.functions.assignRoleToGroup(role_id, group_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _assign_role_to_groups(self, role_to_groups):
+        return self._evm_batch_call('assignRoleToGroup', role_to_groups)
 
     def _unassign_role_to_group(self, role_id, group_id):
         tx = self._contract.functions.unassignRoleToGroup(role_id, group_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     def _assign_user_to_group(self, user_id, group_id):
         tx = self._contract.functions.assignUserToGroup(user_id, group_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
+
+    def _assign_user_to_groups(self, user_to_groups):
+        return self._evm_batch_call('assignUserToGroup', user_to_groups)
 
     def _unassign_user_to_group(self, user_id, group_id):
         tx = self._contract.functions.unassignUserToGroup(user_id, group_id).build_transaction(
             _calcualte_evm_basic_req(self._substrate, self._w3, self._eth_kp_src.ss58_address)
         )
-        return _sign_and_submit_transaction(tx, self._w3, self._eth_kp_src)
+        return sign_and_submit_evm_transaction(tx, self._w3, self._eth_kp_src)
 
     ##############################################################################
     # Functions that verify events
@@ -505,6 +538,7 @@ class TestBridgeRbac(unittest.TestCase):
         self._substrate = SubstrateInterface(url=WS_URL)
         self._eth_kp_src = Keypair.create_from_private_key(ETH_PRIVATE_KEY, crypto_type=KeypairType.ECDSA)
         self._contract = get_contract(self._w3, RBAC_ADDRESS, ABI_FILE)
+        self._batch_contract = get_contract(self._w3, BATCH_ADDRESS, BATCH_ABI_FILE)
 
     # *************************************************************************
     # Test RBAC Bridge
@@ -525,19 +559,13 @@ class TestBridgeRbac(unittest.TestCase):
         self.fund_account()
 
         # add roles, permissions and groups
-        self._verify_add_role(self._add_role(*roles[0]), *roles[0])
-        self._add_role(*roles[1])
-        self._add_role(*roles[2])
+        self._verify_add_role(self._add_roles(roles), *roles[0])
 
-        self._verify_add_permission(self._add_permission(*permissions[0]), *permissions[0])
-        self._add_permission(*permissions[1])
-        self._add_permission(*permissions[2])
+        self._verify_add_permission(self._add_permissions(permissions), *permissions[0])
 
-        self._verify_add_group(self._add_group(*groups[0]), *groups[0])
-        self._add_group(*groups[1])
-        self._add_group(*groups[2])
+        self._verify_add_group(self._add_groups(groups), *groups[0])
 
-        # update roles, permissions and groups
+        # # update roles, permissions and groups
         self._verify_update_role(self._update_role(*roles[1]), *roles[1])
         self._verify_update_permission(self._update_permission(*permissions[1]), *permissions[1])
         self._verify_update_group(self._update_group(*groups[1]), *groups[1])
@@ -548,34 +576,53 @@ class TestBridgeRbac(unittest.TestCase):
         self._verify_disable_group(self._disable_group(groups[2][0]), groups[2][0])
 
         # assign role to user
-        self._verify_assign_role_to_user(self._assign_role_to_user(roles[0][0], users[0][0]), roles[0][0], users[0][0])
-        self._assign_role_to_user(roles[1][0], users[0][0])
-        self._assign_role_to_user(roles[2][0], users[0][0])
+        role_to_users = [
+            (roles[0][0], users[0][0]),
+            (roles[1][0], users[0][0]),
+            (roles[2][0], users[0][0])
+        ]
+        self._verify_assign_role_to_user(self._assign_role_to_users(role_to_users), roles[0][0], users[0][0])
 
         # unassign role to user
-        self._verify_unassign_role_to_user(self._unassign_role_to_user(roles[0][0], users[0][0]), roles[0][0], users[0][0])
+        self._verify_unassign_role_to_user(
+            self._unassign_role_to_user(roles[0][0], users[0][0]), roles[0][0], users[0][0])
 
         # assign permission to role
-        self._verify_assign_permission_to_role(self._assign_permission_to_role(permissions[0][0], roles[0][0]), permissions[0][0], roles[0][0])
-        self._assign_permission_to_role(permissions[1][0], roles[0][0])
-        self._assign_permission_to_role(permissions[2][0], roles[0][0])
+        permission_to_roles = [
+            (permissions[0][0], roles[0][0]),
+            (permissions[1][0], roles[0][0]),
+            (permissions[2][0], roles[0][0])
+        ]
+        self._verify_assign_permission_to_role(
+            self._assign_permission_to_roles(permission_to_roles), permissions[0][0], roles[0][0])
 
         # unassign permission to role
-        self._verify_unassign_permission_to_role(self._unassign_permission_to_role(permissions[0][0], roles[0][0]), permissions[0][0], roles[0][0])
+        self._verify_unassign_permission_to_role(
+            self._unassign_permission_to_role(permissions[0][0], roles[0][0]), permissions[0][0], roles[0][0])
 
         # assign role to group
-        self._verify_assign_role_to_group(self._assign_role_to_group(roles[0][0], groups[0][0]), roles[0][0], groups[0][0])
-        self._assign_role_to_group(roles[1][0], groups[0][0])
-        self._assign_role_to_group(roles[2][0], groups[0][0])
+        role_to_groups = [
+            (roles[0][0], groups[0][0]),
+            (roles[1][0], groups[0][0]),
+            (roles[2][0], groups[0][0])
+        ]
+        self._verify_assign_role_to_group(
+            self._assign_role_to_groups(role_to_groups), roles[0][0], groups[0][0])
 
         # unassign role to group
-        self._verify_unassign_role_to_group(self._unassign_role_to_group(roles[0][0], groups[0][0]), roles[0][0], groups[0][0])
+        self._verify_unassign_role_to_group(
+            self._unassign_role_to_group(roles[0][0], groups[0][0]), roles[0][0], groups[0][0])
 
         # assign user to group
-        self._verify_assign_user_to_group(self._assign_user_to_group(users[0][0], groups[0][0]), users[0][0], groups[0][0])
-        self._assign_user_to_group(users[0][0], groups[1][0])
-        self._assign_user_to_group(users[0][0], groups[2][0])
-        self._assign_user_to_group(users[1][0], groups[1][0])
+        user_to_groups = [
+            (users[0][0], groups[0][0]),
+            (users[0][0], groups[1][0]),
+            (users[0][0], groups[2][0]),
+            (users[1][0], groups[1][0])
+        ]
+        self._verify_assign_user_to_group(
+            self._assign_user_to_groups(user_to_groups), users[0][0], groups[0][0])
 
         # unassign user to group
-        self._verify_unassign_user_to_group(self._unassign_user_to_group(users[0][0], groups[0][0]), users[0][0], groups[0][0])
+        self._verify_unassign_user_to_group(
+            self._unassign_user_to_group(users[0][0], groups[0][0]), users[0][0], groups[0][0])

@@ -4,6 +4,7 @@ from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
 from tools.utils import WS_URL, ETH_URL
+from tools.utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import deploy_contract
 from tools.peaq_eth_utils import call_eth_transfer_a_lot
@@ -44,10 +45,7 @@ def send_eth_token(w3, kp_src, kp_dst, token_num, eth_chain_id):
         'nonce': nonce,
         'chainId': eth_chain_id
     }
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return tx_receipt
+    return sign_and_submit_evm_transaction(tx, w3, kp_src)
 
 
 def get_contract_data(w3, address, filename):
@@ -68,11 +66,8 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
         'nonce': nonce,
         'chainId': eth_chain_id})
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    print(f'call: {tx_hash.hex()}')
-    w3.eth.wait_for_transaction_receipt(tx_hash)
-    return True
+    receipt = sign_and_submit_evm_transaction(tx, w3, kp_src)
+    return receipt['status'] == TX_SUCCESS_STATUS
 
 
 @pytest.mark.eth
