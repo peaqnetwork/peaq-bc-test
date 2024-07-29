@@ -194,7 +194,7 @@ def setup_xc_register_if_not_exist(si_peaq, kp_sudo, asset_id, location, units_p
 
 
 def get_valid_asset_id(conn):
-    for i in range(1, 100):
+    for i in range(30, 130):
         asset = conn.query("Assets", "Asset", [convert_enum_to_asset_id({'Token': i})])
         if asset.value:
             continue

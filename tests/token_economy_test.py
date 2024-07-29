@@ -28,6 +28,7 @@ STATE_INFOS = [{
     'module': 'ParachainStaking',
     'storage_function': 'Round',
     'type': {
+        # From runtime ugprade, we have to change it to 20
         'peaq-dev': {'length': 20},
         'krest-network': {'length': 2400},
         'peaq-network': {'length': 2400},

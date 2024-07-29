@@ -6,6 +6,7 @@ from peaq.utils import show_extrinsic
 from peaq.utils import ExtrinsicBatch
 from tools.utils import batch_fund, get_event
 import unittest
+import random
 
 # Assumptions
 # 1. Treasury address is:'5EYCAe5ijiYfyeZ2JJCGq56LmPyNRAKzpG4QkoQkkQNB5e6Z'
@@ -24,7 +25,7 @@ WEIGHT_BOND = {
     'proof_size': 1000000
 }
 LENGTH_BOND = 100
-AMOUNT = 10
+AMOUNT = random.randint(1, 100000000)
 TOTAL_AMOUNT = 20 ** 5 * 10 ** 18
 
 DIVISION_FACTOR = pow(10, 7)

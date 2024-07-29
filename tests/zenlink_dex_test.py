@@ -5,6 +5,7 @@ import pytest
 
 sys.path.append('./')
 
+from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
 from tools.utils import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
@@ -26,6 +27,9 @@ XCM_RTA_TO = 45  # timeout for xcm-rta
 TOK_LIQUIDITY = 50  # generic amount of tokens
 TOK_SWAP = 1  # generic amount of tokens
 MORE_EXISTENTIAL_TOKENS = 10000
+
+URI_MOON = '//Moon'
+URI_MARS = '//Mars'
 
 
 # [TODO] Need to move the setup (asset_resgiter/metadata here)
@@ -229,8 +233,8 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     """
     show_subtitle('create_pair_n_swap_test')
 
-    user1 = '//Dave'
-    user2 = '//Bob'
+    user1 = URI_MOON
+    user2 = URI_MARS
 
     kp_para_sudo = into_keypair(KP_GLOBAL_SUDO)
     kp_beneficiary = into_keypair(user1)
@@ -308,8 +312,8 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     tok_limit = 5
     assert TOK_LIQUIDITY / 2 > tok_limit
 
-    cont = '//Dave'
-    user = '//Bob'
+    cont = URI_MOON
+    user = URI_MARS
 
     kp_sudo = into_keypair(KP_GLOBAL_SUDO)
     kp_cont = into_keypair(cont)
@@ -395,8 +399,8 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
     """
     show_subtitle('zenlink_empty_lp_swap_test')
 
-    usr1 = '//Dave'
-    usr2 = '//Bob'
+    usr1 = URI_MOON
+    usr2 = URI_MARS
 
     bt_sudo = ExtrinsicBatch(si_peaq, KP_GLOBAL_SUDO)
     bt_usr1 = ExtrinsicBatch(si_peaq, usr1)
@@ -449,12 +453,16 @@ class TestZenlinkDex(unittest.TestCase):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
         show_title('Zenlink-DEX-Protocol Test')
         self.si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+        funds(self.si_peaq, KP_GLOBAL_SUDO,
+              [into_keypair(URI_MOON).ss58_address, into_keypair(URI_MARS).ss58_address],
+              100000 * 10 ** 18)
 
     def test_create_pair_swap(self):
         show_title('Zenlink-DEX-Protocol create pair swap Test')
         try:
             si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
-            asset_id = get_valid_asset_id(si_peaq)
+            # [TODO] It can only be asset 1...
+            asset_id = 1
             setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
             create_pair_n_swap_test(si_peaq, asset_id)
 
