@@ -258,7 +258,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         # Note: The unlock unstaked didn't success because we have to wait about 20+ blocks;
         # therefore, we don't test here. Can just test maunally
 
-    def test_delegator_customized_claim(self):
+    def claim_collator_if_not_claimed(self, eth_kp):
         eth_kp = get_eth_info()
         signature = calculate_claim_signature(
             self._substrate,
@@ -266,8 +266,15 @@ class bridge_parachain_staking_test(unittest.TestCase):
             eth_kp['kp'].private_key.hex(),
             self._eth_chain_id)
         receipt = claim_account(self._substrate, KP_COLLATOR, eth_kp['kp'], signature)
+        if not receipt.is_success and 'AccountIdHasMapped' == receipt.error_message['name']:
+            return
         self.assertTrue(
             receipt.is_success, f'Failed to claim account {KP_COLLATOR.ss58_address}, {receipt.error_message}')
+
+    # Can only test once before we restart
+    def test_delegator_customized_claim(self):
+        eth_kp = get_eth_info()
+        self.claim_collator_if_not_claimed(eth_kp)
 
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
@@ -284,3 +291,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
             event['attributes'],
             (self._kp_moon['substrate'], collator_num, KP_COLLATOR.ss58_address, 2 * collator_num),
             f'join fails, event: {event}')
+
+        evm_receipt = self.evm_delegator_leave_delegators(contract, self._kp_moon['kp'])
+        self.assertEqual(evm_receipt['status'], 1, f'leave fails, evm_receipt: {evm_receipt}')
