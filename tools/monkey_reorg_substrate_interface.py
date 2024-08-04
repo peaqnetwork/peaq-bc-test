@@ -31,9 +31,6 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
         if 'params' in message and message['params']['result'] == 'invalid':
             self.rpc_request('author_unwatchExtrinsic', [subscription_id])
             raise SubstrateRequestException(f'{message} inavlid')
-        if 'params' in message and message['params']['result'] == 'retracted':
-            self.rpc_request('author_unwatchExtrinsic', [subscription_id])
-            raise SubstrateRequestException(f'{message} retracted')
 
         # Check if extrinsic is included and finalized
         if 'params' in message and type(message['params']['result']) is dict:
