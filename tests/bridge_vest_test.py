@@ -7,7 +7,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.utils import KP_GLOBAL_SUDO
 from tools.utils import WS_URL, ETH_URL
-from tools.utils import get_account_balance_locked, sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import get_account_balance_locked, sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import get_eth_info
 from tools.utils import batch_fund

@@ -15,15 +15,15 @@ from peaq.utils import calculate_multi_sig
 
 # Monkey patch
 from scalecodec.types import FixedLengthArray
-from tools.monkey_patch_scale_info import process_encode as new_process_encode
+from tools.monkey.monkey_patch_scale_info import process_encode as new_process_encode
 from tools.payload import user_extrinsic_send
 FixedLengthArray.process_encode = new_process_encode
 
-from tools.monkey_reorg_substrate_interface import monkey_submit_extrinsic
+from tools.monkey.monkey_reorg_substrate_interface import monkey_submit_extrinsic
 SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
 
 from peaq.utils import ExtrinsicBatch
-from tools.monkey_reorg_batch import monkey_execute_extrinsic_batch
+from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
 
@@ -463,15 +463,6 @@ def get_balance_reserve_value(substrate, account, key):
         if item['id'] == hex_key:
             return item['amount']
     return 0
-
-
-def sign_and_submit_evm_transaction(tx, w3, signer):
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    print(f'evm tx: {tx_hash.hex()}')
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
-    print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
-    return receipt
 
 
 if __name__ == '__main__':

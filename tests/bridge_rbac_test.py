@@ -1,7 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.utils import calculate_evm_addr, sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import calculate_evm_addr, sign_and_submit_evm_transaction
 from tools.utils import WS_URL, ETH_URL
 from peaq.eth import calculate_evm_account
 from tools.peaq_eth_utils import get_eth_chain_id

@@ -10,7 +10,7 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.utils import KP_GLOBAL_SUDO
-from tools.utils import sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from web3 import Web3
 
 

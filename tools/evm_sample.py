@@ -6,7 +6,7 @@ from web3 import Web3
 from tools.peaq_eth_utils import deploy_contract, get_contract
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.utils import WS_URL, ETH_URL
-from tools.utils import sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.eth import calculate_evm_account
 from peaq.extrinsic import transfer
 
