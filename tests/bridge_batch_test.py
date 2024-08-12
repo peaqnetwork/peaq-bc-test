@@ -10,7 +10,7 @@ from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
 from tools.utils import KP_GLOBAL_SUDO
-from tools.utils import sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import generate_random_hex
 
 
