@@ -78,7 +78,7 @@ def upgrade(substrate, kp_src):
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'upgrade?')
 
 

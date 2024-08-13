@@ -7,6 +7,7 @@ from substrateinterface.utils import hasher
 from peaq.eth import calculate_evm_account
 from web3 import Web3
 from peaq import eth
+from tools.utils import ETH_TIMEOUT
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -64,10 +65,7 @@ def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
             'nonce': nonce,
             'chainId': eth_chain_id})
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    print(f'create_contract: {tx_hash.hex()}')
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_src)
 
     address = tx_receipt['contractAddress']
     return address
@@ -107,3 +105,12 @@ def calculate_evm_default_addr(sub_addr):
     hash_key = hasher.blake2_256(evm_addr)
     new_addr = '0x' + hash_key.hex()[:40]
     return Web3.to_checksum_address(new_addr.lower())
+
+
+def sign_and_submit_evm_transaction(tx, w3, signer):
+    signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+    print(f'evm tx: {tx_hash.hex()}')
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+    print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
+    return receipt

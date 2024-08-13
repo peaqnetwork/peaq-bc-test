@@ -1,7 +1,9 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface, Keypair
 from tools.asset import batch_create_asset, get_valid_asset_id, batch_set_metadata, batch_mint
 from tools.utils import WS_URL, ETH_URL
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -22,7 +24,7 @@ TEST_METADATA = {
 def batch_transfer(batch, addr_dst, token_num):
     batch.compose_call(
         'Balances',
-        'transfer',
+        'transfer_keep_alive',
         {
             'dest': addr_dst,
             'value': token_num
@@ -30,6 +32,7 @@ def batch_transfer(batch, addr_dst, token_num):
     )
 
 
+@pytest.mark.eth
 class erc20_asset_test(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
@@ -51,10 +54,7 @@ class erc20_asset_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def test_metadata_asset(self):
         asset_id = get_valid_asset_id(self._substrate)

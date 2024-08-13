@@ -1,31 +1,22 @@
 from peaq.utils import ExtrinsicBatch
 from tools.utils import ACA_PD_CHAIN_ID, get_peaq_chain_id
 from peaq.utils import get_account_balance
-import copy
 import time
 
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
 
-XCM_VER = 'V3'  # So far not tested with V2!
+XCM_VER = 'V4'  # So far not tested with V2!
 
 ACA_ASSET_ID = {
     'peaq': '3',
-    'para': {
-        'Token': 'ACA',
-    }
+    'para': '0',
 }
 ACA_ASSET_LOCATION = {
     'peaq': {
         XCM_VER: {
             'parents': '1',
-            'interior': {'X2': [
-                {'Parachain': ACA_PD_CHAIN_ID},
-                {'GeneralKey': {
-                    'length': 2,
-                    'data': [0, 0] + [0] * 30,
-                }}
-            ]}
+            'interior': {'X1': [{'Parachain': ACA_PD_CHAIN_ID}]}
         }
     },
     'para': None
@@ -35,7 +26,7 @@ UNITS_PER_SECOND = 5 * 10 ** 5
 ACA_METADATA = {
     'name': 'ACA',
     'symbol': 'ACA',
-    'decimals': 12,
+    'decimals': 18,
 }
 
 
@@ -60,9 +51,7 @@ RELAY_METADATA = {
 
 PEAQ_ASSET_ID = {
     'peaq': '0',
-    'para': {
-        'ForeignAsset': '0',
-    }
+    'para': '3',
 }
 PEAQ_ASSET_LOCATION = {
     'peaq': {
@@ -74,7 +63,7 @@ PEAQ_ASSET_LOCATION = {
     'para': {
         XCM_VER: {
             'parents': '1',
-            'interior': {'X1': {'Parachain': PEAQ_PD_CHAIN_ID}}
+            'interior': {'X1': [{'Parachain': PEAQ_PD_CHAIN_ID}]}
         }
     },
 }
@@ -168,23 +157,14 @@ class AlwaysTrueReceipt():
         return ''
 
 
-def setup_aca_asset_if_not_exist(si_aca, kp_sudo, location, metadata, min_balance=100):
-    resp = si_aca.query('AssetRegistry', 'LocationToCurrencyIds', [location['V3']])
-    if resp.value:
-        return AlwaysTrueReceipt()
+# This function is only for ACA chain, now deprecated because we are no longer use ACA chain
+def setup_aca_asset_if_not_exist(si_aca, kp_sudo, asset_id, location, metadata, min_balance=100):
+    out = setup_asset_if_not_exist(si_aca, kp_sudo, asset_id, metadata, min_balance, True)
+    if not out.is_success:
+        return out
 
-    new_metadata = copy.deepcopy(metadata)
-    new_metadata['minimal_balance'] = min_balance
-    batch = ExtrinsicBatch(si_aca, kp_sudo)
-    batch.compose_sudo_call(
-        'AssetRegistry',
-        'register_foreign_asset',
-        {
-            'location': location,
-            'metadata': new_metadata,
-        }
-    )
-    return batch.execute()
+    out = setup_xc_register_if_not_exist(si_aca, kp_sudo, asset_id, location, UNITS_PER_SECOND)
+    return out
 
 
 def setup_asset_if_not_exist(si_peaq, kp_sudo, asset_id, metadata, min_balance=100, is_sufficient=False):
@@ -214,7 +194,7 @@ def setup_xc_register_if_not_exist(si_peaq, kp_sudo, asset_id, location, units_p
 
 
 def get_valid_asset_id(conn):
-    for i in range(1, 100):
+    for i in range(30, 130):
         asset = conn.query("Assets", "Asset", [convert_enum_to_asset_id({'Token': i})])
         if asset.value:
             continue
@@ -233,6 +213,7 @@ def get_tokens_account_from_pallet_assets(substrate, addr, asset_id):
     return resp.value['balance']
 
 
+# Only for other chain (aca), but now we are use the peaq chain to test XCM
 def get_tokens_account_from_pallet_tokens(substrate, addr, asset_id):
     resp = substrate.query("Tokens", "Accounts", [addr, asset_id])
     if not resp.value:

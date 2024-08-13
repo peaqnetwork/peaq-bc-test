@@ -15,9 +15,17 @@ from peaq.utils import calculate_multi_sig
 
 # Monkey patch
 from scalecodec.types import FixedLengthArray
-from tools.monkey_patch_scale_info import process_encode as new_process_encode
-from tools.payload import sudo_call_compose, sudo_extrinsic_send, user_extrinsic_send
+from tools.monkey.monkey_patch_scale_info import process_encode as new_process_encode
+from tools.payload import user_extrinsic_send
 FixedLengthArray.process_encode = new_process_encode
+
+from tools.monkey.monkey_reorg_substrate_interface import monkey_submit_extrinsic
+SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
+
+from peaq.utils import ExtrinsicBatch
+from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
+ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
+
 
 TOKEN_NUM_BASE = pow(10, 3)
 TOKEN_NUM_BASE_DEV = pow(10, 18)
@@ -34,6 +42,7 @@ ACA_ETH_URL = 'http://127.0.0.1:10144'
 # WS_URL = 'ws://127.0.0.1:9944'
 # ETH_URL = 'http://127.0.0.1:9933'
 AUTOTEST_URI = os.environ.get('AUTOTEST_URI')
+ETH_TIMEOUT = 6 * 5
 
 if AUTOTEST_URI:
     PARACHAIN_WS_URL = 'wss://' + AUTOTEST_URI
@@ -94,7 +103,7 @@ def deposit_money_to_multsig_wallet(substrate, kp_consumer, kp_provider, token_n
     multi_sig_addr = calculate_multi_sig(signators, threshold)
     return substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': multi_sig_addr,
             'value': token_num * TOKEN_NUM_BASE
@@ -118,7 +127,7 @@ def send_spent_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, t
     print('----- Provider asks the spent token')
     payload = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_provider.ss58_address,
             'value': token_num * TOKEN_NUM_BASE
@@ -145,7 +154,7 @@ def send_spent_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, t
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'as_multi')
     info = receipt.get_extrinsic_identifier().split('-')
     return {
@@ -160,7 +169,7 @@ def send_refund_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, 
     print('----- Provider asks the refund token')
     payload = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_consumer.ss58_address,
             'value': token_num * TOKEN_NUM_BASE
@@ -187,7 +196,7 @@ def send_refund_token_from_multisig_wallet(substrate, kp_consumer, kp_provider, 
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'as_multi')
     info = receipt.get_extrinsic_identifier().split('-')
     return {
@@ -221,7 +230,7 @@ def send_spent_token_service_delievered(
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'service_delivered')
 
 
@@ -249,7 +258,7 @@ def send_refund_token_service_delievered(
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'service_delivered')
 
 
@@ -299,13 +308,12 @@ def show_account(substrate, addr, out_str):
     return result
 
 
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def set_block_reward_configuration(substrate, data):
-    return substrate.compose_call(
-        call_module='BlockReward',
-        call_function='set_configuration',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'BlockReward',
+        'set_configuration',
+        {
             'reward_distro_params': {
                 'treasury_percent': data['treasury_percent'],
                 'depin_incentivization_percent': data['depin_incentivization_percent'],
@@ -316,20 +324,23 @@ def set_block_reward_configuration(substrate, data):
             }
         }
     )
+    return batch.execute()
 
 
-@user_extrinsic_send
 def send_proposal(substrate, kp_src, kp_dst, threshold, payload, timepoint=None):
-    return substrate.compose_call(
-        call_module='Multisig',
-        call_function='as_multi',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'Multisig',
+        'as_multi',
+        {
             'threshold': threshold,
             'other_signatories': [kp_dst.ss58_address],
             'maybe_timepoint': timepoint,
             'call': payload.value,
             'max_weight': {'ref_time': 1000000000, 'proof_size': 1000000},
-        })
+        }
+    )
+    return batch.execute()
 
 
 def get_as_multi_extrinsic_id(receipt):
@@ -337,18 +348,20 @@ def get_as_multi_extrinsic_id(receipt):
     return {'height': int(info[0]), 'index': int(info[1])}
 
 
-@user_extrinsic_send
 def send_approval(substrate, kp_src, kps, threshold, payload, timepoint):
-    return substrate.compose_call(
-        call_module='Multisig',
-        call_function='approve_as_multi',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'Multisig',
+        'approve_as_multi',
+        {
             'threshold': threshold,
             'other_signatories': [kp.ss58_address for kp in kps],
             'maybe_timepoint': timepoint,
             'call_hash': f'0x{payload.call_hash.hex()}',
             'max_weight': {'ref_time': 1000000000, 'proof_size': 1000000},
-        })
+        }
+    )
+    return batch.execute()
 
 
 def get_collators(substrate, key):

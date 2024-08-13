@@ -2,11 +2,13 @@ from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL
 from tools.utils import set_block_reward_configuration
 import unittest
+import pytest
 
 COLLATOR_REWARD_RATE = 0.1
 WAIT_TIME_PERIOD = 12 * 3
 
 
+@pytest.mark.substrate
 class TestPalletBlockReward(unittest.TestCase):
 
     def setUp(self):

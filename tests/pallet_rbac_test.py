@@ -1,5 +1,6 @@
 import traceback
 import sys
+import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL
@@ -126,6 +127,7 @@ def show_success_msg(msg):
 # Check before:
 # type_registry_preset_dict = load_type_registry_preset(type_registry_name)
 # ~/venv.substrate/lib/python3.6/site-packages/substrateinterface/base.py
+@pytest.mark.substrate
 class TestPalletRBAC(unittest.TestCase):
 
     ##############################################################################
