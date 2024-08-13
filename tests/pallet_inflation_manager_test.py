@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface
 from tools.utils import WS_URL, get_modified_chain_spec
@@ -59,17 +60,14 @@ INFLATION_YEAR = {
 }
 
 INFLATION_RECALCULATION = {
-    'peaq-network': 2628000,
+    'peaq-network': 5256000,
     'peaq-network-fork': 3617954,
-    'peaq-dev': 2628000,
+    'peaq-dev': 5256000,
     'peaq-dev-fork': 5084632,
     # Because of the delay TGE
     'krest-network': 2915990,
     'krest-network-fork': 2915990,
 }
-
-# Expected recalculation target at genesis
-RECALCULATION_AFTER = 2628000
 
 
 class InflationState(Enum):
@@ -80,6 +78,7 @@ class InflationState(Enum):
     RecalculationAt = 'DoRecalculationAt'
 
 
+@pytest.mark.substrate
 class TestPalletInflationManager(unittest.TestCase):
     # Fetches storage at latest block unless a blocknumber is provided
     def _fetch_pallet_storage(self, storage_name, block_number=None):

@@ -6,6 +6,7 @@ from web3 import Web3
 from tools.peaq_eth_utils import deploy_contract, get_contract
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.utils import WS_URL, ETH_URL
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.eth import calculate_evm_account
 from peaq.extrinsic import transfer
 
@@ -49,9 +50,7 @@ if __name__ == '__main__':
         'nonce': nonce,
         'chainId': ETH_CHAIN_ID})
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_eth_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_eth_src)
     import pdb
     pdb.set_trace()
     block_number = tx_receipt['blockNumber']

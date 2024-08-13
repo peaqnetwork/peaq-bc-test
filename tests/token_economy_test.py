@@ -1,4 +1,5 @@
 import unittest
+import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, get_modified_chain_spec
@@ -18,7 +19,6 @@ STATE_INFOS = [{
     'storage_function': 'MaxSelectedCandidates',
     'type': {
         'peaq-dev': 4,
-        'agung-network': 4,
         'krest-network': 4,
         # However: in the krest-forked-chain, it should be 16 by sending the extrinsic for the fork chain
         'krest-network-fork': 16,
@@ -28,10 +28,10 @@ STATE_INFOS = [{
     'module': 'ParachainStaking',
     'storage_function': 'Round',
     'type': {
-        'peaq-dev': {'length': 10},
-        'agung-network': {'length': 600},
-        'krest-network': {'length': 1200},
-        'peaq-network': {'length': 1200},
+        # From runtime ugprade, we have to change it to 20
+        'peaq-dev': {'length': 20},
+        'krest-network': {'length': 2400},
+        'peaq-network': {'length': 2400},
     }
 }, {
     'module': 'BlockReward',
@@ -40,14 +40,6 @@ STATE_INFOS = [{
         # It's special case because below is percentage,
         # and then you have to divide by 1000000000
         'peaq-dev': {
-            'treasury_percent': 250000000,
-            'collators_delegators_percent': 400000000,
-            'coretime_percent': 100000000,
-            'subsidization_pool_percent': 50000000,
-            'depin_staking_percent': 50000000,
-            'depin_incentivization_percent': 150000000,
-        },
-        'agung-network': {
             'treasury_percent': 250000000,
             'collators_delegators_percent': 400000000,
             'coretime_percent': 100000000,
@@ -80,7 +72,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MaxCollatorsPerDelegator',
     'type': {
         'peaq-dev': 1,
-        'agung-network': 1,
         'krest-network': 1,
         'peaq-network': 1,
     }
@@ -89,7 +80,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MaxDelegationsPerRound',
     'type': {
         'peaq-dev': 1,
-        'agung-network': 1,
         'krest-network': 1,
         'peaq-network': 1,
     }
@@ -98,7 +88,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MaxDelegatorsPerCollator',
     'type': {
         'peaq-dev': 25,
-        'agung-network': 25,
         'krest-network': 25,
         'peaq-network': 32,
     }
@@ -107,7 +96,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MaxTopCandidates',
     'type': {
         'peaq-dev': 16,
-        'agung-network': 16,
         'krest-network': 128,
         'peaq-network': 32,
     }
@@ -116,7 +104,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MinCollatorCandidateStake',
     'type': {
         'peaq-dev': 32000,
-        'agung-network': 32000,
         'krest-network': 50000 * 10 ** 18,
         'peaq-network': 50000 * 10 ** 18,
     }
@@ -125,7 +112,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MinCollatorStake',
     'type': {
         'peaq-dev': 32000,
-        'agung-network': 32000,
         'krest-network': 50000 * 10 ** 18,
         'peaq-network': 50000 * 10 ** 18,
     }
@@ -134,7 +120,6 @@ CONSTANT_INFOS = [{
     'storage_function': 'MinDelegation',
     'type': {
         'peaq-dev': 20000,
-        'agung-network': 20000,
         'krest-network': 100 * 10 ** 18,
         'peaq-network': 100 * 10 ** 18,
     }
@@ -143,13 +128,14 @@ CONSTANT_INFOS = [{
     'storage_function': 'MinDelegatorStake',
     'type': {
         'peaq-dev': 20000,
-        'agung-network': 20000,
         'krest-network': 100 * 10 ** 18,
         'peaq-network': 100 * 10 ** 18,
     }
 }]
 
 
+@pytest.mark.relaunch
+@pytest.mark.substrate
 class TokenEconomyTest(unittest.TestCase):
 
     def get_info(self, test_type):

@@ -1,6 +1,8 @@
 import unittest
 import sys
 sys.path.append('./')
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, KP_GLOBAL_SUDO
 from tools.asset import batch_create_asset, batch_set_metadata, batch_mint, get_valid_asset_id
@@ -130,6 +132,7 @@ def batch_thaw(batch, kp_src, asset_id):
 
 
 # Only for partial testing
+@pytest.mark.substrate
 class pallet_assets_test(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)

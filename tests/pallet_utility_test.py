@@ -1,3 +1,4 @@
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import WS_URL, TOKEN_NUM_BASE
 from peaq.utils import show_extrinsic
@@ -11,6 +12,7 @@ AMOUNT_TO_BE_TRANSFERED = 1
 # after transaction, dest will be credited twice as AMOUNT_TO_BE_TRANSFERED
 
 
+@pytest.mark.substrate
 class TestPalletUtility(unittest.TestCase):
 
     # source account
@@ -24,7 +26,7 @@ class TestPalletUtility(unittest.TestCase):
                 url=WS_URL
             )
 
-    def test_all_valid_extrinsics_bath(self):
+    def test_all_valid_extrinsics_batch(self):
         substrate = self.substrate
         kp_src = self.kp_src
         kp_dst = self.kp_dst
@@ -38,13 +40,13 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
             })
 
-        # above valid transaciton repeated twice to compose a bath of transaction
+        # above valid transaciton repeated twice to compose a batch of transaction
         batch = substrate.compose_call(
             call_module='Utility',
             call_function='batch',
@@ -57,7 +59,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
@@ -73,7 +75,7 @@ class TestPalletUtility(unittest.TestCase):
         self.assertEqual(bal_dst_before + (AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE) * 2,
                          bal_dst_after)
 
-    def test_all_valid_extrinsics_bath_all(self):
+    def test_all_valid_extrinsics_batch_all(self):
         substrate = self.substrate
         kp_src = self.kp_src
         kp_dst = self.kp_dst
@@ -87,13 +89,13 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
             })
 
-        # above valid transaciton repeated twice to compose a bath_all of trans
+        # above valid transaciton repeated twice to compose a batch_all of trans
         batch = substrate.compose_call(
             call_module='Utility',
             call_function='batch_all',
@@ -106,7 +108,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
@@ -121,7 +123,7 @@ class TestPalletUtility(unittest.TestCase):
         # since same amount has been transfered two times
         self.assertEqual(bal_dst_before + (AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE) * 2, bal_dst_after)
 
-    def test_atleast_one_invalid_extrinsic_bath(self):
+    def test_atleast_one_invalid_extrinsic_batch(self):
         substrate = self.substrate
         kp_src = self.kp_src
         kp_dst = self.kp_dst
@@ -135,7 +137,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
@@ -164,7 +166,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
         self.assertTrue(receipt.is_success,
                         f'Batch extrinsic failed: {receipt.error_message} + ' +
                         f'{substrate.get_events(receipt.block_hash)}')
@@ -178,7 +180,7 @@ class TestPalletUtility(unittest.TestCase):
         # since amount has been transfered only once
         self.assertEqual(bal_dst_before + (AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE), bal_dst_after)
 
-    def test_atleast_one_invalid_extrinsic_bath_all(self):
+    def test_atleast_one_invalid_extrinsic_batch_all(self):
         substrate = self.substrate
         kp_src = self.kp_src
         kp_dst = self.kp_dst
@@ -192,7 +194,7 @@ class TestPalletUtility(unittest.TestCase):
         # a valid  transaciton
         payload_first = substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': kp_dst.ss58_address,
                 'value': AMOUNT_TO_BE_TRANSFERED * TOKEN_NUM_BASE
@@ -221,7 +223,7 @@ class TestPalletUtility(unittest.TestCase):
                                                       era={'period': 64},
                                                       nonce=nonce)
 
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
 
         # check account balances after transaciton
         show_account(substrate, kp_src.ss58_address, "Src bal after trans")

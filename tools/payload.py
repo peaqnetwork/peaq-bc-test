@@ -35,7 +35,7 @@ def sudo_extrinsic_send(sudo_keypair):
                 call=call,
                 keypair=sudo_keypair,
             )
-            receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+            receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
             _show_extrinsic(receipt, func.__name__)
             return receipt
         return wrapper
@@ -57,7 +57,7 @@ def user_extrinsic_send(func):
             era={'period': 64},
             nonce=nonce
         )
-        receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+        receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
         _show_extrinsic(receipt, func.__name__)
         return receipt
     return wrapper
