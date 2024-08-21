@@ -37,8 +37,8 @@ def call_eth_transfer_a_lot(substrate, kp_src, eth_src, eth_dst):
             'input': '0x',
             'value': int('0xfffffffffffffffff', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': int('0xffffff', 16),
-            'max_priority_fee_per_gas': None,
+            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
         })

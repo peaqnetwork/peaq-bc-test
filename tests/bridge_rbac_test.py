@@ -1,9 +1,9 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.peaq_eth_utils import calculate_evm_addr, sign_and_submit_evm_transaction
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.utils import WS_URL, ETH_URL
-from peaq.eth import calculate_evm_account
+from peaq.eth import calculate_evm_account, calculate_evm_addr
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex, GAS_LIMIT, TX_SUCCESS_STATUS
 from web3 import Web3
@@ -68,9 +68,9 @@ class RbacErrorType(enum.Enum):
 def _calcualte_evm_basic_req(substrate, w3, addr):
     return {
         'from': addr,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
+        'gas': 10633039,
+        'maxFeePerGas': w3.to_wei(300, 'gwei'),
+        'maxPriorityFeePerGas': w3.to_wei(250, 'gwei'),
         'nonce': w3.eth.get_transaction_count(addr),
         'chainId': get_eth_chain_id(substrate)
     }

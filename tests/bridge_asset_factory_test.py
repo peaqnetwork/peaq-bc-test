@@ -154,8 +154,8 @@ class bridge_asset_factory_test(unittest.TestCase):
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(2, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
+            'maxFeePerGas': w3.to_wei(300, 'gwei'),
+            'maxPriorityFeePerGas': w3.to_wei(250, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -169,8 +169,8 @@ class bridge_asset_factory_test(unittest.TestCase):
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(2, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
+            'maxFeePerGas': w3.to_wei(300, 'gwei'),
+            'maxPriorityFeePerGas': w3.to_wei(250, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
