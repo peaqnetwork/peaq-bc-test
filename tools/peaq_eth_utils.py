@@ -8,6 +8,8 @@ from peaq.eth import calculate_evm_account
 from web3 import Web3
 from peaq import eth
 from tools.utils import ETH_TIMEOUT
+import time
+from tools.constants import BLOCK_GENERATIME_TIME
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -107,10 +109,34 @@ def calculate_evm_default_addr(sub_addr):
     return Web3.to_checksum_address(new_addr.lower())
 
 
+# def sign_and_submit_evm_transaction(tx, w3, signer):
+#     signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
+#     for i in range(3):
+#         tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+#         print(f'evm tx: {tx_hash.hex()}')
+#         try:
+#             receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+#         except w3.exceptions.TimeExceeded:
+#             continue
+#         # Check whether the block is finalized or not. If not, wait for it
+#         while w3.eth.get_block('finalized').number < receipt.blockNumber:
+#             time.sleep(BLOCK_GENERATIME_TIME)
+#         try:
+#             receipt = w3.eth.get_transaction_receipt(tx_hash)
+#             # Check the transaction is existed or not, if not, go back to send again
+#             print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
+#             return receipt
+#         except w3.exceptions.TransactionNotFound:
+#             continue
+#     raise IOError('Cannot send transaction')
+
+
 def sign_and_submit_evm_transaction(tx, w3, signer):
     signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
     tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
     print(f'evm tx: {tx_hash.hex()}')
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+    # Check whether the block is finalized or not. If not, wait for it
+    # Check the transaction is existed or not, if not, go back to send again
     print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
     return receipt

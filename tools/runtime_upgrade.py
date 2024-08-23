@@ -12,6 +12,7 @@ from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
+from tools.constants import BLOCK_GENERATIME_TIME
 from tools.xcm_setup import setup_hrmp_channel
 import argparse
 
@@ -181,7 +182,7 @@ def main():
         restart_parachain_launch()
     do_runtime_upgrade(runtime_path)
     print('Done but wait 30s')
-    time.sleep(30)
+    time.sleep(BLOCK_GENERATIME_TIME * 5)
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.utils import WS_URL, ETH_URL
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from tools.peaq_eth_utils import get_eth_chain_id
-from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex, GAS_LIMIT, TX_SUCCESS_STATUS
+from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex, TX_SUCCESS_STATUS
 from web3 import Web3
 import enum
 import unittest

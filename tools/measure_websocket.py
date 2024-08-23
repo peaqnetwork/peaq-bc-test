@@ -1,6 +1,7 @@
 from substrateinterface import SubstrateInterface
 import datetime
 import time
+from tools.constants import BLOCK_GENERATIME_TIME
 
 
 WS = 'wss://docker-test.peaq.network'
@@ -13,5 +14,5 @@ while 1:
     substrate.get_block_metadata()
     after = datetime.datetime.now()
     print(f'{after}: {after - before}')
-    time.sleep(5)
+    time.sleep(BLOCK_GENERATIME_TIME)
     substrate.close()
