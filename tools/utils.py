@@ -43,6 +43,7 @@ ACA_ETH_URL = 'http://127.0.0.1:10144'
 # ETH_URL = 'http://127.0.0.1:9933'
 AUTOTEST_URI = os.environ.get('AUTOTEST_URI')
 ETH_TIMEOUT = 6 * 5
+BLOCK_GENERATIME_TIME = 6
 
 if AUTOTEST_URI:
     PARACHAIN_WS_URL = 'wss://' + AUTOTEST_URI
@@ -376,15 +377,18 @@ def exist_pallet(substrate, pallet_name):
     return substrate.get_block_metadata(decode=True).get_metadata_pallet(pallet_name)
 
 
-def wait_for_event(substrate, module, event, attributes={}, timeout=30):
-    """
-    Waits for an certain event and returns it if found, and None if not.
-    Method stops after given timeout and returns also None.
-    Parameters:
-    - module:       name of the module to filter
-    - event:        name of the event to filter
-    - attributes:   dict with attributes and expected values to filter
-    """
+def _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev):
+    now_block = substrate.get_block_number(None)
+    for bl_idx in range(block_idx_prev, now_block):
+        block_hash = substrate.get_block_hash(bl_idx)
+        events = substrate.get_events(block_hash)
+        for e in events:
+            if _is_it_this_event(e, module, event, attributes):
+                return e.value['event']
+    return None
+
+
+def _check_event_in_future_blocks(substrate, module, event, attributes, timeout):
     stime = time.time()
     cur_bl = None
     nxt_bl = substrate.get_block_hash()
@@ -399,6 +403,26 @@ def wait_for_event(substrate, module, event, attributes={}, timeout=30):
         time.sleep(1)
         nxt_bl = substrate.get_block_hash()
     return None
+
+
+def wait_for_event(substrate, module, event, attributes={}, timeout=30, block_idx_prev=0):
+    """
+    Waits for an certain event and returns it if found, and None if not.
+    Method stops after given timeout and returns also None.
+    Parameters:
+    - module:       name of the module to filter
+    - event:        name of the event to filter
+    - attributes:   dict with attributes and expected values to filter
+    """
+
+    if not block_idx_prev:
+        block_idx_prev = substrate.get_block_number(None)
+
+    out = _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev)
+    if out:
+        return out
+    out = _check_event_in_future_blocks(substrate, module, event, attributes, timeout)
+    return out
 
 
 def _is_it_this_event(e_obj, module, event, attributes) -> bool:

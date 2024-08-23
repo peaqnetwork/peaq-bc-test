@@ -1,6 +1,7 @@
 from peaq.utils import ExtrinsicBatch
 from tools.utils import ACA_PD_CHAIN_ID, get_peaq_chain_id
 from peaq.utils import get_account_balance
+from tools.utils import BLOCK_GENERATIME_TIME
 import time
 
 
@@ -230,7 +231,7 @@ def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, fu
         prev_token = func(substrate, addr, asset_id)
     count = 0
     while func(substrate, addr, asset_id) == prev_token and count < 10:
-        time.sleep(12)
+        time.sleep(BLOCK_GENERATIME_TIME * 2)
         count += 1
     now_token = func(substrate, addr, asset_id)
     if now_token == prev_token:
