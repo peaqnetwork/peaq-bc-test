@@ -8,6 +8,7 @@ from peaq.extrinsic import transfer, transfer_with_tip
 from peaq.utils import get_account_balance
 from tools.utils import get_event, get_modified_chain_spec
 from tools.utils import KP_COLLATOR
+from tools.utils import set_block_reward_configuration
 from tools.constants import BLOCK_GENERATIME_TIME
 import unittest
 # from tests.utils_func import restart_parachain_and_runtime_upgrade
@@ -48,10 +49,40 @@ class TestRewardDistribution(unittest.TestCase):
     _kp_bob = Keypair.create_from_uri('//Bob')
     _kp_eve = Keypair.create_from_uri('//Eve')
 
+    @classmethod
+    def setUpClass(cls):
+        substrate = SubstrateInterface(url=WS_URL)
+        cls.ori_reward_config = substrate.query(
+            module='BlockReward',
+            storage_function='RewardDistributionConfigStorage',
+        )
+        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
+        assert receipt.is_success, 'cannot setup the block reward configuration'
+
+    @classmethod
+    def tearDownClass(cls):
+        substrate = SubstrateInterface(url=WS_URL)
+        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
+        assert receipt.is_success, 'cannot setup the block reward configuration'
+
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
         self._chain_spec = get_chain(self._substrate)
         self._chain_spec = get_modified_chain_spec(self._chain_spec)
+        self.set_collator_delegator_precentage()
+
+    def set_collator_delegator_precentage(self):
+        set_value = {
+            'treasury_percent': 20000000,
+            'depin_incentivization_percent': 10000000,
+            'collators_delegators_percent': 20000000,
+            'depin_staking_percent': 50000000,
+            'coretime_percent': 40000000,
+            'subsidization_pool_percent': 860000000,
+        }
+        receipt = set_block_reward_configuration(self._substrate, set_value)
+        self.assertTrue(receipt.is_success,
+                        'cannot setup the block reward configuration')
 
     def get_collator_delegator_precentage(self):
         reward_config = self._substrate.query(
