@@ -8,8 +8,8 @@ from peaq.eth import calculate_evm_account
 from web3 import Web3
 from peaq import eth
 from tools.utils import ETH_TIMEOUT
-import time
-from tools.constants import BLOCK_GENERATIME_TIME
+# import time
+# from tools.constants import BLOCK_GENERATIME_TIME
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
