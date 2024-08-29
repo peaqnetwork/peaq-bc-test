@@ -48,20 +48,3 @@ if __name__ == '__main__':
     )
     receipt = batch.execute()
     print(f'receipt is success: {receipt.is_success}')
-
-    # target_block_num = block_num + 10
-    # batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    # batch.compose_sudo_call(
-    #     'Paras',
-    #     'force_schedule_code_upgrade',
-    #     {'para': args.para, 'new_code': file_hash, 'relay_parent_number': target_block_num}
-    # )
-    # receipt = batch.execute()
-    # print(f'receipt is success: {receipt.is_success}')
-    # while True:
-    #     block_num = substrate.get_block(None)['header']['number']
-    #     print(f'current block number: {block_num} and wait for block_num: {target_block_num}')
-    #     if block_num >= target_block_num:
-    #         break
-    #     time.sleep(6)
-    # print('done')
