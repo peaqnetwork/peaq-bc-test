@@ -1,10 +1,10 @@
 import unittest
 import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, TOKEN_NUM_BASE
+from tools.constants import WS_URL, TOKEN_NUM_BASE
 from peaq.sudo_extrinsic import fund
 from peaq.utils import get_account_balance
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 
 
 @pytest.mark.substrate

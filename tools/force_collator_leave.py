@@ -2,7 +2,7 @@ import sys
 sys.path.append('./')
 from substrateinterface import SubstrateInterface
 from tools.utils import ExtrinsicBatch
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 
 
 URL = 'ws://localhost:10044'

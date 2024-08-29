@@ -1,6 +1,6 @@
 import os
 
-from tools.utils import WS_URL, RELAYCHAIN_WS_URL
+from tools.constants import WS_URL, RELAYCHAIN_WS_URL
 from peaq.utils import get_chain
 from tools.restart import restart_parachain_launch
 from tools.runtime_upgrade import do_runtime_upgrade

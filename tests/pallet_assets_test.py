@@ -4,7 +4,7 @@ sys.path.append('./')
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, KP_GLOBAL_SUDO
 from tools.asset import batch_create_asset, batch_set_metadata, batch_mint, get_valid_asset_id
 from tools.asset import get_asset_balance, convert_enum_to_asset_id
 from peaq.utils import ExtrinsicBatch

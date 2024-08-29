@@ -3,9 +3,10 @@ import time
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, get_collators, batch_fund
-from tools.utils import KP_GLOBAL_SUDO, exist_pallet, KP_COLLATOR
-from tools.constants import BLOCK_GENERATIME_TIME
+from tools.utils import get_collators, batch_fund
+from tools.utils import exist_pallet
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, KP_COLLATOR
+from tools.constants import BLOCK_GENERATE_TIME
 from peaq.utils import get_block_height, get_block_hash, get_chain
 from peaq.utils import ExtrinsicBatch, get_account_balance
 from tests.utils_func import restart_parachain_and_runtime_upgrade
@@ -109,7 +110,7 @@ class TestDelegator(unittest.TestCase):
         return None
 
     def wait_get_reward(self, addr):
-        time.sleep(BLOCK_GENERATIME_TIME * 2)
+        time.sleep(BLOCK_GENERATE_TIME * 2)
         count_down = 0
         wait_time = 120
         prev_balance = get_account_balance(self.substrate, addr)
@@ -118,7 +119,7 @@ class TestDelegator(unittest.TestCase):
                 return True
             print(f'already wait about {count_down} seconds')
             count_down += 12
-            time.sleep(BLOCK_GENERATIME_TIME)
+            time.sleep(BLOCK_GENERATE_TIME)
         return False
 
     # Deprecated: We don't use it now

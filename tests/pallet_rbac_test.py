@@ -3,7 +3,7 @@ import sys
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.sudo_extrinsic import fund
 from peaq.utils import ExtrinsicBatch
 from peaq.rbac import rbac_add_role_payload, rbac_add_group_payload, rbac_add_permission_payload
@@ -18,7 +18,7 @@ from peaq.rbac import rbac_rpc_fetch_roles
 from peaq.rbac import rbac_rpc_fetch_permissions
 from peaq.rbac import rbac_rpc_fetch_groups
 from tools.utils import get_balance_reserve_value
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 import unittest
 
 

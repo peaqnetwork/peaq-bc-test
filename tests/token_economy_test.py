@@ -2,12 +2,13 @@ import unittest
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, get_modified_chain_spec
+from tools.utils import get_modified_chain_spec
+from tools.constants import WS_URL
 from peaq.utils import get_block_height, get_block_hash, get_chain
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from tools.utils import get_event, get_account_balance
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 from peaq.utils import ExtrinsicBatch
 
 

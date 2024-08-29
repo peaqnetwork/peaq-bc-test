@@ -3,13 +3,13 @@ import pytest
 
 from substrateinterface import SubstrateInterface
 from tools.asset import get_valid_asset_id
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from web3 import Web3
 

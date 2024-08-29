@@ -1,7 +1,7 @@
 import sys
 sys.path.append('./')
 
-from tools.utils import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
+from tools.constants import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
 from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 

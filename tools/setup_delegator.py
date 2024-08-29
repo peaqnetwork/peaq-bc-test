@@ -4,8 +4,8 @@ import time
 
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.sudo_extrinsic import funds
-from tools.utils import KP_GLOBAL_SUDO, get_collators
-from tools.constants import BLOCK_GENERATIME_TIME
+from tools.utils import get_collators
+from tools.constants import KP_GLOBAL_SUDO, BLOCK_GENERATE_TIME
 import argparse
 
 
@@ -55,7 +55,7 @@ def main():
     kps = generate_delegators(args.number)
     collator_addr, collator_stake = get_default_collators_info(substrate)
     fund_delegators(substrate, kps, 1 * 10 ** 18)
-    time.sleep(BLOCK_GENERATIME_TIME)
+    time.sleep(BLOCK_GENERATE_TIME)
     delegate_delegators(substrate, kps, collator_addr, collator_stake)
 
 

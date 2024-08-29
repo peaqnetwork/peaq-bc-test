@@ -9,9 +9,9 @@ from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import GAS_LIMIT
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 from web3 import Web3
 
 ASSET_FACTORY_ABI_FILE = 'ETH/asset-factory/abi'

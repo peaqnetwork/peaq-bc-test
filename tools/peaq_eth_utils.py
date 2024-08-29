@@ -7,9 +7,9 @@ from substrateinterface.utils import hasher
 from peaq.eth import calculate_evm_account
 from web3 import Web3
 from peaq import eth
-from tools.utils import ETH_TIMEOUT
+from tools.constants import ETH_TIMEOUT
 # import time
-# from tools.constants import BLOCK_GENERATIME_TIME
+# from tools.constants import BLOCK_GENERATE_TIME
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -120,7 +120,7 @@ def calculate_evm_default_addr(sub_addr):
 #             continue
 #         # Check whether the block is finalized or not. If not, wait for it
 #         while w3.eth.get_block('finalized').number < receipt.blockNumber:
-#             time.sleep(BLOCK_GENERATIME_TIME)
+#             time.sleep(BLOCK_GENERATE_TIME)
 #         try:
 #             receipt = w3.eth.get_transaction_receipt(tx_hash)
 #             # Check the transaction is existed or not, if not, go back to send again
