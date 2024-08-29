@@ -1,6 +1,6 @@
 from substrateinterface import SubstrateInterface
 from peaq.utils import get_account_balance
-from tools.constants import BLOCK_GENERATIME_TIME
+from tools.constants import BLOCK_GENERATE_TIME
 import time
 import logging
 
@@ -25,4 +25,4 @@ if __name__ == '__main__':
         end_time = time.time()
         logging.info('-- After checking')
         logging.info(f'Elapsed time: {end_time - start_time}')
-        time.sleep(BLOCK_GENERATIME_TIME)
+        time.sleep(BLOCK_GENERATE_TIME)

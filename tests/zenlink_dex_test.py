@@ -7,7 +7,7 @@ sys.path.append('./')
 
 from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
-from tools.utils import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
+from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance

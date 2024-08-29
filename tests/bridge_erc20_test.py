@@ -2,7 +2,7 @@ import pytest
 import unittest
 from substrateinterface import SubstrateInterface, Keypair
 from tools.asset import batch_create_asset, get_valid_asset_id, batch_set_metadata, batch_mint
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract

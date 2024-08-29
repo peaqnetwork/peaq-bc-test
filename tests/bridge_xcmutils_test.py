@@ -1,8 +1,8 @@
 import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
-from tools.utils import WS_URL, ETH_URL, ACA_WS_URL
-from tools.utils import ACA_PD_CHAIN_ID
-from tools.utils import PARACHAIN_WS_URL
+from tools.constants import WS_URL, ETH_URL, ACA_WS_URL
+from tools.constants import ACA_PD_CHAIN_ID
+from tools.constants import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
@@ -11,7 +11,7 @@ from tools.asset import setup_asset_if_not_exist, setup_xc_register_if_not_exist
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils

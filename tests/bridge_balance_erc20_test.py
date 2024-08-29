@@ -6,8 +6,8 @@ from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
 from tools.utils import get_modified_chain_spec
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
-from tools.utils import WS_URL, ETH_URL
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import WS_URL, ETH_URL
+from tools.constants import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info

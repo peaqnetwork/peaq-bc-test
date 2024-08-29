@@ -3,7 +3,7 @@ sys.path.append('./')
 
 from behave import given, when, then
 from substrateinterface import Keypair
-from tools.utils import TOKEN_NUM_BASE
+from tools.constants import TOKEN_NUM_BASE
 from peaq.extrinsic import transfer
 from peaq.utils import calculate_multi_sig
 import random

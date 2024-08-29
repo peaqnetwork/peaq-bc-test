@@ -8,7 +8,7 @@ from substrateinterface import SubstrateInterface
 from peaq.utils import wait_for_n_blocks
 from tools.runtime_upgrade import send_upgrade_call
 from tools.runtime_upgrade import wait_relay_upgrade_block
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 from tools.xcm_setup import setup_hrmp_channel
 # from tools.asset import convert_enum_to_asset_id
 import argparse

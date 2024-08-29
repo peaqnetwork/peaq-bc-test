@@ -2,7 +2,7 @@ import sys
 
 from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.contracts import ContractCode
-from utils import TOKEN_NUM_BASE, WS_URL
+from constants import TOKEN_NUM_BASE, WS_URL
 from peaq.utils import show_extrinsic
 
 

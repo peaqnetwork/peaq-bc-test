@@ -3,13 +3,13 @@ import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import get_chain
-from tools.utils import WS_URL, TOKEN_NUM_BASE
+from tools.constants import WS_URL, TOKEN_NUM_BASE
 from peaq.extrinsic import transfer, transfer_with_tip
 from peaq.utils import get_account_balance
 from tools.utils import get_event, get_modified_chain_spec
-from tools.utils import KP_COLLATOR
+from tools.constants import KP_COLLATOR
 from tools.utils import set_block_reward_configuration
-from tools.constants import BLOCK_GENERATIME_TIME
+from tools.constants import BLOCK_GENERATE_TIME
 import unittest
 # from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tests import utils_func as TestUtils
@@ -201,12 +201,12 @@ class TestRewardDistribution(unittest.TestCase):
             #   timestamp.set
             #   parachainSystem.setValidationData)
             if len(self._substrate.get_block(prev_hash)['extrinsics']) != 2:
-                time.sleep(BLOCK_GENERATIME_TIME)
+                time.sleep(BLOCK_GENERATE_TIME)
                 continue
             event = self._get_event(now_hash, 'Balances', 'Transfer')
             if event is None or str(event[1][1]['to']) != kp_src.ss58_address:
                 print(f'The event is {event}, or the receiver is not {kp_src.ss58_address}')
-                time.sleep(BLOCK_GENERATIME_TIME)
+                time.sleep(BLOCK_GENERATE_TIME)
                 continue
 
             now_balance = get_account_balance(self._substrate, kp_src.ss58_address, block_hash=now_hash)
@@ -225,7 +225,7 @@ class TestRewardDistribution(unittest.TestCase):
         # Setup
         collator_percentage = self.get_collator_delegator_precentage()
         while self._substrate.get_block()['header']['number'] == 0:
-            time.sleep(BLOCK_GENERATIME_TIME)
+            time.sleep(BLOCK_GENERATE_TIME)
 
         # Execute
         # While we extend the max supply, the block reward should apply
@@ -233,7 +233,7 @@ class TestRewardDistribution(unittest.TestCase):
         block_reward = self.get_block_issue_reward()
         self.assertNotEqual(block_reward, 0, 'block reward should not be zero')
 
-        time.sleep(BLOCK_GENERATIME_TIME)
+        time.sleep(BLOCK_GENERATE_TIME)
 
         self.assertTrue(
             self._check_block_reward_in_event(KP_COLLATOR, block_reward, collator_percentage),
@@ -246,7 +246,7 @@ class TestRewardDistribution(unittest.TestCase):
         # setup
         collator_percentage = self.get_collator_delegator_precentage()
         while self._substrate.get_block()['header']['number'] == 0:
-            time.sleep(BLOCK_GENERATIME_TIME)
+            time.sleep(BLOCK_GENERATE_TIME)
 
         # Execute
         # Note, the Collator maybe collected by another one
@@ -268,7 +268,7 @@ class TestRewardDistribution(unittest.TestCase):
         # setup
         collator_percentage = self.get_collator_delegator_precentage()
         while self._substrate.get_block()['header']['number'] == 0:
-            time.sleep(BLOCK_GENERATIME_TIME)
+            time.sleep(BLOCK_GENERATE_TIME)
 
         block_reward = self.get_block_issue_reward()
         print(f'Current reward: {block_reward}')
@@ -284,7 +284,7 @@ class TestRewardDistribution(unittest.TestCase):
         self._check_transaction_fee_reward_event(receipt.block_hash, TIP)
         next_height = self._substrate.get_block(receipt.block_hash)['header']['number'] + 1
         while self._substrate.get_block()['header']['number'] < next_height:
-            time.sleep(BLOCK_GENERATIME_TIME)
+            time.sleep(BLOCK_GENERATE_TIME)
         prev_balance = get_account_balance(self._substrate, KP_COLLATOR.ss58_address, block_hash=receipt.block_hash)
 
         now_block_hash = self._substrate.get_block_hash(next_height)

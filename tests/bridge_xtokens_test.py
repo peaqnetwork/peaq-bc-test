@@ -6,13 +6,13 @@ import pytest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import ETH_URL, RELAYCHAIN_WS_URL
-from tools.utils import WS_URL, ACA_WS_URL, PARACHAIN_WS_URL
+from tools.constants import ETH_URL, RELAYCHAIN_WS_URL
+from tools.constants import WS_URL, ACA_WS_URL, PARACHAIN_WS_URL
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from peaq.utils import ExtrinsicBatch
 from tools.asset import convert_enum_to_asset_id
-from tools.utils import KP_GLOBAL_SUDO, ACA_PD_CHAIN_ID
+from tools.constants import KP_GLOBAL_SUDO, ACA_PD_CHAIN_ID
 from tools.asset import batch_register_location, batch_set_units_per_second, setup_xc_register_if_not_exist
 from tools.asset import setup_aca_asset_if_not_exist
 from tools.asset import UNITS_PER_SECOND

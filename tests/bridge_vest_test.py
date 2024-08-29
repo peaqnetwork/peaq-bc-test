@@ -5,9 +5,9 @@ import pytest
 from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
-from tools.constants import BLOCK_GENERATIME_TIME
-from tools.utils import KP_GLOBAL_SUDO
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import BLOCK_GENERATE_TIME
+from tools.constants import KP_GLOBAL_SUDO
+from tools.constants import WS_URL, ETH_URL
 from tools.utils import get_account_balance_locked
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -103,7 +103,7 @@ class TestBridgeVest(unittest.TestCase):
             contract, self._kp_moon['kp'], self._kp_mars['eth'], 10 ** 18, now_block)
         self.assertTrue(tx_receipt.status)
         block_idx = tx_receipt['blockNumber']
-        time.sleep(BLOCK_GENERATIME_TIME)
+        time.sleep(BLOCK_GENERATE_TIME)
         event = contract.events.VestedTransfer.create_filter(fromBlock=block_idx, toBlock=block_idx)
         self.check_vested_transfer_from_event(
             event,

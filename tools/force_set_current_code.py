@@ -4,7 +4,7 @@ sys.path.append('./')
 # import time
 import os
 from substrateinterface import SubstrateInterface
-from tools.utils import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
+from tools.constants import KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
 from peaq.utils import ExtrinsicBatch
 
 import argparse
