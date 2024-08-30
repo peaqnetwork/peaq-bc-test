@@ -2,6 +2,7 @@ from peaq.utils import ExtrinsicBatch
 from substrateinterface.exceptions import SubstrateRequestException
 import time
 from peaq.utils import show_extrinsic
+from tools.constants import BLOCK_GENERATE_TIME
 
 BACKTRACE_BLOCK_NUM = 10
 
@@ -36,13 +37,15 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
             if 'invalid' in str(e):
                 print(f'Error: {e}, {batch}')
                 print('Wait for 30 seconds')
-                time.sleep(30)
+                time.sleep(BLOCK_GENERATE_TIME * 5)
                 block_hash = _backtrace_blocks_by_extrinsic(
                     substrate, self.submit_extrinsic.extrinsic_hash.hex())
                 if block_hash:
                     print(f'Found the extrinsic in block: {block_hash}')
-                    return substrate.retrieve_extrinsic_by_hash(
+                    out = substrate.retrieve_extrinsic_by_hash(
                         block_hash, f'0x{self.submit_extrinsic.extrinsic_hash.hex()}')
+                    out.retrieve_extrinsic()
+                    return out
                 # Maybe the extrinsic is still in the pool
                 print(f'Error: {e}, {batch}')
                 print(f'Retry {i + 1} times')

@@ -1,8 +1,8 @@
 import unittest
 import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import WS_URL
+from tools.constants import KP_GLOBAL_SUDO
 from tools.utils import show_account, send_approval, send_proposal, get_as_multi_extrinsic_id
 from peaq.extrinsic import transfer
 from peaq.utils import calculate_multi_sig

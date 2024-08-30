@@ -1,5 +1,5 @@
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from tools.utils import set_block_reward_configuration
 import unittest
 import pytest

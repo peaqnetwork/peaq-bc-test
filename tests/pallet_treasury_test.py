@@ -1,7 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
 from peaq.utils import show_extrinsic
 from peaq.utils import ExtrinsicBatch
 from tools.utils import batch_fund, get_event

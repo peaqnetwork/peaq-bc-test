@@ -7,7 +7,7 @@ sys.path.append('./')
 
 from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
-from tools.utils import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
+from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance
@@ -219,8 +219,9 @@ def state_znlnkprot_lppair_status(si_peaq, tok_idx):
         return query.value
 
 
-def wait_n_check_swap_event(substrate, min_tokens):
-    event = wait_for_event(substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO)
+def wait_n_check_swap_event(substrate, min_tokens, block_idx_prev):
+    event = wait_for_event(
+        substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO, block_idx_prev=block_idx_prev)
     assert event is not None
     assert event['attributes'][3][1] > min_tokens
 
@@ -285,15 +286,17 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     assert not data['result'] is None
 
     # 2.) Swap liquidity pair on Zenlink-DEX
+    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bene, asset_id, amount_in1=dot(TOK_SWAP))
     receipt = bt_para_bene.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP))
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
 
+    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bob, asset_id, amount_in0=peaq(TOK_SWAP))
     receipt = bt_para_bob.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP))
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
 
     # 3.) Remove some liquidity
     compose_zdex_remove_liquidity(bt_para_sudo, asset_id, int(dot_liquidity / 4))
@@ -366,18 +369,20 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     assert lpstatus['accumulated_supply'][1] == aca(TOK_LIQUIDITY)
 
     # 3.) Pool should be filled up (both targets are reached). now end bootstrap
+    block_idx_peaq = si_peaq.get_block_number(None)
     compose_call_bootstrap_update_end(bt_peaq_sudo, asset_id)
     compose_bootstrap_end_call(bt_peaq_sudo, asset_id)
     receipt = bt_peaq_sudo.execute_n_clear()
     assert receipt.is_success
-    wait_for_event(si_peaq, 'ZenlinkProtocol', 'BootstrapEnd')
+    wait_for_event(si_peaq, 'ZenlinkProtocol', 'BootstrapEnd', block_idx_prev=block_idx_peaq)
 
     # 4.) User swaps tokens by using the created pool
+    block_idx_peaq = si_peaq.get_block_number(None)
     balance = get_account_balance(si_peaq, kp_user.ss58_address)
     compose_zdex_swap_exact_for(bt_peaq_user, asset_id, amount_in1=aca(TOK_SWAP))
     receipt = bt_peaq_user.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, 1)
+    wait_n_check_swap_event(si_peaq, 1, block_idx_peaq)
 
     # Check that pool has been fully created after goal was reached
     lpstatus = state_znlnkprot_lppair_status(si_peaq, asset_id)

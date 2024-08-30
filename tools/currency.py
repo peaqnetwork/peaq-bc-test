@@ -2,7 +2,7 @@
 Currency related tools.
 """
 
-from tools.utils import TOKEN_NUM_BASE_DEV
+from tools.constants import TOKEN_NUM_BASE_DEV
 
 
 TOKEN_NUM_BASE_DEV_DOT = pow(10, 10)

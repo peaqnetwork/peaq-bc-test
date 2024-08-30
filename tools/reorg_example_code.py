@@ -5,7 +5,7 @@ import time
 import importlib
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.utils import ExtrinsicBatch
 from peaq.did import did_add_payload
 

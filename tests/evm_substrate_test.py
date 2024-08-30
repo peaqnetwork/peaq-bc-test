@@ -1,7 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, KP_GLOBAL_SUDO
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.utils import ExtrinsicBatch
 from peaq.sudo_extrinsic import funds
