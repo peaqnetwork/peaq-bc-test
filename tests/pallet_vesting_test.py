@@ -1,7 +1,7 @@
 import math
 import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
 from tools.utils import get_account_balance_locked
 from peaq.utils import get_account_balance
 from peaq.sudo_extrinsic import funds

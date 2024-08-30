@@ -1,6 +1,6 @@
 import time
 import pytest
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from tools.utils import get_balance_reserve_value
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch

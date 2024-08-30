@@ -1,7 +1,8 @@
 import pytest
 import unittest
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL, get_modified_chain_spec
+from tools.utils import get_modified_chain_spec
+from tools.constants import WS_URL
 from peaq.utils import get_block_height
 # from tools.utils import wait_for_event
 from enum import Enum

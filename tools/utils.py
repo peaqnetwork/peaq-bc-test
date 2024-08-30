@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 sys.path.append('.')
@@ -6,6 +5,7 @@ sys.path.append('.')
 from peaq import utils as PeaqUtils
 PeaqUtils.DEBUG = True
 
+from tools.constants import PARACHAIN_WS_URL, TOKEN_NUM_BASE, KP_GLOBAL_SUDO
 from substrateinterface import SubstrateInterface
 from substrateinterface import Keypair
 from peaq.utils import get_account_balance, show_extrinsic
@@ -25,40 +25,6 @@ SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
 from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
-
-
-TOKEN_NUM_BASE = pow(10, 3)
-TOKEN_NUM_BASE_DEV = pow(10, 18)
-RELAYCHAIN_WS_URL = 'ws://127.0.0.1:9944'
-STANDALONE_WS_URL = 'ws://127.0.0.1:9944'
-
-PARACHAIN_WS_URL = 'ws://127.0.0.1:10044'
-ACA_WS_URL = 'ws://127.0.0.1:10144'
-RELAYCHAIN_ETH_URL = 'http://127.0.0.1:9933'
-PARACHAIN_ETH_URL = 'http://127.0.0.1:10044'
-ACA_ETH_URL = 'http://127.0.0.1:10144'
-# PARACHAIN_WS_URL = 'wss://wsspc1.agung.peaq.network'
-# PARACHAIN_ETH_URL = 'https://rpcpc1.agung.peaq.network'
-# WS_URL = 'ws://127.0.0.1:9944'
-# ETH_URL = 'http://127.0.0.1:9933'
-AUTOTEST_URI = os.environ.get('AUTOTEST_URI')
-ETH_TIMEOUT = 6 * 5
-
-if AUTOTEST_URI:
-    PARACHAIN_WS_URL = 'wss://' + AUTOTEST_URI
-    PARACHAIN_ETH_URL = 'https://' + AUTOTEST_URI
-
-WS_URL = PARACHAIN_WS_URL
-ETH_URL = PARACHAIN_ETH_URL
-
-# WS_URL = 'ws://192.168.178.23:9944'
-# ETH_URL = 'http://192.168.178.23:9933'
-# WS_URL = 'wss://wss.test.peaq.network'
-# ETH_URL = 'https://erpc.test.peaq.network:443'
-URI_GLOBAL_SUDO = '//Alice'
-KP_GLOBAL_SUDO = Keypair.create_from_uri(URI_GLOBAL_SUDO)
-KP_COLLATOR = Keypair.create_from_uri('//Ferdie')
-ACA_PD_CHAIN_ID = 3000
 
 
 import pprint
@@ -376,15 +342,18 @@ def exist_pallet(substrate, pallet_name):
     return substrate.get_block_metadata(decode=True).get_metadata_pallet(pallet_name)
 
 
-def wait_for_event(substrate, module, event, attributes={}, timeout=30):
-    """
-    Waits for an certain event and returns it if found, and None if not.
-    Method stops after given timeout and returns also None.
-    Parameters:
-    - module:       name of the module to filter
-    - event:        name of the event to filter
-    - attributes:   dict with attributes and expected values to filter
-    """
+def _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev):
+    now_block = substrate.get_block_number(None)
+    for bl_idx in range(block_idx_prev, now_block):
+        block_hash = substrate.get_block_hash(bl_idx)
+        events = substrate.get_events(block_hash)
+        for e in events:
+            if _is_it_this_event(e, module, event, attributes):
+                return e.value['event']
+    return None
+
+
+def _check_event_in_future_blocks(substrate, module, event, attributes, timeout):
     stime = time.time()
     cur_bl = None
     nxt_bl = substrate.get_block_hash()
@@ -399,6 +368,26 @@ def wait_for_event(substrate, module, event, attributes={}, timeout=30):
         time.sleep(1)
         nxt_bl = substrate.get_block_hash()
     return None
+
+
+def wait_for_event(substrate, module, event, attributes={}, timeout=30, block_idx_prev=0):
+    """
+    Waits for an certain event and returns it if found, and None if not.
+    Method stops after given timeout and returns also None.
+    Parameters:
+    - module:       name of the module to filter
+    - event:        name of the event to filter
+    - attributes:   dict with attributes and expected values to filter
+    """
+
+    if not block_idx_prev:
+        block_idx_prev = substrate.get_block_number(None)
+
+    out = _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev)
+    if out:
+        return out
+    out = _check_event_in_future_blocks(substrate, module, event, attributes, timeout)
+    return out
 
 
 def _is_it_this_event(e_obj, module, event, attributes) -> bool:

@@ -1,7 +1,7 @@
 import pytest
 import unittest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.utils import ExtrinsicBatch
 
 

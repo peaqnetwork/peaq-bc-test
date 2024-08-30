@@ -4,7 +4,7 @@ import os
 import time
 
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -12,6 +12,7 @@ from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
+from tools.constants import BLOCK_GENERATE_TIME
 from tools.xcm_setup import setup_hrmp_channel
 import argparse
 
@@ -181,7 +182,7 @@ def main():
         restart_parachain_launch()
     do_runtime_upgrade(runtime_path)
     print('Done but wait 30s')
-    time.sleep(30)
+    time.sleep(BLOCK_GENERATE_TIME * 5)
 
 
 if __name__ == '__main__':
