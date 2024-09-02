@@ -288,17 +288,17 @@ class TestXCMTransfer(unittest.TestCase):
         return receipt
 
     # Same as the wait_for_peaq_account_asset_change
-    def wait_for_aca_account_token_change(self, addr, asset_id, prev_token=0):
+    def wait_for_aca_account_token_change(self, addr, asset_id, block_num, prev_token=0):
         return wait_for_account_asset_change_wrap(
-            self.si_aca, addr, asset_id, prev_token, get_tokens_account_from_pallet_assets)
+            self.si_aca, addr, asset_id, prev_token, block_num, get_tokens_account_from_pallet_assets)
 
-    def wait_for_peaq_account_asset_change(self, addr, asset_id, prev_token=0):
+    def wait_for_peaq_account_asset_change(self, addr, asset_id, block_num, prev_token=0):
         return wait_for_account_asset_change_wrap(
-            self.si_peaq, addr, asset_id, prev_token, get_tokens_account_from_pallet_assets)
+            self.si_peaq, addr, asset_id, prev_token, block_num, get_tokens_account_from_pallet_assets)
 
-    def wait_for_account_change(self, substrate, kp_dst, prev_token):
+    def wait_for_account_change(self, substrate, kp_dst, block_num, prev_token):
         return wait_for_account_asset_change_wrap(
-            self.si_peaq, kp_dst.ss58_address, None, prev_token, get_balance_account_from_pallet_balance)
+            self.si_peaq, kp_dst.ss58_address, None, prev_token, block_num, get_balance_account_from_pallet_balance)
 
     # @pytest.mark.skip(reason="Success")
     def test_from_relay_to_peaq(self):
@@ -317,10 +317,11 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
 
         # Send foreigner tokens from the relay chain
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = self.send_relay_token_from_relay_to_peaq(kp_remote_src, kp_self_dst, TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
 
-        now_token = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
+        now_token = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'], peaq_block_num)
         self.assertGreater(
             now_token, 0,
             f'Actual {now_token} should > expected {TEST_TOKEN_NUM} tokens')
@@ -328,12 +329,13 @@ class TestXCMTransfer(unittest.TestCase):
         # Send from peaq to relay chain
         prev_balance = get_account_balance(self.si_relay, kp_remote_src.ss58_address)
 
+        relay_block_num = self.si_relay.get_block_number(None)
         token = now_token - REMAIN_TOKEN_NUM
         receipt = send_token_from_peaq_to_relay(
             self.si_peaq, kp_self_dst, kp_remote_src, RELAY_ASSET_ID['peaq'], token)
         self.assertTrue(receipt.is_success, f'Failed to send token from peaq to relay chain: {receipt.error_message}')
 
-        now_balance = self.wait_for_account_change(self.si_relay, kp_remote_src, prev_balance)
+        now_balance = self.wait_for_account_change(self.si_relay, kp_remote_src, relay_block_num, prev_balance)
         self.assertGreater(
             now_balance, prev_balance,
             f'Actual {now_balance} should > expected {prev_balance} tokens')
@@ -361,12 +363,13 @@ class TestXCMTransfer(unittest.TestCase):
         parachain_id = self.get_parachain_id(self.si_peaq)
 
         # Send foreigner tokens to peaq chain
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = send_token_from_para_to_peaq(
             self.si_aca, kp_remote_src, kp_self_dst,
             parachain_id, ACA_ASSET_ID['para'], TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f"Failed to send token from bifrost to peaq chain: {receipt.error_message}")
 
-        got_token = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, asset_id)
+        got_token = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, asset_id, peaq_block_num)
         self.assertGreater(
             got_token, 0,
             f'Actual {got_token} should > expected {TEST_TOKEN_NUM}')
@@ -375,11 +378,12 @@ class TestXCMTransfer(unittest.TestCase):
         prev_balance = get_account_balance(self.si_aca, kp_remote_src.ss58_address)
 
         token = got_token - REMAIN_TOKEN_NUM
+        para_block_num = self.si_aca.get_block_number(None)
         receipt = send_token_from_peaq_to_para(
             self.si_peaq, kp_self_dst,
             kp_remote_src, ACA_PD_CHAIN_ID, asset_id, token)
         self.assertTrue(receipt.is_success, f'Failed to send token from peaq to relay chain: {receipt.error_message}')
-        now_balance = self.wait_for_account_change(self.si_aca, kp_remote_src, prev_balance)
+        now_balance = self.wait_for_account_change(self.si_aca, kp_remote_src, para_block_num, prev_balance)
         self.assertGreater(
             now_balance, prev_balance,
             f'Actual {now_balance} should > expected {prev_balance}')
@@ -397,24 +401,26 @@ class TestXCMTransfer(unittest.TestCase):
         receipt = fund(self.si_peaq, KP_GLOBAL_SUDO, kp_self_dst, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to peaq: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         receipt = send_token_from_peaq_to_para(
             self.si_peaq, self.alice, kp_para_src,
             ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to send token from peaq to relay chain: {receipt.error_message}')
 
         # Extract...
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
         transfer_back_token = got_token - REMAIN_TOKEN_NUM
         prev_balance = get_account_balance(self.si_peaq, kp_self_dst.ss58_address)
         # Send it back to the peaq chain
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = send_token_from_para_to_peaq(
             self.si_aca, kp_para_src, kp_self_dst,
             PEAQ_PD_CHAIN_ID, PEAQ_ASSET_ID['para'], transfer_back_token)
         self.assertTrue(receipt.is_success, f'Failed to send token from para to peaq: {receipt.error_message}')
 
-        now_balance = self.wait_for_account_change(self.si_peaq, kp_self_dst, prev_balance)
+        now_balance = self.wait_for_account_change(self.si_peaq, kp_self_dst, peaq_block_num, prev_balance)
         self.assertGreater(now_balance, prev_balance, f'Actual {now_balance} should > expected {prev_balance}')
 
     def test_asset_from_peaq_to_aca_with_sufficient(self):
@@ -459,25 +465,27 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
     def _check_peaq_asset_from_peaq_to_aca_and_back(self, kp_para_src, kp_self_dst, asset_id, is_sufficient):
+        aca_block_num = self.si_aca.get_block_number(None)
         receipt = send_token_from_peaq_to_para(
             self.si_peaq, self.alice, kp_para_src,
             ACA_PD_CHAIN_ID, asset_id['peaq'], TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to send token from peaq to para chain: {receipt.error_message}')
 
         # Extract...
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, asset_id['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, asset_id['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
         transfer_back_token = got_token - REMAIN_TOKEN_NUM
         prev_balance = get_tokens_account_from_pallet_assets(
             self.si_peaq, kp_self_dst.ss58_address, asset_id['peaq'])
         # Send it back to the peaq chain
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = send_token_from_para_to_peaq(
             self.si_aca, kp_para_src, kp_self_dst,
             PEAQ_PD_CHAIN_ID, asset_id['para'], transfer_back_token)
         self.assertTrue(receipt.is_success, f'Failed to send token from para to peaq: {receipt.error_message}')
 
-        now_balance = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, asset_id['peaq'])
+        now_balance = self.wait_for_peaq_account_asset_change(kp_self_dst.ss58_address, asset_id['peaq'], peaq_block_num)
         self.assertGreater(now_balance, prev_balance, f'Actual {now_balance} should > expected {prev_balance}')
 
     # @pytest.mark.skip(reason="Success")
@@ -531,10 +539,11 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to peaq: {receipt.error_message}')
 
         # Transfer dot
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = self.send_relay_token_from_relay_to_peaq(KP_GLOBAL_SUDO, kp_peaq, TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
 
-        now_token = self.wait_for_peaq_account_asset_change(kp_peaq.ss58_address, RELAY_ASSET_ID['peaq'])
+        now_token = self.wait_for_peaq_account_asset_change(kp_peaq.ss58_address, RELAY_ASSET_ID['peaq'], peaq_block_num)
         self.assertGreater(
             now_token, 0,
             f'Actual {now_token} should > expected {TEST_TOKEN_NUM} tokens')
@@ -565,11 +574,12 @@ class TestXCMTransfer(unittest.TestCase):
 
         # Transfe it to the ACA
         transfer_token_num = int(liquity_token_num / 2)
+        aca_block_num = self.si_aca.get_block_number(None)
         receipt = send_token_from_peaq_to_para(
             self.si_peaq, kp_peaq, kp_aca,
             ACA_PD_CHAIN_ID, TEST_LP_ASSET_ID['peaq'], transfer_token_num)
         self.assertTrue(receipt.is_success, f'Failed to send token from peaq to relay chain: {receipt.error_message}')
-        got_token = self.wait_for_aca_account_token_change(kp_aca.ss58_address, TEST_LP_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_aca.ss58_address, TEST_LP_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
         # Transfer it back to peaq
@@ -577,6 +587,7 @@ class TestXCMTransfer(unittest.TestCase):
         prev_balance = get_tokens_account_from_pallet_assets(
             self.si_peaq, kp_peaq.ss58_address, TEST_LP_ASSET_ID['peaq'])
         # Send it back to the peaq chain
+        peaq_block_num = self.si_peaq.get_block_number(None)
         receipt = send_token_from_para_to_peaq(
             self.si_aca, kp_aca, kp_peaq,
             PEAQ_PD_CHAIN_ID, TEST_LP_ASSET_ID['para'], transfer_back_token)
@@ -584,7 +595,7 @@ class TestXCMTransfer(unittest.TestCase):
 
         # TODO Need to change because it's in the LPAsset, but not Asset
         now_balance = self.wait_for_peaq_account_asset_change(
-            kp_peaq.ss58_address, TEST_LP_ASSET_ID['peaq'], prev_balance)
+            kp_peaq.ss58_address, TEST_LP_ASSET_ID['peaq'], peaq_block_num, prev_balance)
         self.assertGreater(now_balance, prev_balance, f'Actual {now_balance} should > expected {prev_balance}')
 
     # [TODO] This doesn't really tested that because when I revert the XCM commit, it still works

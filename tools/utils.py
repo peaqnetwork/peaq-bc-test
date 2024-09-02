@@ -19,7 +19,7 @@ from tools.monkey.monkey_patch_scale_info import process_encode as new_process_e
 from tools.payload import user_extrinsic_send
 FixedLengthArray.process_encode = new_process_encode
 
-from tools.monkey.monkey_reorg_substrate_interface import monkey_submit_extrinsic
+from tools.monkey.monkey_3rd_substrate_interface import monkey_submit_extrinsic
 SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
 
 from peaq.utils import ExtrinsicBatch
