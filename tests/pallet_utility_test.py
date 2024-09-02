@@ -12,6 +12,7 @@ AMOUNT_TO_BE_TRANSFERED = 1
 # after transaction, dest will be credited twice as AMOUNT_TO_BE_TRANSFERED
 
 
+@pytest.mark.skip(reason="Skip because of the reorg siutation")
 @pytest.mark.substrate
 class TestPalletUtility(unittest.TestCase):
 
