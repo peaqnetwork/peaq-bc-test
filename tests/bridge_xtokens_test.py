@@ -269,9 +269,9 @@ class TestBridgeXTokens(unittest.TestCase):
     def get_balance_account_from_pallet_balance(self, addr, _):
         return get_account_balance(self.si_peaq, addr)
 
-    def wait_for_aca_account_token_change(self, addr, asset_id, prev_token=0):
+    def wait_for_aca_account_token_change(self, addr, asset_id, block_num, prev_token=0):
         return wait_for_account_asset_change_wrap(
-            self.si_aca, addr, asset_id, prev_token, get_tokens_account_from_pallet_assets)
+            self.si_aca, addr, asset_id, prev_token, block_num, get_tokens_account_from_pallet_assets)
 
     def is_asset_exist(self, asset_id, is_sufficient):
         asset = self.si_peaq.query("Assets", "Asset", [convert_enum_to_asset_id({'Token': asset_id})])
@@ -309,13 +309,14 @@ class TestBridgeXTokens(unittest.TestCase):
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_dst, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         evm_receipt = send_xtoken_transfer(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_dst,
             ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Extract...
-        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
     # @pytest.mark.skip(reason="Success")
@@ -337,13 +338,14 @@ class TestBridgeXTokens(unittest.TestCase):
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         evm_receipt = send_xtoken_transfer(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_src,
             ACA_PD_CHAIN_ID, TEST_SUFF_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Extract...
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_SUFF_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_SUFF_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
     def test_bridge_xtoken_single_transfer_multi_asset(self):
@@ -355,12 +357,13 @@ class TestBridgeXTokens(unittest.TestCase):
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_dst, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         evm_receipt = send_xtoken_transfer_multi_asset(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_dst,
             ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
-        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
     def test_bridge_xtoken_transfer_multi_currencies(self):
@@ -380,12 +383,13 @@ class TestBridgeXTokens(unittest.TestCase):
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         evm_receipt = send_xtoken_transfer_multi_currencies(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_src,
             ACA_PD_CHAIN_ID, TEST_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
         got_token = get_tokens_account_from_pallet_assets(
             self.si_aca, kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])
@@ -408,12 +412,13 @@ class TestBridgeXTokens(unittest.TestCase):
         receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_src, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
 
+        aca_block_num = self.si_aca.get_block_number(None)
         evm_receipt = send_xtoken_transfer_multi_assets(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_src,
             ACA_PD_CHAIN_ID, TEST_ASSET_ID['peaq'], TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
-        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'])
+        got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
         got_token = get_tokens_account_from_pallet_assets(
             self.si_aca, kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])

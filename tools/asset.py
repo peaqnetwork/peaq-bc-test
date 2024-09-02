@@ -204,39 +204,60 @@ def get_valid_asset_id(conn):
             return convert_enum_to_asset_id({'Token': i})
 
 
-def get_asset_balance(conn, addr, asset_id):
+def get_asset_balance(conn, addr, asset_id, block_hash):
+    if block_hash:
+        print("block_hash", block_hash)
+        return conn.query("Assets", "Account", [asset_id, addr], block_hash)
     return conn.query("Assets", "Account", [asset_id, addr])
 
 
-def get_tokens_account_from_pallet_assets(substrate, addr, asset_id):
-    resp = get_asset_balance(substrate, addr, asset_id)
+def get_tokens_account_from_pallet_assets(substrate, addr, asset_id, block_hash=None):
+    resp = get_asset_balance(substrate, addr, asset_id, block_hash)
     if not resp.value:
         return 0
     return resp.value['balance']
 
 
 # Only for other chain (aca), but now we are use the peaq chain to test XCM
-def get_tokens_account_from_pallet_tokens(substrate, addr, asset_id):
-    resp = substrate.query("Tokens", "Accounts", [addr, asset_id])
+def get_tokens_account_from_pallet_tokens(substrate, addr, asset_id, block_hash=None):
+    if not block_hash:
+        resp = substrate.query("Tokens", "Accounts", [addr, asset_id], block_hash)
+    else:
+        resp = substrate.query("Tokens", "Accounts", [addr, asset_id])
     if not resp.value:
         return 0
     return resp.value['free']
 
 
-def get_balance_account_from_pallet_balance(substrate, addr, _):
-    return get_account_balance(substrate, addr)
+def get_balance_account_from_pallet_balance(substrate, addr, _, block_hash=None):
+    return get_account_balance(substrate, addr, block_hash)
 
 
-def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, func):
+def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, block_num, func):
+    block_hash = substrate.get_block_hash(block_num)
     if not prev_token:
-        prev_token = func(substrate, addr, asset_id)
+        prev_token = func(substrate, addr, asset_id, block_hash)
+
+    # go to check preivous setting
+    now_block = substrate.get_block_number(None)
+    for i in range(block_num, now_block + 1):
+        block_hash = substrate.get_block_hash(i)
+        now_token = func(substrate, addr, asset_id, block_hash)
+        if now_token != prev_token:
+            print(f"Account {addr} balance {prev_token} changed to {now_token} on peaq at block {i}")
+            return now_token
+
+    # Check next
     count = 0
+    now_block = substrate.get_block_number(None)
     while func(substrate, addr, asset_id) == prev_token and count < 10:
-        time.sleep(BLOCK_GENERATE_TIME * 2)
+        time.sleep(BLOCK_GENERATE_TIME)
+        now_block = substrate.get_block_number(None)
         count += 1
     now_token = func(substrate, addr, asset_id)
     if now_token == prev_token:
         raise IOError(f"Account {addr} balance {prev_token} not changed on peaq")
+    print(f"Account {addr} balance {prev_token} changed to {now_token} on peaq at block {now_block}")
     return now_token
 
 
