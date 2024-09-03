@@ -1,6 +1,4 @@
 import json
-import binascii
-import os
 from peaq.utils import ExtrinsicBatch
 from substrateinterface import Keypair, KeypairType
 from substrateinterface.utils import hasher
@@ -10,6 +8,8 @@ from peaq import eth
 from tools.constants import ETH_TIMEOUT
 import time
 from tools.constants import BLOCK_GENERATE_TIME
+import random
+import string
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -18,7 +18,7 @@ TX_SUCCESS_STATUS = 1
 
 
 def generate_random_hex(num_bytes=16):
-    return f'0x{binascii.b2a_hex(os.urandom(num_bytes)).decode()}'
+    return f"0x{''.join(random.choice(string.ascii_letters) for i in range(num_bytes)).encode('utf-8').hex()}"
 
 
 def get_contract(w3, address, file_name):

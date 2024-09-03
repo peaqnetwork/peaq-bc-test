@@ -223,8 +223,8 @@ class TestPalletVesting(unittest.TestCase):
         block_header = substrate.get_block_header()
         current_block_number = int(block_header['header']['number'])
 
-        first_starting_block_number = current_block_number + 10
-        second_starting_block_number = current_block_number + 20
+        first_starting_block_number = current_block_number + 100
+        second_starting_block_number = current_block_number + 200
 
         print("Current Block: ", current_block_number)
         print("Starting Block Number of first schedule: ", first_starting_block_number)
