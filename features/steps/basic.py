@@ -3,7 +3,7 @@ sys.path.append('./')
 
 from behave import given, when, then
 from substrateinterface import Keypair
-from tools.utils import TOKEN_NUM_BASE
+from tools.constants import TOKEN_NUM_BASE
 from peaq.extrinsic import transfer
 from peaq.utils import calculate_multi_sig
 import random
@@ -51,7 +51,7 @@ def store_bob_balance(context):
 def send_transfer_proposal(context):
     payload = context._substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': context._receiver.ss58_address,
             'value': context._num * TOKEN_NUM_BASE

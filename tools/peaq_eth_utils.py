@@ -7,6 +7,9 @@ from substrateinterface.utils import hasher
 from peaq.eth import calculate_evm_account
 from web3 import Web3
 from peaq import eth
+from tools.constants import ETH_TIMEOUT
+import time
+from tools.constants import BLOCK_GENERATE_TIME
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -36,8 +39,8 @@ def call_eth_transfer_a_lot(substrate, kp_src, eth_src, eth_dst):
             'input': '0x',
             'value': int('0xfffffffffffffffff', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': int('0xffffff', 16),
-            'max_priority_fee_per_gas': None,
+            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
         })
@@ -64,10 +67,7 @@ def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
             'nonce': nonce,
             'chainId': eth_chain_id})
 
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp_src.private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    print(f'create_contract: {tx_hash.hex()}')
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_src)
 
     address = tx_receipt['contractAddress']
     return address
@@ -107,3 +107,25 @@ def calculate_evm_default_addr(sub_addr):
     hash_key = hasher.blake2_256(evm_addr)
     new_addr = '0x' + hash_key.hex()[:40]
     return Web3.to_checksum_address(new_addr.lower())
+
+
+def sign_and_submit_evm_transaction(tx, w3, signer):
+    signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
+    for i in range(3):
+        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        print(f'evm tx: {tx_hash.hex()}')
+        try:
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+        except w3.exceptions.TimeExceeded:
+            continue
+        # Check whether the block is finalized or not. If not, wait for it
+        while w3.eth.get_block('finalized').number < receipt.blockNumber:
+            time.sleep(BLOCK_GENERATE_TIME)
+        try:
+            receipt = w3.eth.get_transaction_receipt(tx_hash)
+            # Check the transaction is existed or not, if not, go back to send again
+            print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
+            return receipt
+        except w3.exceptions.TransactionNotFound:
+            continue
+    raise IOError('Cannot send transaction')

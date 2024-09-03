@@ -2,7 +2,7 @@ import sys
 
 from substrateinterface import SubstrateInterface, Keypair
 from substrateinterface.contracts import ContractCode
-from utils import TOKEN_NUM_BASE, WS_URL
+from constants import TOKEN_NUM_BASE, WS_URL
 from peaq.utils import show_extrinsic
 
 
@@ -11,7 +11,7 @@ def transfer(substrate, kp_src, kp_dst_addr, token_num):
 
     call = substrate.compose_call(
         call_module='Balances',
-        call_function='transfer',
+        call_function='transfer_keep_alive',
         call_params={
             'dest': kp_dst_addr,
             'value': token_num * TOKEN_NUM_BASE

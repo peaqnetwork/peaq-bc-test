@@ -1,11 +1,12 @@
 import math
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
 from tools.utils import get_account_balance_locked
 from peaq.utils import get_account_balance
 from peaq.sudo_extrinsic import funds
 from peaq.utils import wait_for_n_blocks
-from tools.payload import sudo_call_compose, sudo_extrinsic_send, user_extrinsic_send
+from peaq.utils import ExtrinsicBatch
 import unittest
 
 # Assumptions
@@ -21,67 +22,72 @@ NO_OF_BLOCKS_TO_WAIT = math.ceil(TRANSFER_AMOUNT / PER_BLOCK_AMOUNT) + 2
 
 
 # Schedule transfer of some amount from a souce to target account
-@user_extrinsic_send
 def vested_transfer(substrate, kp_soucre, kp_target, schedule):
-    return substrate.compose_call(
-        call_module='Vesting',
-        call_function='vested_transfer',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_soucre)
+    batch.compose_call(
+        'Vesting',
+        'vested_transfer',
+        {
             'target': kp_target.ss58_address,
             'schedule': schedule
         }
     )
+    return batch.execute()
 
 
 # transfer of funds that were previouls scheduled to be released
-@user_extrinsic_send
 def vest(substrate, kp_source):
-    return substrate.compose_call(
-        call_module='Vesting',
-        call_function='vest',
+    batch = ExtrinsicBatch(substrate, kp_source)
+    batch.compose_call(
+        'Vesting',
+        'vest',
+        {}
     )
+    return batch.execute()
 
 
 # Forced Schedule transfer of some amount from a souce to target account
-@sudo_extrinsic_send(sudo_keypair=KP_GLOBAL_SUDO)
-@sudo_call_compose(sudo_keypair=KP_GLOBAL_SUDO)
 def force_vested_transfer(substrate, kp_source, kp_target, schedule):
-    return substrate.compose_call(
-        call_module='Vesting',
-        call_function='force_vested_transfer',
-        call_params={
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'Vesting',
+        'force_vested_transfer',
+        {
             'source': kp_source.ss58_address,
             'target': kp_target.ss58_address,
             'schedule': schedule
         }
     )
+    return batch.execute()
 
 
 # actual transfer of funds that were previouls scheduled to be released
-@user_extrinsic_send
 def vest_other(substrate, kp_user, kp_source):
-    return substrate.compose_call(
-        call_module='Vesting',
-        call_function='vest_other',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_user)
+    batch.compose_call(
+        'Vesting',
+        'vest_other',
+        {
             'target': kp_source.ss58_address
         }
     )
+    return batch.execute()
 
 
 # To merge two schedules  into one
-@user_extrinsic_send
 def merge_schedules(substrate, kp_target,
                     index_of_first_schedule,
                     index_of_second_schedule):
-    return substrate.compose_call(
-        call_module='Vesting',
-        call_function='merge_schedules',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_target)
+    batch.compose_call(
+        'Vesting',
+        'merge_schedules',
+        {
             'schedule1_index': index_of_first_schedule,
             'schedule2_index': index_of_second_schedule
         }
     )
+    return batch.execute()
 
 
 def get_schedule_index(substrate, kp_target):
@@ -89,6 +95,7 @@ def get_schedule_index(substrate, kp_target):
     return len((result.value)) - 1
 
 
+@pytest.mark.substrate
 class TestPalletVesting(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
@@ -105,7 +112,7 @@ class TestPalletVesting(unittest.TestCase):
         block_header = substrate.get_block_header()
 
         current_block_number = int(block_header['header']['number'])
-        starting_block_number = current_block_number + 5
+        starting_block_number = current_block_number + 0
 
         schedule = {
             'locked': TRANSFER_AMOUNT,
@@ -156,8 +163,7 @@ class TestPalletVesting(unittest.TestCase):
         print("Locked balance after vest: ", locked_bal_after_vest)
 
         # All the vested amount is released
-        self.assertEqual(locked_bal_before_vest - locked_bal_after_vest, TRANSFER_AMOUNT,
-                         'Versting amount still not released')
+        self.assertEqual(locked_bal_after_vest, 0, 'Versting amount still not released')
 
     def forced_vested_transfer_test(self, substrate, kp_user, kp_source, kp_target):
 
@@ -166,7 +172,7 @@ class TestPalletVesting(unittest.TestCase):
         block_header = substrate.get_block_header()
 
         current_block_number = int(block_header['header']['number'])
-        starting_block_number = current_block_number + 5
+        starting_block_number = current_block_number + 0
 
         schedule = {
             'locked': TRANSFER_AMOUNT,
@@ -210,8 +216,7 @@ class TestPalletVesting(unittest.TestCase):
 
         print("Locked balance after vest: ", locked_bal_after_vest)
         # All the vested amount is released
-        self.assertEqual(locked_bal_before_vest - locked_bal_after_vest, TRANSFER_AMOUNT,
-                         'Vesting amount still not released')
+        self.assertEqual(locked_bal_after_vest, 0, 'Versting amount still not released')
 
     def merge_schedule_test(self, substrate, kp_source, kp_target_second):
 

@@ -1,6 +1,7 @@
 import unittest
+import pytest
 
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
 # from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
@@ -8,7 +9,8 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import generate_random_hex
 
 
@@ -27,6 +29,7 @@ STORAGE_ABI_FILE = 'ETH/storage/storage.sol.json'
 STORAGE_ADDRESS = '0x0000000000000000000000000000000000000801'
 
 
+@pytest.mark.eth
 class TestBridgeBatch(unittest.TestCase):
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)
@@ -38,7 +41,7 @@ class TestBridgeBatch(unittest.TestCase):
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
                 'value': 100 * 10 ** 18,
@@ -80,9 +83,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check
@@ -117,10 +118,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
             })
-
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check
@@ -156,9 +154,7 @@ class TestBridgeBatch(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check

@@ -1,13 +1,15 @@
 import unittest
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.sudo_extrinsic import fund
 from peaq.utils import get_account_balance
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 
 TOKEN_NUM_BASE = pow(10, 18)
 
 
+@pytest.mark.substrate
 class TestFund(unittest.TestCase):
     def test_fund(self):
         substrate = SubstrateInterface(url=WS_URL)

@@ -1,13 +1,15 @@
 import unittest
 import time
+import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import get_balance_reserve_value
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.utils import ExtrinsicBatch
 from peaq.did import did_add_payload, did_update_payload, did_remove_payload, did_rpc_read
 
 
+@pytest.mark.substrate
 class TestPalletDid(unittest.TestCase):
     def setUp(self):
         self.substrate = SubstrateInterface(url=WS_URL)
