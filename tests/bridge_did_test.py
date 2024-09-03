@@ -1,10 +1,12 @@
+import pytest
 import unittest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
 from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from web3 import Web3
 
@@ -24,6 +26,7 @@ VALIDITY = 1000
 ABI_FILE = 'ETH/did/did.sol.json'
 
 
+@pytest.mark.eth
 class TestBridgeDid(unittest.TestCase):
 
     def _eth_add_attribute(self, contract, eth_kp_src, evm_addr, key, value):
@@ -37,9 +40,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_add_attribute, Success')
         return tx_receipt['blockNumber']
@@ -55,9 +56,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_update_attribute, Success')
         return tx_receipt['blockNumber']
@@ -73,9 +72,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_remove_attribute, Success')
         return tx_receipt['blockNumber']

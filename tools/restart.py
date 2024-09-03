@@ -8,13 +8,14 @@ sys.path.append('.')
 import time
 from python_on_whales import docker, DockerClient
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL
+from tools.constants import WS_URL
+from tools.constants import BLOCK_GENERATE_TIME
 from websocket import WebSocketConnectionClosedException
 
 
 def restart_parachain_launch():
     projects = docker.compose.ls()
-    project = [p for p in projects if 'parachain-launch' in str(p.config_files[0])]
+    project = [p for p in projects if 'parachain-launch' in str(p.config_files[0]) or 'yoyo' == p.name]
     if len(project) == 0 or len(project) > 1:
         raise IOError(f'Found {len(project)} parachain-launch projects, {project}')
 
@@ -34,7 +35,7 @@ def restart_parachain_launch():
         except (ConnectionResetError, WebSocketConnectionClosedException) as e:
             print(f'Cannot connect to {WS_URL}, {e}')
             count_down += 5
-            time.sleep(5)
+            time.sleep(BLOCK_GENERATE_TIME)
             continue
         except Exception:
             raise IOError(f'Cannot connect to {WS_URL}')

@@ -1,9 +1,12 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, get_existential_deposit
+from tools.utils import get_existential_deposit
+from tools.constants import WS_URL
 from peaq.extrinsic import transfer
 
 
+@pytest.mark.substrate
 class TestExitentialDeposits(unittest.TestCase):
     def get_existential_deposit(self):
         return get_existential_deposit(self.substrate)

@@ -1,19 +1,20 @@
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import get_chain
-
-from tools.payload import user_extrinsic_send
-from tools.utils import WS_URL, TOKEN_NUM_BASE, get_collators
-from peaq.extrinsic import transfer_with_tip, transfer
-from peaq.utils import get_account_balance
-from tools.utils import get_event, get_modified_chain_spec
-from tools.utils import KP_COLLATOR, KP_GLOBAL_SUDO, PARACHAIN_STAKING_POT
 from tools.utils import get_existential_deposit, wait_for_event
 from peaq.utils import ExtrinsicBatch
 from tests.utils_func import restart_parachain_and_runtime_upgrade
+from tools.utils import PARACHAIN_STAKING_POT
+from tools.utils import get_collators
+from tools.constants import WS_URL, TOKEN_NUM_BASE
+from peaq.extrinsic import transfer, transfer_with_tip
+from peaq.utils import get_account_balance
+from tools.utils import get_event, get_modified_chain_spec
+from tools.constants import KP_COLLATOR, KP_GLOBAL_SUDO
+from tools.utils import set_block_reward_configuration
+from tools.constants import BLOCK_GENERATE_TIME
 import unittest
 import time
-
-WAIT_ONLY_ONE_BLOCK_PERIOD = 12
 
 EOT_FEE_PERCENTAGE = {
     'peaq-network': 0.0,
@@ -40,17 +41,19 @@ COLLATOR_DELEGATOR_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 DIVISION_FACTOR = pow(10, 7)
 
 
-@user_extrinsic_send
-def set_commission(substrate, candidate_address, commission_permill):
-    return substrate.compose_call(
-        call_module='ParachainStaking',
-        call_function='set_commission',
-        call_params={
+def set_commission(substrate, candidate_kp, commission_permill):
+    batch = ExtrinsicBatch(substrate, candidate_kp)
+    batch.compose_call(
+        'ParachainStaking',
+        'set_commission',
+        {
             'commission': commission_permill
         }
     )
+    return batch.execute()
 
 
+@pytest.mark.substrate
 class TestRewardDistribution(unittest.TestCase):
     _kp_bob = Keypair.create_from_uri('//Bob')
     _kp_eve = Keypair.create_from_uri('//Eve')
@@ -58,15 +61,42 @@ class TestRewardDistribution(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        substrate = SubstrateInterface(url=WS_URL)
+        cls.ori_reward_config = substrate.query(
+            module='BlockReward',
+            storage_function='RewardDistributionConfigStorage',
+        )
+        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
+        assert receipt.is_success, 'cannot setup the block reward configuration'
+
+    @classmethod
+    def tearDownClass(cls):
+        substrate = SubstrateInterface(url=WS_URL)
+        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
+        assert receipt.is_success, 'cannot setup the block reward configuration'
 
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
         self._chain_spec = get_chain(self._substrate)
         self._chain_spec = get_modified_chain_spec(self._chain_spec)
         self._fee_percentage = EOT_FEE_PERCENTAGE[self._chain_spec]
-        self._collator_percentage = self._get_collator_delegator_precentage()
         while self._substrate.get_block()['header']['number'] == 0:
-            time.sleep(WAIT_ONLY_ONE_BLOCK_PERIOD)
+            time.sleep(BLOCK_GENERATE_TIME)
+        self.set_collator_delegator_precentage()
+        self._collator_percentage = self._get_collator_delegator_precentage()
+
+    def set_collator_delegator_precentage(self):
+        set_value = {
+            'treasury_percent': 20000000,
+            'depin_incentivization_percent': 10000000,
+            'collators_delegators_percent': 20000000,
+            'depin_staking_percent': 50000000,
+            'coretime_percent': 40000000,
+            'subsidization_pool_percent': 860000000,
+        }
+        receipt = set_block_reward_configuration(self._substrate, set_value)
+        self.assertTrue(receipt.is_success,
+                        'cannot setup the block reward configuration')
 
     def _get_collator_delegator_precentage(self):
         reward_config = self._substrate.query(
@@ -199,7 +229,7 @@ class TestRewardDistribution(unittest.TestCase):
     def _get_transaction_fee_distributed(self, block_hash):
         result = get_event(
             self._substrate,
-            self._substrate.get_block_hash(),
+            block_hash,
             'BlockReward', 'TransactionFeesDistributed')
         self.assertIsNotNone(result, 'TransactionFeesDistributed event not found')
         return result.value['attributes']

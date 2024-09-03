@@ -1,8 +1,9 @@
 import traceback
 import sys
+import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.sudo_extrinsic import fund
 from peaq.utils import ExtrinsicBatch
 from peaq.rbac import rbac_add_role_payload, rbac_add_group_payload, rbac_add_permission_payload
@@ -17,7 +18,7 @@ from peaq.rbac import rbac_rpc_fetch_roles
 from peaq.rbac import rbac_rpc_fetch_permissions
 from peaq.rbac import rbac_rpc_fetch_groups
 from tools.utils import get_balance_reserve_value
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
 import unittest
 
 
@@ -126,6 +127,7 @@ def show_success_msg(msg):
 # Check before:
 # type_registry_preset_dict = load_type_registry_preset(type_registry_name)
 # ~/venv.substrate/lib/python3.6/site-packages/substrateinterface/base.py
+@pytest.mark.substrate
 class TestPalletRBAC(unittest.TestCase):
 
     ##############################################################################

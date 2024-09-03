@@ -5,7 +5,7 @@ sys.path.append('./')
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from peaq.sudo_extrinsic import funds
-from tools.utils import PARACHAIN_WS_URL, KP_GLOBAL_SUDO
+from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO
 import requests
 
 

@@ -1,31 +1,24 @@
 from peaq.utils import ExtrinsicBatch
-from tools.utils import ACA_PD_CHAIN_ID, get_peaq_chain_id
+from tools.utils import get_peaq_chain_id
+from tools.constants import ACA_PD_CHAIN_ID
 from peaq.utils import get_account_balance
-import copy
+from tools.constants import BLOCK_GENERATE_TIME
 import time
 
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
 
-XCM_VER = 'V3'  # So far not tested with V2!
+XCM_VER = 'V4'  # So far not tested with V2!
 
 ACA_ASSET_ID = {
     'peaq': '3',
-    'para': {
-        'Token': 'ACA',
-    }
+    'para': '0',
 }
 ACA_ASSET_LOCATION = {
     'peaq': {
         XCM_VER: {
             'parents': '1',
-            'interior': {'X2': [
-                {'Parachain': ACA_PD_CHAIN_ID},
-                {'GeneralKey': {
-                    'length': 2,
-                    'data': [0, 0] + [0] * 30,
-                }}
-            ]}
+            'interior': {'X1': [{'Parachain': ACA_PD_CHAIN_ID}]}
         }
     },
     'para': None
@@ -35,7 +28,7 @@ UNITS_PER_SECOND = 5 * 10 ** 5
 ACA_METADATA = {
     'name': 'ACA',
     'symbol': 'ACA',
-    'decimals': 12,
+    'decimals': 18,
 }
 
 
@@ -60,9 +53,7 @@ RELAY_METADATA = {
 
 PEAQ_ASSET_ID = {
     'peaq': '0',
-    'para': {
-        'ForeignAsset': '0',
-    }
+    'para': '3',
 }
 PEAQ_ASSET_LOCATION = {
     'peaq': {
@@ -74,7 +65,7 @@ PEAQ_ASSET_LOCATION = {
     'para': {
         XCM_VER: {
             'parents': '1',
-            'interior': {'X1': {'Parachain': PEAQ_PD_CHAIN_ID}}
+            'interior': {'X1': [{'Parachain': PEAQ_PD_CHAIN_ID}]}
         }
     },
 }
@@ -168,23 +159,14 @@ class AlwaysTrueReceipt():
         return ''
 
 
-def setup_aca_asset_if_not_exist(si_aca, kp_sudo, location, metadata, min_balance=100):
-    resp = si_aca.query('AssetRegistry', 'LocationToCurrencyIds', [location['V3']])
-    if resp.value:
-        return AlwaysTrueReceipt()
+# This function is only for ACA chain, now deprecated because we are no longer use ACA chain
+def setup_aca_asset_if_not_exist(si_aca, kp_sudo, asset_id, location, metadata, min_balance=100):
+    out = setup_asset_if_not_exist(si_aca, kp_sudo, asset_id, metadata, min_balance, True)
+    if not out.is_success:
+        return out
 
-    new_metadata = copy.deepcopy(metadata)
-    new_metadata['minimal_balance'] = min_balance
-    batch = ExtrinsicBatch(si_aca, kp_sudo)
-    batch.compose_sudo_call(
-        'AssetRegistry',
-        'register_foreign_asset',
-        {
-            'location': location,
-            'metadata': new_metadata,
-        }
-    )
-    return batch.execute()
+    out = setup_xc_register_if_not_exist(si_aca, kp_sudo, asset_id, location, UNITS_PER_SECOND)
+    return out
 
 
 def setup_asset_if_not_exist(si_peaq, kp_sudo, asset_id, metadata, min_balance=100, is_sufficient=False):
@@ -214,7 +196,7 @@ def setup_xc_register_if_not_exist(si_peaq, kp_sudo, asset_id, location, units_p
 
 
 def get_valid_asset_id(conn):
-    for i in range(1, 100):
+    for i in range(30, 130):
         asset = conn.query("Assets", "Asset", [convert_enum_to_asset_id({'Token': i})])
         if asset.value:
             continue
@@ -222,38 +204,60 @@ def get_valid_asset_id(conn):
             return convert_enum_to_asset_id({'Token': i})
 
 
-def get_asset_balance(conn, addr, asset_id):
+def get_asset_balance(conn, addr, asset_id, block_hash):
+    if block_hash:
+        print("block_hash", block_hash)
+        return conn.query("Assets", "Account", [asset_id, addr], block_hash)
     return conn.query("Assets", "Account", [asset_id, addr])
 
 
-def get_tokens_account_from_pallet_assets(substrate, addr, asset_id):
-    resp = get_asset_balance(substrate, addr, asset_id)
+def get_tokens_account_from_pallet_assets(substrate, addr, asset_id, block_hash=None):
+    resp = get_asset_balance(substrate, addr, asset_id, block_hash)
     if not resp.value:
         return 0
     return resp.value['balance']
 
 
-def get_tokens_account_from_pallet_tokens(substrate, addr, asset_id):
-    resp = substrate.query("Tokens", "Accounts", [addr, asset_id])
+# Only for other chain (aca), but now we are use the peaq chain to test XCM
+def get_tokens_account_from_pallet_tokens(substrate, addr, asset_id, block_hash=None):
+    if not block_hash:
+        resp = substrate.query("Tokens", "Accounts", [addr, asset_id], block_hash)
+    else:
+        resp = substrate.query("Tokens", "Accounts", [addr, asset_id])
     if not resp.value:
         return 0
     return resp.value['free']
 
 
-def get_balance_account_from_pallet_balance(substrate, addr, _):
-    return get_account_balance(substrate, addr)
+def get_balance_account_from_pallet_balance(substrate, addr, _, block_hash=None):
+    return get_account_balance(substrate, addr, block_hash)
 
 
-def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, func):
+def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, block_num, func):
+    block_hash = substrate.get_block_hash(block_num)
     if not prev_token:
-        prev_token = func(substrate, addr, asset_id)
+        prev_token = func(substrate, addr, asset_id, block_hash)
+
+    # go to check preivous setting
+    now_block = substrate.get_block_number(None)
+    for i in range(block_num, now_block + 1):
+        block_hash = substrate.get_block_hash(i)
+        now_token = func(substrate, addr, asset_id, block_hash)
+        if now_token != prev_token:
+            print(f"Account {addr} balance {prev_token} changed to {now_token} on peaq at block {i}")
+            return now_token
+
+    # Check next
     count = 0
+    now_block = substrate.get_block_number(None)
     while func(substrate, addr, asset_id) == prev_token and count < 10:
-        time.sleep(12)
+        time.sleep(BLOCK_GENERATE_TIME)
+        now_block = substrate.get_block_number(None)
         count += 1
     now_token = func(substrate, addr, asset_id)
     if now_token == prev_token:
         raise IOError(f"Account {addr} balance {prev_token} not changed on peaq")
+    print(f"Account {addr} balance {prev_token} changed to {now_token} on peaq at block {now_block}")
     return now_token
 
 

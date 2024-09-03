@@ -1,7 +1,9 @@
+import pytest
 import unittest
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL, get_modified_chain_spec
 from tests.utils_func import is_krest_related_chain
+from tools.utils import get_modified_chain_spec
+from tools.constants import WS_URL
 from peaq.utils import get_block_height
 from tools.utils import KP_GLOBAL_SUDO
 from peaq.utils import ExtrinsicBatch
@@ -10,7 +12,6 @@ from tools.runtime_upgrade import wait_until_block_height
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from enum import Enum
 from peaq.utils import get_chain
-import pytest
 import time
 
 # Expected InflationConfiguration at genesis
@@ -66,9 +67,9 @@ INFLATION_YEAR = {
 }
 
 INFLATION_RECALCULATION = {
-    'peaq-network': 2628000,
+    'peaq-network': 5256000,
     'peaq-network-fork': 3617954,
-    'peaq-dev': 2628000,
+    'peaq-dev': 5256000,
     'peaq-dev-fork': 5084632,
     # Because of the delay TGE
     'krest-network': 3469624,
@@ -86,6 +87,7 @@ class InflationState(Enum):
     RecalculationAt = 'DoRecalculationAt'
 
 
+@pytest.mark.substrate
 class TestPalletInflationManager(unittest.TestCase):
     # Fetches storage at latest block unless a blocknumber is provided
     def _fetch_pallet_storage(self, storage_name, block_number=None):
@@ -241,7 +243,7 @@ class TestPalletInflationManager(unittest.TestCase):
             storage_function='DoRecalculationAt',
             params=[]
         )
-        self.assertEqual(trigger_height + 2628000, next_recalculate_at.value)
+        self.assertEqual(trigger_height + 5256000, next_recalculate_at.value)
         self.assertNotEqual(first_recalculate_at.value, next_recalculate_at.value)
 
     @pytest.mark.skipif(is_krest_related_chain() is False, reason='Only need to test on the krest chain')
@@ -292,7 +294,7 @@ class TestPalletInflationManager(unittest.TestCase):
             storage_function='DoRecalculationAt',
             params=[]
         )
-        self.assertEqual(trigger_height + 2628000, next_recalculate_at.value)
+        self.assertEqual(trigger_height + 5256000, next_recalculate_at.value)
 
     # Will fail after 1 year
     def test_now_state(self):
