@@ -1,36 +1,45 @@
 import unittest
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL
+from tools.constants import WS_URL
+from tools.constants import KP_GLOBAL_SUDO
 from tools.utils import show_account, send_approval, send_proposal, get_as_multi_extrinsic_id
 from peaq.extrinsic import transfer
 from peaq.utils import calculate_multi_sig
+from peaq.sudo_extrinsic import funds
 import random
 
 TOKEN_NUM_BASE = 10 ** 18
 
 
+@pytest.mark.substrate
 class PalletMultisig(unittest.TestCase):
 
     def setUp(self):
         self.substrate = SubstrateInterface(url=WS_URL,)
-        self.kp_src = Keypair.create_from_uri('//Alice')
-        self.kp_dst = Keypair.create_from_uri('//Bob//stash')
+        self.kp_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        self.kp_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        receipt = funds(
+            self.substrate, KP_GLOBAL_SUDO,
+            [self.kp_src.ss58_address, self.kp_dst.ss58_address],
+            100000 * 10 ** 18)
+        self.assertTrue(receipt.is_success, f'funds failed: {receipt.error_message}')
 
     def test_multisig(self):
         threshold = 2
         signators = [self.kp_src, self.kp_dst]
         multi_sig_addr = calculate_multi_sig(signators, threshold)
 
-        num = random.randint(1, 10000)
+        num = random.randint(10 ** 18, 10 * 10 ** 18)
         # Deposit to wallet addr
-        transfer(self.substrate, self.kp_src, multi_sig_addr, num * TOKEN_NUM_BASE, 1)
+        transfer(self.substrate, self.kp_src, multi_sig_addr, num, 10)
 
         payload = self.substrate.compose_call(
             call_module='Balances',
-            call_function='transfer',
+            call_function='transfer_keep_alive',
             call_params={
                 'dest': self.kp_src.ss58_address,
-                'value': num * TOKEN_NUM_BASE
+                'value': num
             })
 
         # Send proposal
@@ -54,5 +63,5 @@ class PalletMultisig(unittest.TestCase):
 
         post_multisig_token = show_account(self.substrate, multi_sig_addr, 'after transfer')
         print(f'pre_multisig_token: {pre_multisig_token}, post_multisig_token: {post_multisig_token}')
-        print(f'num: {num}, num * TOKEN_NUM_BASE: {num * TOKEN_NUM_BASE}')
-        self.assertEqual(post_multisig_token + num * TOKEN_NUM_BASE, pre_multisig_token)
+        print(f'num: {num}')
+        self.assertEqual(post_multisig_token + num, pre_multisig_token)

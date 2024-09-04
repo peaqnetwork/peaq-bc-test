@@ -1,22 +1,23 @@
 import unittest
-from tools.utils import WS_URL, ETH_URL, ACA_WS_URL
-from tools.utils import ACA_PD_CHAIN_ID
-from tools.utils import RELAYCHAIN_WS_URL, PARACHAIN_WS_URL
+from tests.utils_func import restart_parachain_and_runtime_upgrade
+from tools.constants import WS_URL, ETH_URL, ACA_WS_URL
+from tools.constants import ACA_PD_CHAIN_ID
+from tools.constants import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
+from tools.asset import setup_asset_if_not_exist, setup_xc_register_if_not_exist
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
-from tools.utils import KP_GLOBAL_SUDO
+from tools.constants import KP_GLOBAL_SUDO
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
-from tools.asset import setup_aca_asset_if_not_exist
-from tools.asset import PEAQ_ASSET_LOCATION, PEAQ_METADATA
+from tools.asset import PEAQ_ASSET_LOCATION, PEAQ_METADATA, PEAQ_ASSET_ID
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_tokens
-from tools.xcm_setup import setup_hrmp_channel
 import pytest
 
 
@@ -24,11 +25,19 @@ ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
 
+@pytest.mark.relaunch
+@pytest.mark.eth
+@pytest.mark.xcm
 class TestBridgeXCMUtils(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
+
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
-        setup_hrmp_channel(RELAYCHAIN_WS_URL)
         self.w3 = Web3(Web3.HTTPProvider(ETH_URL))
         self.kp_eth = get_eth_info()
         self.eth_chain_id = get_eth_chain_id(self.si_peaq)
@@ -38,7 +47,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
         batch.compose_call(
             'Balances',
-            'transfer',
+            'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
                 'value': 100 * 10 ** 18,
@@ -52,10 +61,8 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'WithdrawAsset': [
                 [{
                   'id': {
-                    'Concrete': {
-                        'parents': 0,
-                        'interior': 'Here',
-                    }
+                      'parents': '0',
+                      'interior': 'Here',
                   },
                   'fun': {'Fungible': 10 ** 18},
                 }],
@@ -65,19 +72,19 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'DepositAsset': {
                 'assets': {'Wild': {'AllCounted': 1}},
                 'beneficiary': {
-                    'parents': 0,
+                    'parents': '0',
                     'interior': {
-                        'X1': {
+                        'X1': [{
                             'AccountId32': {
                                 'network': None,
                                 'id': account,
                             }
-                        }
+                        }]
                     }
                 }
             }
         }
-        message = {'V3': [[instr1, instr2]]}
+        message = {'V4': [[instr1, instr2]]}
         maxWeight = {'ref_time': 2 * 10 ** 21, 'proof_size': 10 ** 12}
 
         encoded_tx = self.si_peaq.compose_call(
@@ -96,10 +103,8 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'WithdrawAsset': [
                 [{
                   'id': {
-                    'Concrete': {
-                        'parents': 0,
+                        'parents': '0',
                         'interior': 'Here',
-                    }
                   },
                   'fun': {'Fungible': 10 ** 18},
                 }],
@@ -109,10 +114,8 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'BuyExecution': {
                 'fees': {
                     'id': {
-                        'Concrete': {
-                            'parents': 0,
-                            'interior': 'Here',
-                        }
+                        'parents': '0',
+                        'interior': 'Here',
                     },
                     'fun': {'Fungible': 10 ** 18},
                 },
@@ -124,27 +127,27 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'DepositAsset': {
                 'assets': {'Wild': 'All'},
                 'beneficiary': {
-                    'parents': 0,
+                    'parents': '0',
                     'interior': {
-                        'X1': {
+                        'X1': [{
                             'AccountId32': {'network': None, 'id': account}
-                        }
+                        }]
                     }
                 }
             }
         }
-        message = {'V3': [[instr1, instr2, instr3]]}
+        message = {'V4': [[instr1, instr2, instr3]]}
 
         encoded_tx = self.si_peaq.compose_call(
             call_module='PolkadotXcm',
             call_function='send',
             call_params={
-                'dest': {'V3': {
-                    'parents': 1,
+                'dest': {'V4': {
+                    'parents': '1',
                     'interior': {
-                        'X1': {
-                            'Parachain': 3000
-                        }
+                        'X1': [{
+                            'Parachain': '3000'
+                        }]
                     },
                 }},
                 'message': message,
@@ -178,9 +181,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         balance = get_account_balance(self.si_peaq, kp_dst.ss58_address)
@@ -191,9 +192,12 @@ class TestBridgeXCMUtils(unittest.TestCase):
         self.si_peaq = SubstrateInterface(url=WS_URL)
         self.si_aca = SubstrateInterface(url=ACA_WS_URL)
 
-        receipt = setup_aca_asset_if_not_exist(
-            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
-        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
+        receipt = setup_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register asset: {receipt.error_message}')
+        receipt = setup_xc_register_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], 100)
+        self.assertTrue(receipt.is_success, f'Failed to register xc asset: {receipt.error_message}')
 
         self._fund_eth_account()
         # compose the message
@@ -215,9 +219,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'chainId': self.eth_chain_id
             })
 
-        signed_txn = self.w3.eth.account.sign_transaction(tx, private_key=kp_sign.private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        evm_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        evm_receipt = sign_and_submit_evm_transaction(tx, self.w3, kp_sign)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
         # Cannot test on remote side because Acala we used cannot resolve the origin (1, parachain, account)
 
