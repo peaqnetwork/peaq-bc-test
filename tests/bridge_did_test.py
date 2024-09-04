@@ -1,10 +1,12 @@
+import pytest
 import unittest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
 from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from web3 import Web3
 
@@ -13,10 +15,9 @@ import pprint
 pp = pprint.PrettyPrinter(indent=4)
 GAS_LIMIT = 4294967
 
-
 KEY = generate_random_hex()
-VALUE = '0x01'
-NEW_VALUE = '0x10'
+VALUE = generate_random_hex()
+NEW_VALUE = generate_random_hex()
 KP_SRC = Keypair.create_from_uri('//Alice')
 DID_ADDRESS = '0x0000000000000000000000000000000000000800'
 ETH_PRIVATE_KEY = '0xa2899b053679427c8c446dc990c8990c75052fd3009e563c6a613d982d6842fe'
@@ -24,6 +25,7 @@ VALIDITY = 1000
 ABI_FILE = 'ETH/did/did.sol.json'
 
 
+@pytest.mark.eth
 class TestBridgeDid(unittest.TestCase):
 
     def _eth_add_attribute(self, contract, eth_kp_src, evm_addr, key, value):
@@ -37,9 +39,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_add_attribute, Success')
         return tx_receipt['blockNumber']
@@ -55,9 +55,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_update_attribute, Success')
         return tx_receipt['blockNumber']
@@ -73,9 +71,7 @@ class TestBridgeDid(unittest.TestCase):
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_receipt = sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
         self.assertEqual(tx_receipt['status'], 1)
         print('✅ eth_remove_attribute, Success')
         return tx_receipt['blockNumber']
@@ -88,7 +84,7 @@ class TestBridgeDid(unittest.TestCase):
     def test_bridge_did(self):
         eth_src = calculate_evm_addr(KP_SRC.ss58_address)
         eth_src = Web3.to_checksum_address(eth_src)
-        token_num = 10000 * pow(10, 15)
+        token_num = 100 * 10 ** 18
         transfer(self.substrate, KP_SRC, calculate_evm_account(eth_src), token_num)
         eth_kp_src = Keypair.create_from_private_key(ETH_PRIVATE_KEY, crypto_type=KeypairType.ECDSA)
         receipt = call_eth_transfer_a_lot(self.substrate, KP_SRC, eth_src, eth_kp_src.ss58_address.lower())

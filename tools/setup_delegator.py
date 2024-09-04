@@ -4,7 +4,8 @@ import time
 
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.sudo_extrinsic import funds
-from tools.utils import KP_GLOBAL_SUDO, get_collators
+from tools.utils import get_collators
+from tools.constants import KP_GLOBAL_SUDO, BLOCK_GENERATE_TIME
 import argparse
 
 
@@ -71,7 +72,7 @@ def main():
     # Fund the delegators
     kps = generate_delegators(args.number * len(validators))
     fund_delegators(substrate, kps, fund_value)
-    time.sleep(12)
+    time.sleep(BLOCK_GENERATE_TIME)
 
     # Delegate the delegators
     for idx, validator in enumerate(validators):

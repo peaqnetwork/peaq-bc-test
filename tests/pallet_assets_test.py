@@ -1,8 +1,10 @@
 import unittest
 import sys
 sys.path.append('./')
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, KP_GLOBAL_SUDO
 from tools.asset import batch_create_asset, batch_set_metadata, batch_mint, get_valid_asset_id
 from tools.asset import get_asset_balance, convert_enum_to_asset_id
 from peaq.utils import ExtrinsicBatch
@@ -130,6 +132,7 @@ def batch_thaw(batch, kp_src, asset_id):
 
 
 # Only for partial testing
+@pytest.mark.substrate
 class pallet_assets_test(unittest.TestCase):
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
@@ -179,10 +182,12 @@ class pallet_assets_test(unittest.TestCase):
 
         # Check
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['balance'],
             0 + mint_number - burn_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value["balance"]}')
 
     def test_transfer(self):
         conn = self._substrate
@@ -203,15 +208,17 @@ class pallet_assets_test(unittest.TestCase):
 
         # Check
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_admin.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_admin.ss58_address, asset_id, block_hash).value['balance'],
             0 + mint_number - transfer_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id, block_hash).value["balance"]}')
 
         self.assertEqual(
-            get_asset_balance(conn, kp_dst.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_dst.ss58_address, asset_id, block_hash).value['balance'],
             0 + transfer_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id, block_hash).value["balance"]}')
 
     def test_freeze_thaw_asset(self):
         conn = self._substrate
@@ -244,33 +251,39 @@ class pallet_assets_test(unittest.TestCase):
         # Done
         receipt = mint(conn, kp_admin, kp_src.ss58_address, asset_id, mint_number)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['balance'],
             0 + mint_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value["balance"]}')
 
         burn_number = 5000
         # Done
         receipt = burn(conn, kp_admin, kp_src.ss58_address, asset_id, burn_number)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['balance'],
             0 + mint_number - burn_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value["balance"]}')
 
         transfer_number = 500
         kp_dst = Keypair.create_from_uri('//Bob//stash')
         # Done
         receipt = transfer(conn, kp_src, kp_dst, asset_id, transfer_number)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['balance'],
             0 + mint_number - burn_number - transfer_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value["balance"]}')
         self.assertEqual(
-            get_asset_balance(conn, kp_dst.ss58_address, asset_id).value['balance'],
+            get_asset_balance(conn, kp_dst.ss58_address, asset_id, block_hash).value['balance'],
             0 + transfer_number,
-            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id).value["balance"]}')
+            f'Balance is not correct: {get_asset_balance(conn, kp_dst.ss58_address, asset_id, block_hash).value["balance"]}')
 
         # Done
         receipt = freeze_asset(conn, kp_admin, asset_id)
@@ -290,16 +303,20 @@ class pallet_assets_test(unittest.TestCase):
 
         receipt = freeze(conn, kp_admin, kp_src, asset_id)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['status'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['status'],
             'Frozen',
-            f'Asset id: {asset_id}: Account is not frozen: {get_asset_balance(conn, kp_src.ss58_address, asset_id)}')
+            f'Asset id: {asset_id}: Account is not frozen: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash)}')
         receipt = thaw(conn, kp_admin, kp_src, asset_id)
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
         self.assertNotEqual(
-            get_asset_balance(conn, kp_src.ss58_address, asset_id).value['status'],
+            get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash).value['status'],
             'Frozen',
-            f'Asset id: {asset_id}: Account is not thawed: {get_asset_balance(conn, kp_src.ss58_address, asset_id)}')
+            f'Asset id: {asset_id}: Account is not thawed: {get_asset_balance(conn, kp_src.ss58_address, asset_id, block_hash)}')
 
     def test_lp_assets_cannot_create(self):
         asset_id = get_valid_asset_id(self._substrate)

@@ -2,7 +2,7 @@ import sys
 sys.path.append('./')
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.utils import WS_URL
+from tools.constants import WS_URL
 from peaq.utils import show_extrinsic
 # from scalecodec.base import RuntimeConfiguration
 # from scalecodec.base import ScaleBytes
@@ -78,7 +78,7 @@ def upgrade(substrate, kp_src):
         nonce=nonce
     )
 
-    receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
+    receipt = substrate.submit_extrinsic(extrinsic, wait_for_finalization=True)
     show_extrinsic(receipt, 'upgrade?')
 
 

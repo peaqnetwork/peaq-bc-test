@@ -1,15 +1,17 @@
+import pytest
 import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL, ETH_URL
+from tools.constants import WS_URL, ETH_URL
+from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 # , calculate_evm_default_addr
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
-from tools.utils import KP_GLOBAL_SUDO, KP_COLLATOR
+from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import get_block_hash
 from web3 import Web3
 
@@ -18,9 +20,16 @@ PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 
 
+@pytest.mark.relaunch
+@pytest.mark.eth
 class bridge_parachain_staking_test(unittest.TestCase):
-    def setUp(self):
+
+    @classmethod
+    def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+
+    def setUp(self):
         wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
 
         self._substrate = SubstrateInterface(url=WS_URL)
@@ -63,10 +72,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_delegator_stake_more(self, contract, eth_kp_src, sub_collator_addr, stake):
         w3 = self._w3
@@ -79,10 +85,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_delegator_stake_less(self, contract, eth_kp_src, sub_collator_addr, stake):
         w3 = self._w3
@@ -95,10 +98,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_delegator_leave_delegators(self, contract, eth_kp_src):
         w3 = self._w3
@@ -111,10 +111,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_delegator_revoke_delegation(self, contract, eth_kp_src, sub_collator_addr):
         w3 = self._w3
@@ -127,10 +124,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def evm_delegator_unlock_unstaked(self, contract, eth_kp_src, eth_addr):
         w3 = self._w3
@@ -143,10 +137,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
-        signed_txn = w3.eth.account.sign_transaction(tx, private_key=eth_kp_src.private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
     def get_stake_number(self, sub_addr):
         data = self._substrate.query('ParachainStaking', 'DelegatorState', [sub_addr])
@@ -267,7 +258,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         # Note: The unlock unstaked didn't success because we have to wait about 20+ blocks;
         # therefore, we don't test here. Can just test maunally
 
-    def test_delegator_customized_claim(self):
+    def claim_collator_if_not_claimed(self, eth_kp):
         eth_kp = get_eth_info()
         signature = calculate_claim_signature(
             self._substrate,
@@ -275,8 +266,15 @@ class bridge_parachain_staking_test(unittest.TestCase):
             eth_kp['kp'].private_key.hex(),
             self._eth_chain_id)
         receipt = claim_account(self._substrate, KP_COLLATOR, eth_kp['kp'], signature)
+        if not receipt.is_success and 'AccountIdHasMapped' == receipt.error_message['name']:
+            return
         self.assertTrue(
             receipt.is_success, f'Failed to claim account {KP_COLLATOR.ss58_address}, {receipt.error_message}')
+
+    # Can only test once before we restart
+    def test_delegator_customized_claim(self):
+        eth_kp = get_eth_info()
+        self.claim_collator_if_not_claimed(eth_kp)
 
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
@@ -293,3 +291,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
             event['attributes'],
             (self._kp_moon['substrate'], collator_num, KP_COLLATOR.ss58_address, 2 * collator_num),
             f'join fails, event: {event}')
+
+        evm_receipt = self.evm_delegator_leave_delegators(contract, self._kp_moon['kp'])
+        self.assertEqual(evm_receipt['status'], 1, f'leave fails, evm_receipt: {evm_receipt}')

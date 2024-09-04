@@ -4,7 +4,7 @@ import os
 import time
 
 from substrateinterface import SubstrateInterface
-from tools.utils import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -12,6 +12,8 @@ from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
+from tools.constants import BLOCK_GENERATE_TIME
+from tools.xcm_setup import setup_hrmp_channel
 import argparse
 
 import pprint
@@ -94,7 +96,7 @@ def update_xcm_default_version(substrate):
         'PolkadotXcm',
         'force_default_xcm_version',
         {
-            'maybe_xcm_version': 3,
+            'maybe_xcm_version': 4,
         }
     )
     batch.execute()
@@ -128,15 +130,16 @@ def do_runtime_upgrade(wasm_path):
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
 
+    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
+
+    wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
+    fund_account()
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     # Remove the asset id 1: relay chain
+    # Move it in front of the upgrade because this 1.7.2 upgrade will need to change the node
     remove_asset_id(substrate)
-
-    upgrade(wasm_path)
-    wait_for_n_blocks(substrate, 10)
-    fund_account()
-    update_xcm_default_version(substrate)
 
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
     batch.compose_sudo_call(
@@ -153,6 +156,15 @@ def do_runtime_upgrade(wasm_path):
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
     print(f'Upgrade from {old_version} to the {new_version}')
+
+    upgrade(wasm_path)
+    wait_for_n_blocks(substrate, 10)
+    # Cannot move in front of the upgrade because V4 only exists in 1.7.2
+    update_xcm_default_version(substrate)
+
+    new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+    if old_version == new_version:
+        raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
 
 
 def main():
@@ -174,7 +186,7 @@ def main():
         restart_parachain_launch()
     do_runtime_upgrade(runtime_path)
     print('Done but wait 30s')
-    time.sleep(30)
+    time.sleep(BLOCK_GENERATE_TIME * 5)
 
 
 if __name__ == '__main__':

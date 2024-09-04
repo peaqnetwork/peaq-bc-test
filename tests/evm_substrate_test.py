@@ -1,9 +1,11 @@
+import pytest
+
 from substrateinterface import SubstrateInterface, Keypair
-from tools.utils import WS_URL, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, KP_GLOBAL_SUDO
 from peaq.eth import calculate_evm_account, calculate_evm_addr
+from peaq.utils import ExtrinsicBatch
 from peaq.sudo_extrinsic import funds
 from tools.peaq_eth_utils import get_eth_balance
-from tools.payload import user_extrinsic_send
 import unittest
 
 import pprint
@@ -27,12 +29,12 @@ def get_byte_code_from_file(file):
 
 # For the ERC 20 token
 # https://github.com/paritytech/frontier/blob/master/template/examples/contract-erc20/truffle/contracts/MyToken.json#L259
-@user_extrinsic_send
 def create_constract(substrate, kp_src, eth_src, erc20_bytecode):
-    return substrate.compose_call(
-        call_module='EVM',
-        call_function='create',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'EVM',
+        'create',
+        {
             'source': eth_src,
             'init': erc20_bytecode,
             'value': int('0x0', 16),
@@ -41,7 +43,9 @@ def create_constract(substrate, kp_src, eth_src, erc20_bytecode):
             'max_priority_fee_per_gas': 2000000000,
             'nonce': None,
             'access_list': []
-        })
+        }
+    )
+    return batch.execute()
 
 
 def get_deployed_contract(substrate, receipt):
@@ -50,40 +54,44 @@ def get_deployed_contract(substrate, receipt):
     return created_event.value['attributes']['address']
 
 
-@user_extrinsic_send
 def call_eth_transfer(substrate, kp_src, eth_src, eth_dst):
-    return substrate.compose_call(
-        call_module='EVM',
-        call_function='call',
-        call_params={
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'EVM',
+        'call',
+        {
             'source': eth_src,
             'target': eth_dst,
             'input': '0x',
             'value': int('0xffff', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': int("0xffffffff", 16),
-            'max_priority_fee_per_gas': None,
+            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
-        })
+        }
+    )
+    return batch.execute()
 
 
-@user_extrinsic_send
 def transfer_erc20_token(substrate, kp_src, eth_src, eth_dst, contract_addr):
-    return substrate.compose_call(
-        call_module='EVM',
-        call_function='call',
-        call_params={
-            'target': contract_addr,
+    batch = ExtrinsicBatch(substrate, kp_src)
+    batch.compose_call(
+        'EVM',
+        'call',
+        {
             'source': eth_src,
+            'target': contract_addr,
             'input': f'0xa9059cbb000000000000000000000000{eth_dst.lower()[2:]}00000000000000000000000000000000000000000000000000000000000000{hex(ERC_TOKEN_TRANSFER)[2:]}',  # noqa: E501
             'value': int('0x0', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': int("0xfffffff", 16),
-            'max_priority_fee_per_gas': None,
+            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
-        })
+        }
+    )
+    return batch.execute()
 
 
 def get_erc20_balance(conn, contract_addr, slot_addr):
@@ -94,6 +102,8 @@ def get_eth_contract_code(conn, contract_addr):
     return conn.query("EVM", "AccountCodes", [contract_addr])
 
 
+@pytest.mark.eth
+@pytest.mark.substrate
 class TestEVMSubstrateExtrinsic(unittest.TestCase):
     def setUp(self):
         self._conn = SubstrateInterface(url=WS_URL)
