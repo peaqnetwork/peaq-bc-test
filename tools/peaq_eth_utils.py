@@ -4,6 +4,7 @@ from substrateinterface import Keypair, KeypairType
 from substrateinterface.utils import hasher
 from peaq.eth import calculate_evm_account
 from web3 import Web3
+from web3 import exceptions as Web3Exceptions
 from peaq import eth
 from tools.constants import ETH_TIMEOUT
 import time
@@ -116,7 +117,8 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
         print(f'evm tx: {tx_hash.hex()}')
         try:
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
-        except w3.exceptions.TimeExceeded:
+        except Web3Exceptions.TimeExceeded:
+            print(f'Timeout for tx: {tx_hash.hex()}')
             continue
         # Check whether the block is finalized or not. If not, wait for it
         while w3.eth.get_block('finalized').number < receipt.blockNumber:
@@ -126,6 +128,7 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
             # Check the transaction is existed or not, if not, go back to send again
             print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
             return receipt
-        except w3.exceptions.TransactionNotFound:
+        except Web3Exceptions.TransactionNotFound:
+            print(f'Tx {tx_hash.hex()} is not found')
             continue
     raise IOError('Cannot send transaction')
