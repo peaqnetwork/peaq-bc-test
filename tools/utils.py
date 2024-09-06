@@ -346,9 +346,11 @@ def exist_pallet(substrate, pallet_name):
 
 def _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev):
     now_block = substrate.get_block_number(None)
-    for bl_idx in range(block_idx_prev, now_block + 1):
+    for bl_idx in range(block_idx_prev - 1, now_block + 1):
         block_hash = substrate.get_block_hash(bl_idx)
         events = substrate.get_events(block_hash)
+        print(f'block: {bl_idx}')
+        print(events)
         for e in events:
             if _is_it_this_event(e, module, event, attributes):
                 return e.value['event']
