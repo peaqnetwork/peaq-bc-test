@@ -117,7 +117,7 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
         print(f'evm tx: {tx_hash.hex()}')
         try:
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
-        except Web3Exceptions.TimeExceeded:
+        except Web3Exceptions.TimeExhausted:
             print(f'Timeout for tx: {tx_hash.hex()}')
             continue
         # Check whether the block is finalized or not. If not, wait for it
