@@ -288,6 +288,16 @@ class TestPalletVesting(unittest.TestCase):
         kp_target_second = self._kp_target_second
         substrate = self._substrate
 
+        kp_user_0 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        kp_target_0 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+
+        kp_user_1 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        kp_source_1 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        kp_target_1 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+
+        kp_source_2 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        kp_target_second_2 = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+
         # TODO
         # In current code structure
         # Vest test is dependent on vest_transer
@@ -299,9 +309,12 @@ class TestPalletVesting(unittest.TestCase):
         # To fund accounts, if sufficient  funds are not available
         funds(substrate,
               KP_GLOBAL_SUDO,
-              [kp_user.ss58_address, kp_source.ss58_address, kp_target.ss58_address, kp_target_second.ss58_address],
+              [kp_user_0.ss58_address, kp_target_0.ss58_address,
+               kp_user_1.ss58_address, kp_source_1.ss58_address, kp_target_1.ss58_address,
+               kp_source_2.ss58_address, kp_target_second_2.ss58_address,
+               kp_user.ss58_address, kp_source.ss58_address, kp_target.ss58_address, kp_target_second.ss58_address],
               1000 * TOKEN_NUM_BASE_DEV)
 
-        self.vested_transfer_test(substrate, kp_user, kp_target)
-        self.forced_vested_transfer_test(substrate, kp_user, kp_source, kp_target)
-        self.merge_schedule_test(substrate, kp_source, kp_target_second)
+        self.vested_transfer_test(substrate, kp_user_0, kp_target_0)
+        self.forced_vested_transfer_test(substrate, kp_user_1, kp_source_1, kp_target_1)
+        self.merge_schedule_test(substrate, kp_source_2, kp_target_second_2)

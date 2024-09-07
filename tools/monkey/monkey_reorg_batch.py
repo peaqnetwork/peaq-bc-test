@@ -13,6 +13,9 @@ origin_execute_extrinsic_batch = ExtrinsicBatch._execute_extrinsic_batch
 def _backtrace_blocks_by_extrinsic(substrate, extrinsic_hash):
     now_block_num = substrate.get_block_number(None)
     for i in range(BACKTRACE_BLOCK_NUM):
+        if now_block_num - i < 0:
+            print(f'Error: {now_block_num - i} < 0: {now_block_num}')
+            break
         block_hash = substrate.get_block_hash(now_block_num - i)
         extrinsics = substrate.get_block(block_hash)['extrinsics']
         for tx in extrinsics:
