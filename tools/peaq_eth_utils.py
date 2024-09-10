@@ -113,7 +113,11 @@ def calculate_evm_default_addr(sub_addr):
 def sign_and_submit_evm_transaction(tx, w3, signer):
     signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
     for i in range(3):
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        try:
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        except ValueError as e:
+            if 'already known' not in str(e):
+                raise e
         print(f'evm tx: {tx_hash.hex()}')
         try:
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
