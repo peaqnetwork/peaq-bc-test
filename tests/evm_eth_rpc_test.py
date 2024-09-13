@@ -40,7 +40,7 @@ def send_eth_token(w3, kp_src, kp_dst, token_num, eth_chain_id):
         'to': kp_dst.ss58_address,
         'value': token_num,
         'gas': gas,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id
@@ -61,7 +61,7 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
     tx = contract.functions.callDatacopy(bytes.fromhex(data)).build_transaction({
         'from': kp_src.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})

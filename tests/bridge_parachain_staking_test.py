@@ -67,7 +67,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.joinDelegators(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -80,7 +80,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.delegatorStakeMore(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -93,7 +93,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.delegatorStakeLess(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -106,7 +106,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.leaveDelegators().build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -119,7 +119,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.revokeDelegation(sub_collator_addr).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -132,7 +132,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         tx = contract.functions.unlockUnstaked(eth_addr).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
