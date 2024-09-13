@@ -168,8 +168,8 @@ class bridge_asset_factory_test(unittest.TestCase):
             asset_id,
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(50000, 'gwei'),
+            'gas': 10633039,
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(1, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
