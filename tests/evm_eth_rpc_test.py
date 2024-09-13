@@ -3,6 +3,8 @@ import pytest
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
+from peaq.utils import ExtrinsicBatch
+from tools.constants import KP_GLOBAL_SUDO
 from tools.constants import WS_URL, ETH_URL
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -10,6 +12,9 @@ from tools.peaq_eth_utils import deploy_contract
 from tools.peaq_eth_utils import call_eth_transfer_a_lot
 from tools.peaq_eth_utils import get_eth_balance, get_contract
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
+from tests import utils_func as TestUtils
+from tools.peaq_eth_utils import get_eth_info
+from tools.utils import batch_fund
 from web3 import Web3
 import unittest
 
@@ -81,6 +86,33 @@ class TestEVMEthRPC(unittest.TestCase):
         self._kp_eth_dst = Keypair.create_from_mnemonic(MNEMONIC[1], crypto_type=KeypairType.ECDSA)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
         self._eth_deposited_src = calculate_evm_account(self._eth_src)
+
+    @pytest.mark.skipif(TestUtils.is_not_peaq_chain() is True, reason='Only peaq chain evm tx change')
+    def test_evm_fee(self):
+        self._kp_moon = get_eth_info()
+        self._kp_mars = get_eth_info()
+        batch = ExtrinsicBatch(self._conn, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._kp_moon['substrate'], 1000 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        prev_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
+        nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
+        tx = {
+            'from': self._kp_moon['kp'].ss58_address,
+            'to': self._kp_mars['kp'].ss58_address,
+            'value': 1 * 10 ** 18,
+            'gas': 21000,
+            'maxFeePerGas': 100 * 10 ** 9,
+            'maxPriorityFeePerGas': 1 * 10 ** 9,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id
+        }
+        response = sign_and_submit_evm_transaction(tx, self._w3, self._kp_moon['kp'])
+        self.assertTrue(response['status'] == TX_SUCCESS_STATUS, f'failed: {response}')
+
+        new_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
+        self.assertGreater(prev_balance - new_balance - 1 * 10 ** 18, 0.002 * 10 ** 18)
 
     def test_evm_rpc_transfer(self):
         conn = self._conn
