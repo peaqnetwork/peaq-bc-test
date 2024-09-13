@@ -5,7 +5,7 @@ from tools.constants import ACA_PD_CHAIN_ID
 from tools.constants import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.asset import setup_asset_if_not_exist, setup_xc_register_if_not_exist
 from substrateinterface import SubstrateInterface, Keypair
@@ -21,6 +21,7 @@ from tools.asset import get_tokens_account_from_pallet_tokens
 import pytest
 
 
+GAS_LIMIT = 10633039
 ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
@@ -50,7 +51,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
-                'value': 100 * 10 ** 18,
+                'value': 1000 * 10 ** 18,
             }
         )
         batch.execute()
