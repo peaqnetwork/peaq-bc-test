@@ -44,7 +44,7 @@ def create_asset(substrate, w3, eth_chain_id, contract, owner_kp):
     tx = contract.functions.create(asset_id, owner_kp.ss58_address, 1000).build_transaction({
         'from': owner_kp.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
@@ -82,7 +82,7 @@ def mint_asset(substrate, w3, eth_chain_id, asset_addr, owner_kp, dest_kp, amoun
     tx = contract.functions.mint(dest_kp.ss58_address, amount).build_transaction({
         'from': owner_kp.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
@@ -99,7 +99,7 @@ def approval_asset(substrate, w3, eth_chain_id, asset_addr, owner_kp, addr, amou
     tx = contract.functions.approve(addr, amount).build_transaction({
         'from': owner_kp.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})

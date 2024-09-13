@@ -144,7 +144,7 @@ def send_xtoken_transfer(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
@@ -164,7 +164,7 @@ def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachai
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
@@ -185,7 +185,7 @@ def send_xtoken_transfer_multi_currencies(w3, eth_chain_id, kp_sign, kp_dst, par
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
@@ -206,7 +206,7 @@ def send_xtoken_transfer_multi_assets(w3, eth_chain_id, kp_sign, kp_dst, paracha
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
