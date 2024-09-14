@@ -223,8 +223,8 @@ class TestPalletVesting(unittest.TestCase):
         block_header = substrate.get_block_header()
         current_block_number = int(block_header['header']['number'])
 
-        first_starting_block_number = current_block_number + 10
-        second_starting_block_number = current_block_number + 20
+        first_starting_block_number = current_block_number + 100
+        second_starting_block_number = current_block_number + 200
 
         print("Current Block: ", current_block_number)
         print("Starting Block Number of first schedule: ", first_starting_block_number)
@@ -233,10 +233,10 @@ class TestPalletVesting(unittest.TestCase):
               max(first_starting_block_number, second_starting_block_number))
 
         first_schedule = {'locked': 100 * TOKEN_NUM_BASE_DEV,
-                          'per_block': 10 * TOKEN_NUM_BASE_DEV,
+                          'per_block': 1 * TOKEN_NUM_BASE_DEV,
                           'starting_block': first_starting_block_number}
         second_schedule = {'locked': 200 * TOKEN_NUM_BASE_DEV,
-                           'per_block': 20 * TOKEN_NUM_BASE_DEV,
+                           'per_block': 2 * TOKEN_NUM_BASE_DEV,
                            'starting_block': second_starting_block_number}
 
         print("First vested trasnfer")

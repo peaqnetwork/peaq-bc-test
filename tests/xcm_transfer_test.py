@@ -260,6 +260,7 @@ class TestXCMTransfer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 3)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 3)
         wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 3)
 
