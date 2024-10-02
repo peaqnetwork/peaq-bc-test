@@ -5,6 +5,8 @@ sys.path.append('.')
 from peaq import utils as PeaqUtils
 PeaqUtils.DEBUG = True
 
+# from scalecodec.types import U32
+# from scalecodec.utils.ss58 import ss58_encode
 from tools.constants import PARACHAIN_WS_URL, TOKEN_NUM_BASE, KP_GLOBAL_SUDO
 from substrateinterface import SubstrateInterface
 from substrateinterface import Keypair
@@ -12,6 +14,7 @@ from peaq.utils import get_account_balance, show_extrinsic
 from peaq.sudo_extrinsic import fund
 from peaq.eth import calculate_evm_addr
 from peaq.utils import calculate_multi_sig
+# from substrateinterface.utils import hasher
 
 # Monkey patch
 from scalecodec.types import FixedLengthArray
@@ -461,6 +464,25 @@ def get_balance_reserve_value(substrate, account, key):
         if item['id'] == hex_key:
             return item['amount']
     return 0
+
+
+# def get_parachain_sovereign_account(para_id, chain_type='para'):
+#     scale_encoded = chain_type.encode().hex()
+#     scale_encoded += U32(ScaleBytes(bytearray())).encode(para_id).to_hex()[2:]
+#     public_key = f"0x{scale_encoded + ''.join(['0' * (64 - len(scale_encoded))])}"
+#     print(
+#         f'\t  Account ID:\t{public_key}\n' +
+#         f'\tSS58 Address:\t{ss58_encode(public_key)}'
+#     )
+#
+#
+# def get_sibling_chain_account(substrate, parachain_id, ss58_addr):
+#     loc = b"SilbingChain" + bytes(str(parachain_id), 'utf-8')
+#     # loc = b"SilbingChain" + bytes.fromhex(str(substrate.encode_scale('Compact<u32>', parachain_id))[2:])
+#     pk = bytes.fromhex('0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d'[2:])
+#     loc += b"AccountId32" + pk
+#     # loc += b"AccountId32" + Keypair(ss58_address=ss58_addr).public_key
+#     return f'0x{hasher.blake2_256(loc).hex()}'
 
 
 if __name__ == '__main__':
