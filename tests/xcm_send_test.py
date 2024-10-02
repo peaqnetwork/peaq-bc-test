@@ -10,6 +10,8 @@ from tools.constants import KP_GLOBAL_SUDO
 from peaq.utils import get_account_balance
 from tools.asset import get_valid_asset_id
 from tools.utils import get_modified_chain_spec
+from tools.peaq_eth_utils import generate_random_hex
+from peaq.did import did_rpc_read
 from peaq.utils import get_chain
 import pytest
 
@@ -74,6 +76,19 @@ class TestXCMSend(unittest.TestCase):
                 'id': asset_id,
                 'admin': kp.ss58_address,
                 'min_balance': 101,
+            }
+        )
+        return str(encoded_tx.encode())
+
+    def _compose_random_did_create(self, substrate, kp, did_name):
+        encoded_tx = substrate.compose_call(
+            call_module='PeaqDid',
+            call_function='add_attribute',
+            call_params={
+                'did_account': kp.ss58_address,
+                'name': did_name,
+                'value': generate_random_hex(10),
+                'valid_for': None,
             }
         )
         return str(encoded_tx.encode())
@@ -255,3 +270,42 @@ class TestXCMSend(unittest.TestCase):
         self.assertNotEqual(asset, None, f'Error: {asset}')
         after_balance = get_account_balance(self.si_aca, kp_dst.ss58_address)
         self.assertGreater(after_balance, ori_balance, f'Error: {after_balance} {ori_balance}')
+
+    @pytest.mark.xcm
+    def test_xcm_send_from_substrate_did_create_fail(self):
+        self.si_peaq = SubstrateInterface(url=WS_URL)
+        self.si_aca = SubstrateInterface(url=ACA_WS_URL)
+
+        self.aca_fund(self.si_aca, KP_GLOBAL_SUDO, self.sibling_parachain_addr, 10000 * 10 ** 18)
+
+        # compose the message
+        kp_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        self.aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_dst.ss58_address, 1000 * 10 ** 18)
+        ori_balance = get_account_balance(self.si_aca, kp_dst.ss58_address)
+
+        did_name = generate_random_hex(5)
+        did = did_rpc_read(self.si_aca, self.sibling_parachain_addr, did_name)
+        self.assertEqual(did, None, f'Error: {did}')
+
+        did_call = self._compose_random_did_create(self.si_aca, kp_dst, did_name)
+        # Use the pallet send to send it
+        batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
+        batch.compose_call(
+            'PolkadotXcm',
+            'send',
+            self._compose_xcm_send_message_call(
+                kp_dst,
+                did_call)
+        )
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Failed to send xcm: {receipt.error_message}')
+
+        # Currently, the peaq did didn't add into the safecallfilter
+        # The did read will fail
+        did = did_rpc_read(self.si_aca, kp_dst.ss58_address, did_name)
+        self.assertEqual(did, None, f'Error: {did}')
+
+        # The kp_dst.ss58_address cannot receive the refund because the did create fails
+        # The balance should be the same and remaining tokens goes into the asset trap
+        after_balance = get_account_balance(self.si_aca, kp_dst.ss58_address)
+        self.assertEqual(after_balance, ori_balance, f'Error: {after_balance} != {ori_balance}')
