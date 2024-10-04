@@ -2,7 +2,6 @@ import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.constants import WS_URL, ETH_URL, ACA_WS_URL
 from tools.constants import ACA_PD_CHAIN_ID
-from tools.constants import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
@@ -33,11 +32,12 @@ class TestBridgeXCMUtils(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
-        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 1)
 
     def setUp(self):
         self.si_peaq = SubstrateInterface(url=WS_URL)
-        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
         self.w3 = Web3(Web3.HTTPProvider(ETH_URL))
         self.kp_eth = get_eth_info("sphere gasp actual clock wreck rural essay name claw deputy party output")
         self.eth_chain_id = get_eth_chain_id(self.si_peaq)
@@ -251,7 +251,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         new_balance = get_account_balance(self.si_aca, kp_dst.ss58_address)
-        self.assertGreater(new_balance, orig_balance, f'Error: {new_balance}')
+        self.assertGreater(new_balance, orig_balance, f'Error: {new_balance}, dst: {kp_dst.ss58_address}')
 
     @pytest.mark.xcm
     def test_get_units_per_second(self):
