@@ -44,7 +44,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
         self.setup_sibling_parachain_account()
 
     # Just calculate the sibling parachain account by moonbeam's xcm-utils tool
-    # Here is the comment but remember to change the parachain id
+    # Here is the command but remember to change the parachain id
     # yarn calculate-multilocation-derivative-account --a 0x55eebfdbb6af8aecbc9664bb229c48e2fceb381ce9d93a3ed698d4177da3e8e6 --p 2000 --parents
     def setup_sibling_parachain_account(self):
         # substrate addr is 5E1NrJDAqp5R3JDBBn2JGaHpUMo5kbCNXtV2asLzaw2MZfwr
@@ -170,7 +170,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
                 'parents': '1',
                 'interior': {
                     'X1': [{
-                        'Parachain': '3000'
+                        'Parachain': str(ACA_PD_CHAIN_ID)
                     }]
                 },
             }},

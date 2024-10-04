@@ -31,7 +31,7 @@ class TestXCMSend(unittest.TestCase):
         self.setup_sibling_parachain_account()
 
     # Just calculate the sibling parachain account by moonbeam's xcm-utils tool
-    # Here is the comment but remember to change the parachain id
+    # Here is the command but remember to change the parachain id
     # yarn calculate-multilocation-derivative-account --a 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d --p 2000 --parents
     def setup_sibling_parachain_account(self):
         chain_spec = get_chain(self.si_peaq)
