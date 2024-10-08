@@ -7,7 +7,6 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import get_eth_chain_id
-from tools.peaq_eth_utils import GAS_LIMIT
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from tools.constants import WS_URL, ETH_URL
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
@@ -43,9 +42,6 @@ def create_asset(substrate, w3, eth_chain_id, contract, owner_kp):
     nonce = w3.eth.get_transaction_count(owner_kp.ss58_address)
     tx = contract.functions.create(asset_id, owner_kp.ss58_address, 1000).build_transaction({
         'from': owner_kp.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
 
@@ -81,9 +77,6 @@ def mint_asset(substrate, w3, eth_chain_id, asset_addr, owner_kp, dest_kp, amoun
     nonce = w3.eth.get_transaction_count(owner_kp.ss58_address)
     tx = contract.functions.mint(dest_kp.ss58_address, amount).build_transaction({
         'from': owner_kp.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
 
@@ -98,9 +91,6 @@ def approval_asset(substrate, w3, eth_chain_id, asset_addr, owner_kp, addr, amou
     nonce = w3.eth.get_transaction_count(owner_kp.ss58_address)
     tx = contract.functions.approve(addr, amount).build_transaction({
         'from': owner_kp.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
 

@@ -10,7 +10,7 @@ from tools.constants import WS_URL, ETH_URL
 from tools.constants import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from peaq.utils import get_chain
 from tools.utils import batch_fund
 from web3 import Web3
@@ -68,9 +68,6 @@ class balance_erc20_asset_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.transfer(eth_dst, token_num).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -81,9 +78,6 @@ class balance_erc20_asset_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.approve(eth_approval, token_num).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -94,9 +88,6 @@ class balance_erc20_asset_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp.ss58_address)
         tx = contract.functions.transferFrom(eth_from, eth_to, token_num).build_transaction({
             'from': eth_kp.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 

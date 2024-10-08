@@ -36,9 +36,6 @@ class TestBridgeVest(unittest.TestCase):
         per_block = int(number / VEST_PERIOD)
         tx = contract.functions.vestedTransfer(evm_dst, int(number), per_block, now).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -49,9 +46,6 @@ class TestBridgeVest(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.vest().build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -62,9 +56,6 @@ class TestBridgeVest(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.vestOther(evm_dst).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 

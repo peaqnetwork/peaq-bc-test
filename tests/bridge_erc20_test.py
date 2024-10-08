@@ -8,7 +8,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from web3 import Web3
 
 
@@ -48,9 +48,6 @@ class erc20_asset_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.transfer(eth_dst, token_num).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 

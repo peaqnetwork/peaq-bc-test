@@ -23,7 +23,7 @@ from tools.asset import batch_create_asset, batch_mint, batch_set_metadata, batc
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from web3 import Web3
 from tools.peaq_eth_utils import get_contract
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_tokens_account_from_pallet_assets
@@ -143,9 +143,6 @@ def send_xtoken_transfer(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_
         [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
         })
@@ -163,9 +160,6 @@ def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachai
         [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
         })
@@ -184,9 +178,6 @@ def send_xtoken_transfer_multi_currencies(w3, eth_chain_id, kp_sign, kp_dst, par
         [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
         })
@@ -205,9 +196,6 @@ def send_xtoken_transfer_multi_assets(w3, eth_chain_id, kp_sign, kp_dst, paracha
         [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id
         })

@@ -8,7 +8,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from tools.constants import KP_GLOBAL_SUDO
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from web3 import Web3
@@ -58,9 +58,6 @@ class bridge_asset_factory_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.create(asset_id, eth_admin.ss58_address, min_balance).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -123,9 +120,6 @@ class bridge_asset_factory_test(unittest.TestCase):
             asset_id,
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -138,9 +132,6 @@ class bridge_asset_factory_test(unittest.TestCase):
             asset_id,
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -153,9 +144,6 @@ class bridge_asset_factory_test(unittest.TestCase):
             asset_id,
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(300, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(250, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -168,9 +156,6 @@ class bridge_asset_factory_test(unittest.TestCase):
             asset_id,
         ).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(300, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(250, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -210,9 +195,6 @@ class bridge_asset_factory_test(unittest.TestCase):
             [0] * len(addrs)
             ).build_transaction({
                 'from': self._kp_creator['kp'].ss58_address,
-                'gas': GAS_LIMIT,
-                'maxFeePerGas': self._w3.to_wei(250, 'gwei'),
-                'maxPriorityFeePerGas': self._w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self._eth_chain_id
             })
