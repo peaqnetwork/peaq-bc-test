@@ -14,7 +14,6 @@ from peaq.extrinsic import transfer
 BYTECODE_FILE = 'ETH/event_sample/bytecode'
 ABI_FILE = 'ETH/event_sample/abi'
 ETH_CHAIN_ID = 9999
-GAS_LIMIT = 4294967
 ETH_PRIVATE_KEY = '0xa2899b053679427c8c446dc990c8990c75052fd3009e563c6a613d982d6842fe'
 
 
@@ -44,9 +43,6 @@ if __name__ == '__main__':
     nonce = w3.eth.get_transaction_count(kp_eth_src.ss58_address)
     tx = contract.functions.test().build_transaction({
         'from': kp_eth_src.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': ETH_CHAIN_ID})
 

@@ -40,7 +40,7 @@ def call_eth_transfer_a_lot(substrate, kp_src, eth_src, eth_dst):
             'input': '0x',
             'value': int('0xfffffffffffffffff', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_fee_per_gas': 999 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
@@ -62,9 +62,6 @@ def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
         abi=abi,
         bytecode=bytecode).constructor().build_transaction({
             'from': kp_src.ss58_address,
-            'gas': 429496,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id})
 

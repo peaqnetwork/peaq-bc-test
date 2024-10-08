@@ -33,9 +33,6 @@ class TestBridgeDid(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.addAttribute(evm_addr, key, value, VALIDITY).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
@@ -49,9 +46,6 @@ class TestBridgeDid(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.updateAttribute(evm_addr, key, value, VALIDITY).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 
@@ -65,9 +59,6 @@ class TestBridgeDid(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.removeAttribute(evm_addr, key).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self.eth_chain_id})
 

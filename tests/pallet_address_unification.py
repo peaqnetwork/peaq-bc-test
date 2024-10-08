@@ -12,7 +12,7 @@ from tools.peaq_eth_utils import get_eth_balance
 from tools.peaq_eth_utils import get_eth_chain_id, calculate_evm_default_addr
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
-from tools.peaq_eth_utils import GAS_LIMIT, get_contract
+from tools.peaq_eth_utils import get_contract
 from peaq.utils import get_account_balance
 from web3 import Web3
 from peaq.eth import calculate_evm_account, calculate_evm_addr
@@ -56,9 +56,6 @@ def evm_erc20_trasfer(asset_id, kp_eth_src, kp_eth_dst, amount, eth_chain_id):
     nonce = w3.eth.get_transaction_count(kp_eth_src.ss58_address)
     tx = contract.functions.transfer(kp_eth_dst.ss58_address, amount).build_transaction({
         'from': kp_eth_src.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
 
@@ -184,11 +181,13 @@ class TestPalletEvmAccounts(unittest.TestCase):
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         # Check
-        balance = get_asset_balance(self._substrate, kp_sub_src.ss58_address, asset_id)['balance']
+        now_block_num = self._substrate.get_block_number(None)
+        block_hash = self._substrate.get_block_hash(now_block_num)
+        balance = get_asset_balance(self._substrate, kp_sub_src.ss58_address, asset_id, block_hash)['balance']
         self.assertEqual(
             balance, FUND_NUMBER - transfer_number,
             f'Balance is not correct, {balance} != {FUND_NUMBER - transfer_number}')
-        balance = get_asset_balance(self._substrate, kp_sub_dst.ss58_address, asset_id)['balance']
+        balance = get_asset_balance(self._substrate, kp_sub_dst.ss58_address, asset_id, block_hash)['balance']
         self.assertEqual(
             balance, transfer_number,
             f'Balance is not correct, {balance} != {transfer_number}')
