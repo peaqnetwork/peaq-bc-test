@@ -39,8 +39,8 @@ def create_constract(substrate, kp_src, eth_src, erc20_bytecode):
             'init': erc20_bytecode,
             'value': int('0x0', 16),
             'gas_limit': 4294967,
-            'max_fee_per_gas': 250000000000,
-            'max_priority_fee_per_gas': 2000000000,
+            'max_fee_per_gas': 21000 * 10 ** 9,
+            'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
         }
@@ -65,7 +65,7 @@ def call_eth_transfer(substrate, kp_src, eth_src, eth_dst):
             'input': '0x',
             'value': int('0xffff', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []
@@ -85,7 +85,7 @@ def transfer_erc20_token(substrate, kp_src, eth_src, eth_dst, contract_addr):
             'input': f'0xa9059cbb000000000000000000000000{eth_dst.lower()[2:]}00000000000000000000000000000000000000000000000000000000000000{hex(ERC_TOKEN_TRANSFER)[2:]}',  # noqa: E501
             'value': int('0x0', 16),
             'gas_limit': GAS_LIMIT,
-            'max_fee_per_gas': 250 * 10 ** 9,
+            'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
             'access_list': []

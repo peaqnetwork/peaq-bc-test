@@ -233,10 +233,10 @@ class TestPalletVesting(unittest.TestCase):
               max(first_starting_block_number, second_starting_block_number))
 
         first_schedule = {'locked': 100 * TOKEN_NUM_BASE_DEV,
-                          'per_block': 10 * TOKEN_NUM_BASE_DEV,
+                          'per_block': 1 * TOKEN_NUM_BASE_DEV,
                           'starting_block': first_starting_block_number}
         second_schedule = {'locked': 200 * TOKEN_NUM_BASE_DEV,
-                           'per_block': 20 * TOKEN_NUM_BASE_DEV,
+                           'per_block': 2 * TOKEN_NUM_BASE_DEV,
                            'starting_block': second_starting_block_number}
 
         print("First vested trasnfer")

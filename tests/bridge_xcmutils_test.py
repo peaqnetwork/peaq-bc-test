@@ -20,6 +20,7 @@ from peaq.utils import get_chain
 import pytest
 
 
+GAS_LIMIT = 10633039
 ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
@@ -65,7 +66,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
-                'value': 100 * 10 ** 18,
+                'value': 1000 * 10 ** 18,
             }
         )
         batch.execute()

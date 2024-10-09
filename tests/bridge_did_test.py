@@ -13,7 +13,6 @@ from web3 import Web3
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
-GAS_LIMIT = 4294967
 
 KEY = generate_random_hex()
 VALUE = generate_random_hex()
