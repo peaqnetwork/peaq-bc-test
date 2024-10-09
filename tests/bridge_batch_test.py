@@ -53,7 +53,7 @@ class TestBridgeBatch(unittest.TestCase):
         tx = contract.functions.add_attribute(eth_kp.ss58_address, key, value, 1000000).build_transaction({
             'from': eth_kp.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
             'nonce': 0,
             'chainId': self.eth_chain_id})
@@ -77,7 +77,7 @@ class TestBridgeBatch(unittest.TestCase):
             ).build_transaction({
                 'from': kp_sign.ss58_address,
                 'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
                 'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
@@ -113,7 +113,7 @@ class TestBridgeBatch(unittest.TestCase):
             ).build_transaction({
                 'from': kp_sign.ss58_address,
                 'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
                 'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
@@ -148,7 +148,7 @@ class TestBridgeBatch(unittest.TestCase):
             ).build_transaction({
                 'from': kp_sign.ss58_address,
                 'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
                 'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
