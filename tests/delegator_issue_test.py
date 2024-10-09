@@ -9,7 +9,6 @@ from tools.constants import WS_URL, KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import ExtrinsicBatch, get_account_balance
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.utils import set_block_reward_configuration
-import warnings
 
 
 def add_delegator(substrate, kp_delegator, addr_collator, stake_number):

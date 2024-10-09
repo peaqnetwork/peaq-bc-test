@@ -44,7 +44,7 @@ def is_not_peaq_chain():
     chain_name = get_chain(ws)
     return chain_name not in ['peaq', 'peaq-network-fork']
 
- 
+
 def is_krest_related_chain():
     ws = SubstrateInterface(url=WS_URL)
     chain_name = get_chain(ws)
