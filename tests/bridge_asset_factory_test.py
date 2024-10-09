@@ -40,7 +40,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'transfer_keep_alive',
             {
                 'dest': self._kp_creator['substrate'],
-                'value': 100 * 10 ** 18,
+                'value': 10000 * 10 ** 18,
             }
         )
         batch.compose_call(
@@ -48,7 +48,7 @@ class bridge_asset_factory_test(unittest.TestCase):
             'transfer_keep_alive',
             {
                 'dest': self._kp_admin['substrate'],
-                'value': 100 * 10 ** 18,
+                'value': 10000 * 10 ** 18,
             }
         )
         batch.execute()
