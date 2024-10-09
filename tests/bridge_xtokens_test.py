@@ -34,8 +34,8 @@ PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
 ABI_FILE = 'ETH/xtokens/abi'
 XTOKENS_ADDRESS = '0x0000000000000000000000000000000000000803'
 
-TEST_TOKEN_NUM = 10 * 10 ** 15
-INIT_TOKEN_NUM = 10 ** 18
+TEST_TOKEN_NUM = 10 * 10 ** 18
+INIT_TOKEN_NUM = 100 ** 18
 # For avoid exhaust tokens
 REMAIN_TOKEN_NUM = 10000
 
@@ -299,7 +299,7 @@ class TestBridgeXTokens(unittest.TestCase):
             asset_location, UNITS_PER_SECOND)
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
-    # @pytest.mark.skip(reason="Success")
+    @pytest.mark.xcm
     def test_native_from_peaq_to_aca(self):
         receipt = setup_aca_asset_if_not_exist(
             self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
@@ -319,7 +319,7 @@ class TestBridgeXTokens(unittest.TestCase):
         got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
-    # @pytest.mark.skip(reason="Success")
+    @pytest.mark.xcm
     def test_asset_from_peaq_to_aca_with_sufficient(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_SUFF_ASSET_ID['peaq']
@@ -348,6 +348,7 @@ class TestBridgeXTokens(unittest.TestCase):
         got_token = self.wait_for_aca_account_token_change(kp_para_src.ss58_address, TEST_SUFF_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
+    @pytest.mark.xcm
     def test_bridge_xtoken_single_transfer_multi_asset(self):
         receipt = setup_aca_asset_if_not_exist(
             self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
@@ -366,6 +367,7 @@ class TestBridgeXTokens(unittest.TestCase):
         got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
         self.assertNotEqual(got_token, 0)
 
+    @pytest.mark.xcm
     def test_bridge_xtoken_transfer_multi_currencies(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_ASSET_ID['peaq']
@@ -395,6 +397,7 @@ class TestBridgeXTokens(unittest.TestCase):
             self.si_aca, kp_para_src.ss58_address, PEAQ_ASSET_ID['para'])
         self.assertNotEqual(got_token, 0)
 
+    @pytest.mark.xcm
     def test_bridge_xtoken_transfer_multi_assets(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_ASSET_ID['peaq']

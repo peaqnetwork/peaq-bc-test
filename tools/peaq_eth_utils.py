@@ -1,15 +1,16 @@
 import json
-import binascii
-import os
 from peaq.utils import ExtrinsicBatch
 from substrateinterface import Keypair, KeypairType
 from substrateinterface.utils import hasher
 from peaq.eth import calculate_evm_account
 from web3 import Web3
+from web3 import exceptions as Web3Exceptions
 from peaq import eth
 from tools.constants import ETH_TIMEOUT
 import time
 from tools.constants import BLOCK_GENERATE_TIME
+import random
+import string
 
 
 ERC20_ADDR_PREFIX = '0xffffffff00000000000000000000000000000000'
@@ -18,7 +19,7 @@ TX_SUCCESS_STATUS = 1
 
 
 def generate_random_hex(num_bytes=16):
-    return f'0x{binascii.b2a_hex(os.urandom(num_bytes)).decode()}'
+    return f"0x{''.join(random.choice(string.ascii_letters) for i in range(num_bytes)).encode('utf-8').hex()}"
 
 
 def get_contract(w3, address, file_name):
@@ -92,8 +93,9 @@ def get_eth_chain_id(substrate):
         return forked_info[chain_name]
 
 
-def get_eth_info():
-    mnemonic = Keypair.generate_mnemonic()
+def get_eth_info(mnemonic=""):
+    if not mnemonic:
+        mnemonic = Keypair.generate_mnemonic()
     kp = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ECDSA)
     return {
         'kp': kp,
@@ -116,7 +118,8 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
         print(f'evm tx: {tx_hash.hex()}')
         try:
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
-        except w3.exceptions.TimeExceeded:
+        except Web3Exceptions.TimeExceeded:
+            print(f'Timeout for tx: {tx_hash.hex()}')
             continue
         # Check whether the block is finalized or not. If not, wait for it
         while w3.eth.get_block('finalized').number < receipt.blockNumber:
@@ -126,6 +129,7 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
             # Check the transaction is existed or not, if not, go back to send again
             print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
             return receipt
-        except w3.exceptions.TransactionNotFound:
+        except Web3Exceptions.TransactionNotFound:
+            print(f'Tx {tx_hash.hex()} is not found')
             continue
     raise IOError('Cannot send transaction')

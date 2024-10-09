@@ -15,10 +15,9 @@ import pprint
 pp = pprint.PrettyPrinter(indent=4)
 GAS_LIMIT = 4294967
 
-
 KEY = generate_random_hex()
-VALUE = '0x01'
-NEW_VALUE = '0x10'
+VALUE = generate_random_hex()
+NEW_VALUE = generate_random_hex()
 KP_SRC = Keypair.create_from_uri('//Alice')
 DID_ADDRESS = '0x0000000000000000000000000000000000000800'
 ETH_PRIVATE_KEY = '0xa2899b053679427c8c446dc990c8990c75052fd3009e563c6a613d982d6842fe'
@@ -85,7 +84,7 @@ class TestBridgeDid(unittest.TestCase):
     def test_bridge_did(self):
         eth_src = calculate_evm_addr(KP_SRC.ss58_address)
         eth_src = Web3.to_checksum_address(eth_src)
-        token_num = 10000 * pow(10, 15)
+        token_num = 100 * 10 ** 18
         transfer(self.substrate, KP_SRC, calculate_evm_account(eth_src), token_num)
         eth_kp_src = Keypair.create_from_private_key(ETH_PRIVATE_KEY, crypto_type=KeypairType.ECDSA)
         receipt = call_eth_transfer_a_lot(self.substrate, KP_SRC, eth_src, eth_kp_src.ss58_address.lower())

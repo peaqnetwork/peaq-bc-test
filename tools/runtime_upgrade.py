@@ -4,14 +4,17 @@ import os
 import time
 import importlib
 
+from peaq.utils import ExtrinsicBatch
+from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
+ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
+
 from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
 from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
-from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
 from tools.xcm_setup import setup_hrmp_channel
@@ -142,18 +145,6 @@ def do_runtime_upgrade(wasm_path):
     # Move it in front of the upgrade because this 1.7.2 upgrade will need to change the node
     remove_asset_id(substrate)
 
-    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    batch.compose_sudo_call(
-        'ParachainStaking',
-        'set_max_candidate_stake',
-        {'new': 1500000 * 10 ** 18}
-    )
-    batch.execute()
-
-    batch = ExtrinsicBatch(substrate, KP_COLLATOR)
-    batch.compose_call('ParachainStaking', 'candidate_stake_more', {'more': 50000 * 10 ** 18})
-    batch.execute()
-
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
@@ -162,6 +153,7 @@ def do_runtime_upgrade(wasm_path):
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
+    print(f'Upgrade from {old_version} to the {new_version}')
 
 
 def main():

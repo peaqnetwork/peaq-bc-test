@@ -1,10 +1,12 @@
 import unittest
 import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.constants import WS_URL, TOKEN_NUM_BASE
+from tools.constants import WS_URL
 from peaq.sudo_extrinsic import fund
 from peaq.utils import get_account_balance
 from tools.constants import KP_GLOBAL_SUDO
+
+TOKEN_NUM_BASE = pow(10, 18)
 
 
 @pytest.mark.substrate

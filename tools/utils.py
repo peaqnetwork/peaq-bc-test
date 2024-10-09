@@ -26,6 +26,8 @@ from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
+PARACHAIN_STAKING_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
+
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
@@ -344,7 +346,7 @@ def exist_pallet(substrate, pallet_name):
 
 def _check_event_in_previous_blocks(substrate, module, event, attributes, block_idx_prev):
     now_block = substrate.get_block_number(None)
-    for bl_idx in range(block_idx_prev, now_block):
+    for bl_idx in range(block_idx_prev, now_block + 1):
         block_hash = substrate.get_block_hash(bl_idx)
         events = substrate.get_events(block_hash)
         for e in events:
@@ -410,7 +412,6 @@ def _is_it_this_event(e_obj, module, event, attributes) -> bool:
 
 
 def get_event(substrate, block_hash, pallet, event_name):
-    block_hash = substrate.get_block_hash()
     for event in substrate.get_events(block_hash):
         if event.value['module_id'] != pallet or \
            event.value['event_id'] != event_name:
@@ -428,6 +429,14 @@ def batch_fund(batch, kp_or_addr, amount):
         'new_free': amount,
         'new_reserved': 0
     })
+
+
+def get_existential_deposit(substrate):
+    result = substrate.get_constant(
+        'Balances',
+        'ExistentialDeposit',
+    )
+    return result.value
 
 
 def get_modified_chain_spec(chain_spec):

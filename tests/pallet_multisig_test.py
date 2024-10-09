@@ -9,6 +9,8 @@ from peaq.utils import calculate_multi_sig
 from peaq.sudo_extrinsic import funds
 import random
 
+TOKEN_NUM_BASE = 10 ** 18
+
 
 @pytest.mark.substrate
 class PalletMultisig(unittest.TestCase):

@@ -9,6 +9,7 @@ from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
 from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
+from tools.utils import get_existential_deposit
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance
 from tools.currency import peaq, dot, aca
@@ -234,12 +235,12 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     """
     show_subtitle('create_pair_n_swap_test')
 
-    user1 = URI_MOON
-    user2 = URI_MARS
+    user_bene = URI_MOON
+    bob = URI_MARS
 
     kp_para_sudo = into_keypair(KP_GLOBAL_SUDO)
-    kp_beneficiary = into_keypair(user1)
-    kp_para_bob = into_keypair(user2)
+    kp_beneficiary = into_keypair(user_bene)
+    kp_para_bob = into_keypair(bob)
 
     bt_para_sudo = ExtrinsicBatch(si_peaq, kp_para_sudo)
     bt_para_bob = ExtrinsicBatch(si_peaq, kp_para_bob)
@@ -249,7 +250,7 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     relay_token = 10 ** 23
     bt_sudo = ExtrinsicBatch(si_peaq, KP_GLOBAL_SUDO)
     batch_mint(bt_sudo, into_keypair('//Alice').ss58_address, asset_id, relay_token)
-    batch_mint(bt_sudo, into_keypair(user1).ss58_address, asset_id, relay_token)
+    batch_mint(bt_sudo, into_keypair(user_bene).ss58_address, asset_id, relay_token)
     receipt = bt_sudo.execute_n_clear()
     assert receipt.is_success
 
@@ -268,7 +269,8 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     compose_zdex_add_liquidity(bt_para_sudo, asset_id, dot_liquidity, dot_liquidity)
     # Reset user1's account to very low amount, to test payment in local currency
     # force pay the fee by other currency
-    compose_balances_setbalance(bt_para_sudo, user1, 1000)
+    compose_balances_setbalance(
+        bt_para_sudo, user_bene, get_existential_deposit(si_peaq) + 1000)
     receipt = bt_para_sudo.execute_n_clear()
     print(f'create_pair_n_swap_test: receipt: {receipt.error_message}')
     assert receipt.is_success
@@ -326,47 +328,51 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     bt_peaq_cont = ExtrinsicBatch(si_peaq, kp_cont)
     bt_peaq_user = ExtrinsicBatch(si_peaq, kp_user)
 
-    # setup asset
-    amount = bifrost_amount_w_fees(aca(TOK_LIQUIDITY)) // 2
+    def ed_recal(val):
+        # Use the 10 ** 18 for remote parachain's token because of the ED increase
+        return int(val * 10 ** 18)
+
+    # Transfer tokens from parachain to our chain
+    amount = bifrost_amount_w_fees(ed_recal(TOK_LIQUIDITY)) // 2
     bt_sudo = ExtrinsicBatch(si_peaq, KP_GLOBAL_SUDO)
     batch_mint(bt_sudo, into_keypair(URI_GLOBAL_SUDO).ss58_address, asset_id, amount)
     batch_mint(bt_sudo, into_keypair(cont).ss58_address, asset_id, amount)
-    batch_mint(bt_sudo, into_keypair(user).ss58_address, asset_id, bifrost_amount_w_fees(aca(TOK_SWAP)))
+    batch_mint(bt_sudo, into_keypair(user).ss58_address, asset_id, bifrost_amount_w_fees(ed_recal(TOK_SWAP)))
     receipt = bt_sudo.execute_n_clear()
     assert receipt.is_success
 
     # 1.) Create bootstrap-liquidity-pair & start contributing
     compose_bootstrap_create_call(bt_peaq_sudo, asset_id,
-                                  peaq(TOK_LIQUIDITY), aca(TOK_LIQUIDITY),
-                                  peaq(tok_limit), aca(tok_limit))
+                                  peaq(TOK_LIQUIDITY), ed_recal(TOK_LIQUIDITY),
+                                  peaq(tok_limit), ed_recal(tok_limit))
     compose_bootstrap_contribute_call(bt_peaq_sudo, asset_id,
                                       peaq(TOK_LIQUIDITY/2), 0)
     compose_bootstrap_contribute_call(bt_peaq_sudo, asset_id,
-                                      0, aca(TOK_LIQUIDITY/2))
+                                      0, ed_recal(TOK_LIQUIDITY/2))
     receipt = bt_peaq_sudo.execute_n_clear()
     assert receipt.is_success
 
     # Check that bootstrap-liquidity-pair has been created
     lpstatus = state_znlnkprot_lppair_status(si_peaq, asset_id)
     assert lpstatus['target_supply'][0] == peaq(TOK_LIQUIDITY)
-    assert lpstatus['target_supply'][1] == aca(TOK_LIQUIDITY)
+    assert lpstatus['target_supply'][1] == ed_recal(TOK_LIQUIDITY)
     assert lpstatus['capacity_supply'][0] == peaq(TOK_LIQUIDITY) * 100
-    assert lpstatus['capacity_supply'][1] == aca(TOK_LIQUIDITY) * 100
+    assert lpstatus['capacity_supply'][1] == ed_recal(TOK_LIQUIDITY) * 100
     assert lpstatus['accumulated_supply'][0] == peaq(TOK_LIQUIDITY/2)
-    assert lpstatus['accumulated_supply'][1] == aca(TOK_LIQUIDITY/2)
+    assert lpstatus['accumulated_supply'][1] == ed_recal(TOK_LIQUIDITY/2)
 
     # 2.) Contribute to bootstrap-liquidity-pair until goal is reached
     compose_bootstrap_contribute_call(bt_peaq_cont, asset_id,
                                       peaq(TOK_LIQUIDITY/2), 0)
     compose_bootstrap_contribute_call(bt_peaq_cont, asset_id,
-                                      0, aca(TOK_LIQUIDITY/2))
+                                      0, ed_recal(TOK_LIQUIDITY/2))
     receipt = bt_peaq_cont.execute_n_clear()
     assert receipt.is_success
 
     # Check that bootstrap-liquidity-pair has been created
     lpstatus = state_znlnkprot_lppair_status(si_peaq, asset_id)
     assert lpstatus['accumulated_supply'][0] == peaq(TOK_LIQUIDITY)
-    assert lpstatus['accumulated_supply'][1] == aca(TOK_LIQUIDITY)
+    assert lpstatus['accumulated_supply'][1] == ed_recal(TOK_LIQUIDITY)
 
     # 3.) Pool should be filled up (both targets are reached). now end bootstrap
     block_idx_peaq = si_peaq.get_block_number(None)
@@ -379,7 +385,7 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     # 4.) User swaps tokens by using the created pool
     block_idx_peaq = si_peaq.get_block_number(None)
     balance = get_account_balance(si_peaq, kp_user.ss58_address)
-    compose_zdex_swap_exact_for(bt_peaq_user, asset_id, amount_in1=aca(TOK_SWAP))
+    compose_zdex_swap_exact_for(bt_peaq_user, asset_id, amount_in1=ed_recal(TOK_SWAP))
     receipt = bt_peaq_user.execute_n_clear()
     assert receipt.is_success
     wait_n_check_swap_event(si_peaq, 1, block_idx_peaq)
@@ -413,23 +419,23 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
 
     # Setup until step 6.
     batch = ExtrinsicBatch(si_peaq, KP_GLOBAL_SUDO)
-    batch_mint(batch, into_keypair(usr1).ss58_address, asset_id, dot(5000))
+    batch_mint(batch, into_keypair(usr1).ss58_address, asset_id, dot(500000))
     receipt = batch.execute_n_clear()
     assert receipt.is_success
 
     compose_zdex_create_lppair(bt_sudo, asset_id)
-    compose_balances_setbalance(bt_sudo, usr1, peaq(30))
-    compose_balances_setbalance(bt_sudo, usr2, peaq(20))
+    compose_balances_setbalance(bt_sudo, usr1, peaq(30000))
+    compose_balances_setbalance(bt_sudo, usr2, peaq(20000))
     receipt = bt_sudo.execute_n_clear()
     assert receipt.is_success
 
     # 7.
-    compose_zdex_add_liquidity(bt_usr1, asset_id, 1000, 1000)
+    compose_zdex_add_liquidity(bt_usr1, asset_id, peaq(10000), dot(10000))
     receipt = bt_usr1.execute_n_clear()
     assert receipt.is_success
 
     # 8 #less then existential deposit
-    compose_zdex_swap_for_exact(bt_usr2, asset_id, amount_out1=990, amnt_in_max=1000000000000)
+    compose_zdex_swap_for_exact(bt_usr2, asset_id, amount_out1=dot(10000) - 10, amnt_in_max=10 ** 25)
     receipt = bt_usr2.execute_n_clear()
     assert not receipt.is_success
 
@@ -442,7 +448,7 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
     assert dot_balance > 0
 
     # 10. #error, overflow
-    compose_zdex_swap_for_exact(bt_usr2, asset_id, amount_out1=1000, amnt_in_max=1000000000000)
+    compose_zdex_swap_for_exact(bt_usr2, asset_id, amount_out1=dot(10000), amnt_in_max=10 ** 25)
     receipt = bt_usr2.execute_n_clear()
     assert not receipt.is_success
 
@@ -462,6 +468,7 @@ class TestZenlinkDex(unittest.TestCase):
               [into_keypair(URI_MOON).ss58_address, into_keypair(URI_MARS).ss58_address],
               100000 * 10 ** 18)
 
+    @pytest.mark.xcm
     def test_create_pair_swap(self):
         show_title('Zenlink-DEX-Protocol create pair swap Test')
         try:
@@ -477,6 +484,7 @@ class TestZenlinkDex(unittest.TestCase):
             show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
             raise
 
+    @pytest.mark.xcm
     def test_booststrap(self):
         show_title('Zenlink-DEX-Protocol boostrap Test')
         try:
@@ -492,6 +500,7 @@ class TestZenlinkDex(unittest.TestCase):
             show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
             raise
 
+    @pytest.mark.xcm
     def test_empty_lp_swap(self):
         show_title('Zenlink-DEX-Protocol empty lp swap Test')
         try:

@@ -11,7 +11,7 @@ import requests
 
 NUMBER = 10
 WS_PORT_START = 10044
-RPC_PORT_START = 20033
+RPC_PORT_START = 10044
 
 
 def setup_collator(ws_port, rpc_port, kp):
@@ -69,14 +69,14 @@ if __name__ == '__main__':
         url=PARACHAIN_WS_URL,
     )
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    batch.compose_sudo_call(
-        'ParachainStaking',
-        'set_max_selected_candidates',
-        {
-            'new': 32
-        })
+    # batch.compose_sudo_call(
+    #     'ParachainStaking',
+    #     'set_max_selected_candidates',
+    #     {
+    #         'new': 32
+    #     })
 
-    batch.execute_n_clear()
+    # batch.execute_n_clear()
     batch.compose_sudo_call(
         'ParachainStaking',
         'force_new_round',
