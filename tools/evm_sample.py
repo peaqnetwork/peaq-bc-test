@@ -45,7 +45,7 @@ if __name__ == '__main__':
     tx = contract.functions.test().build_transaction({
         'from': kp_eth_src.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': ETH_CHAIN_ID})

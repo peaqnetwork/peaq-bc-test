@@ -64,6 +64,14 @@ STATE_INFOS = [{
             'subsidization_pool_percent': 50000000,
             'depin_staking_percent': 50000000,
             'depin_incentivization_percent': 150000000,
+        },
+        'peaq-network-fork': {
+            'treasury_percent': 650000000,
+            'collators_delegators_percent': 0,
+            'coretime_percent': 100000000,
+            'subsidization_pool_percent': 50000000,
+            'depin_staking_percent': 50000000,
+            'depin_incentivization_percent': 150000000,
         }
     }
 }]
@@ -205,7 +213,7 @@ class TokenEconomyTest(unittest.TestCase):
         block_reward = {
             'peaq-dev-fork': int(3.805175038 * 10 ** 18),
             'krest-network-fork': int(3.805175038 * 10 ** 18),
-            'peaq-network-fork': int(55.93607306 * 10 ** 18),
+            'peaq-network-fork': int(27.96803653 * 10 ** 18),
         }
 
         result = get_event(

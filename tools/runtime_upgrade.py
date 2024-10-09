@@ -2,6 +2,7 @@ import sys
 sys.path.append('./')
 import os
 import time
+import importlib
 
 from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
@@ -145,7 +146,7 @@ def do_runtime_upgrade(wasm_path):
     remove_asset_id(substrate)
 
     upgrade(wasm_path)
-    wait_for_n_blocks(substrate, 20)
+    wait_for_n_blocks(substrate, 15)
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
     update_xcm_default_version(substrate)
 
@@ -178,4 +179,11 @@ def main():
 
 
 if __name__ == '__main__':
+    # For the monkey patching to work, the module must be reloaded
+    # Avoid the dependency on the module name
+    if 'substrateinterface' in sys.modules:
+        importlib.reload(sys.modules['substrateinterface'])
+    if 'peaq.utils' in sys.modules:
+        importlib.reload(sys.modules['peaq.utils'])
+
     main()

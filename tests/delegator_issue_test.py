@@ -8,6 +8,7 @@ from tools.utils import get_collators, batch_fund, get_existential_deposit
 from tools.constants import WS_URL, KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import ExtrinsicBatch, get_account_balance
 from tests.utils_func import restart_parachain_and_runtime_upgrade
+from tools.utils import set_block_reward_configuration
 
 
 def add_delegator(substrate, kp_delegator, addr_collator, stake_number):
@@ -64,6 +65,8 @@ def set_reward_rate(substrate, collator, delegator):
 @pytest.mark.substrate
 class TestDelegatorIssue(unittest.TestCase):
     def setUp(self):
+        restart_parachain_and_runtime_upgrade()
+
         self.substrate = SubstrateInterface(
             url=WS_URL,
         )
@@ -72,9 +75,28 @@ class TestDelegatorIssue(unittest.TestCase):
             Keypair.create_from_mnemonic(Keypair.generate_mnemonic()),
             Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         ]
+        self.ori_reward_config = self.substrate.query(
+            module='BlockReward',
+            storage_function='RewardDistributionConfigStorage',
+        )
+        self.set_collator_delegator_precentage()
 
     def tearDown(self):
-        restart_parachain_and_runtime_upgrade()
+        receipt = set_block_reward_configuration(self.substrate, self.ori_reward_config.value)
+        self.assertTrue(receipt.is_success, 'cannot reset the block reward configuration')
+
+    def set_collator_delegator_precentage(self):
+        set_value = {
+            'treasury_percent': 20000000,
+            'depin_incentivization_percent': 10000000,
+            'collators_delegators_percent': 20000000,
+            'depin_staking_percent': 50000000,
+            'coretime_percent': 40000000,
+            'subsidization_pool_percent': 860000000,
+        }
+        receipt = set_block_reward_configuration(self.substrate, set_value)
+        self.assertTrue(receipt.is_success,
+                        'cannot setup the block reward configuration')
 
     def get_one_collator_without_delegator(self, keys):
         for key in keys:

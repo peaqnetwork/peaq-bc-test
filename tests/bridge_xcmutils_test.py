@@ -4,7 +4,7 @@ from tools.constants import WS_URL, ETH_URL, ACA_WS_URL
 from tools.constants import ACA_PD_CHAIN_ID
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_contract
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from tools.peaq_eth_utils import get_eth_chain_id
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
@@ -20,6 +20,7 @@ from peaq.utils import get_chain
 import pytest
 
 
+GAS_LIMIT = 10633039
 ABI_FILE = 'ETH/xcmutils/abi'
 XCMUTILS_ADDRESS = '0x0000000000000000000000000000000000000804'
 
@@ -65,7 +66,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
             'transfer_keep_alive',
             {
                 'dest': self.kp_eth['substrate'],
-                'value': 100 * 10 ** 18,
+                'value': 1000 * 10 ** 18,
             }
         )
         batch.execute()
@@ -205,7 +206,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
             ).build_transaction({
                 'from': kp_sign.ss58_address,
                 'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
                 'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
@@ -241,7 +242,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
             ).build_transaction({
                 'from': kp_sign.ss58_address,
                 'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(250, 'gwei'),
+                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
                 'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id

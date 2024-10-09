@@ -49,7 +49,7 @@ class erc20_asset_test(unittest.TestCase):
         tx = contract.functions.transfer(eth_dst, token_num).build_transaction({
             'from': eth_kp_src.ss58_address,
             'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(250, 'gwei'),
+            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
             'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})

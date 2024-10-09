@@ -57,7 +57,7 @@ def evm_erc20_trasfer(asset_id, kp_eth_src, kp_eth_dst, amount, eth_chain_id):
     tx = contract.functions.transfer(kp_eth_dst.ss58_address, amount).build_transaction({
         'from': kp_eth_src.ss58_address,
         'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(250, 'gwei'),
+        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
         'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
