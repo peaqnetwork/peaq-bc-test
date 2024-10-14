@@ -86,13 +86,14 @@ class TestDelegatorIssue(unittest.TestCase):
         self.assertTrue(receipt.is_success, 'cannot reset the block reward configuration')
 
     def set_collator_delegator_precentage(self):
+        # If the collator/delegator reward distirbution is less than ED, the collator/delegator cannot receive rewards
         set_value = {
             'treasury_percent': 20000000,
             'depin_incentivization_percent': 10000000,
-            'collators_delegators_percent': 20000000,
+            'collators_delegators_percent': 220000000,
             'depin_staking_percent': 50000000,
             'coretime_percent': 40000000,
-            'subsidization_pool_percent': 860000000,
+            'subsidization_pool_percent': 660000000,
         }
         receipt = set_block_reward_configuration(self.substrate, set_value)
         self.assertTrue(receipt.is_success,
