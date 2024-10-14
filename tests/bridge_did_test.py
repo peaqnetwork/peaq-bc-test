@@ -111,7 +111,7 @@ class TestBridgeDid(unittest.TestCase):
         block_idx = self._eth_remove_attribute(contract, eth_kp_src, eth_src, KEY)
         self.assertRaises(ValueError, contract.functions.readAttribute(eth_src, KEY).call)
 
-        event = contract.events.RemoveAttribte.create_filter(fromBlock=block_idx, toBlock=block_idx)
+        event = contract.events.RemoveAttribute.create_filter(fromBlock=block_idx, toBlock=block_idx)
         events = event.get_all_entries()
         self.assertEqual(f"{events[0]['args']['did_account']}", f"{eth_src}")
         self.assertEqual(f"0x{events[0]['args']['name'].hex()}", f"{KEY}")
