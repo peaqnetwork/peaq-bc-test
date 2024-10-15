@@ -39,17 +39,14 @@ MNEMONIC = [
 
 def send_eth_token(w3, kp_src, kp_dst, token_num, eth_chain_id):
     nonce = w3.eth.get_transaction_count(kp_src.ss58_address)
-    # gas = web3.to_wei(Decimal('0.000000005'), 'ether')
-    gas = GAS_LIMIT
     tx = {
         'from': kp_src.ss58_address,
         'to': kp_dst.ss58_address,
         'value': token_num,
-        'gas': gas,
-        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
-        'chainId': eth_chain_id
+        'chainId': eth_chain_id,
+        'gas': GAS_LIMIT,
+        'gasPrice': w3.eth.gas_price,
     }
     return sign_and_submit_evm_transaction(tx, w3, kp_src)
 
@@ -66,9 +63,6 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
     nonce = w3.eth.get_transaction_count(kp_src.ss58_address)
     tx = contract.functions.callDatacopy(bytes.fromhex(data)).build_transaction({
         'from': kp_src.ss58_address,
-        'gas': GAS_LIMIT,
-        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': nonce,
         'chainId': eth_chain_id})
 

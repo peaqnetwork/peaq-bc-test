@@ -38,9 +38,9 @@ class TestXCMSend(unittest.TestCase):
         chain = get_modified_chain_spec(chain_spec)
         if chain == 'peaq-dev':
             self.sibling_parachain_addr = '5F7JyCFcjQFvSiA3F2Qc6GFiUG4bcTZzrw7qmk654jhEAcBG'
-        elif chain == 'krest':
+        elif chain == 'krest-network':
             self.sibling_parachain_addr = '5GUrLK65TVgmN9AKrGC3bB72QmftqYhp1MhwbXEWQkuSiPQT'
-        elif chain == 'peaq':
+        elif chain == 'peaq-network':
             self.sibling_parachain_addr = '5FKuGfGf4bCFBQkNpLhEStVQGkx8QfDRKEqBbmQmijDj2zTu'
 
     def _fund_eth_account(self):

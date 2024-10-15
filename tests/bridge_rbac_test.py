@@ -68,9 +68,6 @@ class RbacErrorType(enum.Enum):
 def _calcualte_evm_basic_req(substrate, w3, addr):
     return {
         'from': addr,
-        'gas': 10633039,
-        'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-        'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
         'nonce': w3.eth.get_transaction_count(addr),
         'chainId': get_eth_chain_id(substrate)
     }
