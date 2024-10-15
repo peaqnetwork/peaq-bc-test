@@ -62,9 +62,6 @@ def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
         abi=abi,
         bytecode=bytecode).constructor().build_transaction({
             'from': kp_src.ss58_address,
-            'gas': 429496,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': eth_chain_id})
 

@@ -52,9 +52,6 @@ class TestBridgeBatch(unittest.TestCase):
     def get_did_calldata(self, eth_kp, addr, contract, key, value):
         tx = contract.functions.add_attribute(eth_kp.ss58_address, key, value, 1000000).build_transaction({
             'from': eth_kp.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
             'nonce': 0,
             'chainId': self.eth_chain_id})
         return tx['data']
@@ -76,9 +73,6 @@ class TestBridgeBatch(unittest.TestCase):
             [0, 0],
             ).build_transaction({
                 'from': kp_sign.ss58_address,
-                'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
-                'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
             })
@@ -101,6 +95,7 @@ class TestBridgeBatch(unittest.TestCase):
         kp_sign = self.kp_eth['kp']
         contract = get_contract(self.w3, BATCH_ADDRESS, ABI_FILE)
         nonce = self.w3.eth.get_transaction_count(kp_sign.ss58_address)
+        # We have to setup the fee by ourselves to avoid the fee error
         tx = contract.functions.batchSome(
             [Web3.to_checksum_address(STORAGE_ADDRESS),
              Web3.to_checksum_address(STORAGE_ADDRESS),
@@ -136,6 +131,7 @@ class TestBridgeBatch(unittest.TestCase):
         kp_sign = self.kp_eth['kp']
         contract = get_contract(self.w3, BATCH_ADDRESS, ABI_FILE)
         nonce = self.w3.eth.get_transaction_count(kp_sign.ss58_address)
+        # We have to setup the fee by ourselves to avoid the fee error
         tx = contract.functions.batchSomeUntilFailure(
             [Web3.to_checksum_address(STORAGE_ADDRESS),
              Web3.to_checksum_address(STORAGE_ADDRESS),

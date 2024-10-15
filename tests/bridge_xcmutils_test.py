@@ -53,9 +53,9 @@ class TestBridgeXCMUtils(unittest.TestCase):
         chain = get_modified_chain_spec(chain_spec)
         if chain == 'peaq-dev':
             self.sibling_parachain_addr = '5HYXs9665LtfnxvBz9FrXCrUGwNTWBrkotqtdFw1VAsYAiiJ'
-        elif chain == 'krest':
+        elif chain == 'krest-network':
             self.sibling_parachain_addr = '5Ex5h1ExXEX3DkLc3gPr7yhCgvUmovLV16A7NATbeJH6UScH'
-        elif chain == 'peaq':
+        elif chain == 'peaq-network':
             self.sibling_parachain_addr = '5HSpy8Hc4ciygtDTHTdj6FKpPvwXDjY8riWMaqDkCgbiHfAx'
 
     def _fund_eth_account(self):
@@ -205,9 +205,6 @@ class TestBridgeXCMUtils(unittest.TestCase):
             encoded_calldata, 20000000000,
             ).build_transaction({
                 'from': kp_sign.ss58_address,
-                'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
-                'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
             })
@@ -241,9 +238,6 @@ class TestBridgeXCMUtils(unittest.TestCase):
             [1, ['0x00'+f'00000{hex(ACA_PD_CHAIN_ID)[2:]}']], encoded_calldata,
             ).build_transaction({
                 'from': kp_sign.ss58_address,
-                'gas': GAS_LIMIT,
-                'maxFeePerGas': self.w3.to_wei(21000, 'gwei'),
-                'maxPriorityFeePerGas': self.w3.to_wei(2, 'gwei'),
                 'nonce': nonce,
                 'chainId': self.eth_chain_id
             })
