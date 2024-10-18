@@ -24,7 +24,7 @@ pp = pprint.PrettyPrinter(indent=4)
 ERC_TOKEN_TRANSFER = 34
 HEX_STR = '1111'
 GAS_LIMIT = 4294967
-TOKEN_NUM = 10000 * pow(10, 15)
+TOKEN_NUM = 10 * 10 ** 18
 ABI_FILE = 'ETH/identity/abi'
 TOKEN_NUM_BASE = pow(10, 18)
 
@@ -93,13 +93,14 @@ class TestEVMEthRPC(unittest.TestCase):
 
         prev_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
         nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
+        # gas/maxFeePerGas/maxPriorityFeePerGas is decided by metamask's value
         tx = {
             'from': self._kp_moon['kp'].ss58_address,
             'to': self._kp_mars['kp'].ss58_address,
             'value': 1 * 10 ** 18,
             'gas': 21000,
-            'maxFeePerGas': 100 * 10 ** 9,
-            'maxPriorityFeePerGas': 1 * 10 ** 9,
+            'maxFeePerGas': 1000 * 10 ** 9,
+            'maxPriorityFeePerGas': 1000 * 10 ** 9,
             'nonce': nonce,
             'chainId': self._eth_chain_id
         }
