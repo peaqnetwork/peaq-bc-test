@@ -84,7 +84,7 @@ if __name__ == '__main__':
             module='ParachainStaking',
             storage_function='CandidatePool',
             params=[block_author],
-            block_hash=block_hash,
+            block_hash=previous_block_hash,
         )
         staking_info[block_author] = info.value
         staking_info[block_author]['delegators'] = {
