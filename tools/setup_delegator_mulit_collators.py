@@ -7,6 +7,7 @@ from peaq.sudo_extrinsic import funds
 from peaq.utils import ExtrinsicBatch
 from tools.utils import get_collators
 from tools.constants import KP_GLOBAL_SUDO, BLOCK_GENERATE_TIME
+from tools.runtime_upgrade import wait_until_block_height
 import argparse
 
 
@@ -69,6 +70,8 @@ def main():
     args = parser.parse_args()
     substrate = SubstrateInterface(url=args.url)
 
+    print('Wait until block height 1')
+    wait_until_block_height(substrate, 1)
     validators = get_validators_info(substrate)
     if len(validators) == 0:
         print('No validators found')
@@ -94,6 +97,8 @@ def main():
     delegate_join_delegators(substrate, kps, validators[0], get_collator_stake(substrate, validators[0]))
     if args.number == 1:
         return
+    print('Wait for one session')
+    time.sleep(6 * 10)
 
     # Delegate
     validators = validators[1:]
@@ -113,7 +118,8 @@ def main():
                 break
             else:
                 print(f'Waiting for {len(pending_tx)} pending transactions')
-            time.sleep(12)
+        print('Wait for one session')
+        time.sleep(6 * 10)
 
 
 if __name__ == '__main__':
