@@ -9,7 +9,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 # , calculate_evm_default_addr
-from tools.peaq_eth_utils import GAS_LIMIT, get_eth_info
+from tools.peaq_eth_utils import  get_eth_info
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
 from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import get_block_hash
@@ -66,9 +66,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.joinDelegators(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': 10633039,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -79,9 +76,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.delegatorStakeMore(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -92,9 +86,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.delegatorStakeLess(sub_collator_addr, stake).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -105,9 +96,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.leaveDelegators().build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -118,9 +106,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.revokeDelegation(sub_collator_addr).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
@@ -131,9 +116,6 @@ class bridge_parachain_staking_test(unittest.TestCase):
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.unlockUnstaked(eth_addr).build_transaction({
             'from': eth_kp_src.ss58_address,
-            'gas': GAS_LIMIT,
-            'maxFeePerGas': w3.to_wei(21000, 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei(2, 'gwei'),
             'nonce': nonce,
             'chainId': self._eth_chain_id})
 
