@@ -1,6 +1,6 @@
 import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
-from tools.constants import WS_URL, ETH_URL, ACA_WS_URL
+from tools.constants import WS_URL, ETH_URL, ACA_WS_URL, RELAYCHAIN_WS_URL
 from tools.constants import ACA_PD_CHAIN_ID
 from tools.constants import PARACHAIN_WS_URL
 from tools.runtime_upgrade import wait_until_block_height
@@ -34,6 +34,7 @@ class TestBridgeXCMUtils(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
 
     def setUp(self):
