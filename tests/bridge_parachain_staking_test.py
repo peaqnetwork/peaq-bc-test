@@ -9,7 +9,7 @@ from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 # , calculate_evm_default_addr
-from tools.peaq_eth_utils import  get_eth_info
+from tools.peaq_eth_utils import get_eth_info
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
 from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import get_block_hash
