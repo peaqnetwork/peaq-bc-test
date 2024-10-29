@@ -80,9 +80,9 @@ CONSTANT_INFOS = [{
     'module': 'ParachainStaking',
     'storage_function': 'MaxCollatorsPerDelegator',
     'type': {
-        'peaq-dev': 1,
-        'krest-network': 1,
-        'peaq-network': 1,
+        'peaq-dev': 8,
+        'krest-network': 8,
+        'peaq-network': 8,
     }
 }, {
     'module': 'ParachainStaking',

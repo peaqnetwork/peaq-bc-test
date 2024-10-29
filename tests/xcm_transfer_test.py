@@ -314,6 +314,7 @@ class TestXCMTransfer(unittest.TestCase):
         kp_self_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         receipt = fund(self.si_peaq, KP_GLOBAL_SUDO, kp_self_dst, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
+        self.si_relay = SubstrateInterface(url=RELAYCHAIN_WS_URL, type_registry_preset='rococo')
         receipt = fund(self.si_relay, KP_GLOBAL_SUDO, kp_remote_src, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
 

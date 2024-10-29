@@ -6,6 +6,7 @@ from peaq.extrinsic import transfer
 
 
 @pytest.mark.substrate
+@pytest.mark.skip(reason="Only test for the charging simulator")
 class TestExitentialDeposits(unittest.TestCase):
     def get_existential_deposit(self):
         result = self.substrate.get_constant(
