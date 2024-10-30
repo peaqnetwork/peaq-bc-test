@@ -242,10 +242,8 @@ class TokenEconomyTest(unittest.TestCase):
             golden_issuance_number[self._chain_spec],
             f'{total_balance.value} <= {golden_issuance_number[self._chain_spec]}')
 
-        self.assertLess(
-            total_balance.value,
-            golden_issuance_number[self._chain_spec] * 1.01,
-            f'{total_balance.value} >= {golden_issuance_number[self._chain_spec] + 10 ** 18}')
+        # We only check the total issuance is greater than the golden issuance number because
+        # when time goes on, the total issuance will be increased.
 
     # Will fail after this runtime upgrade
     def test_inflation_mgr_transfer_all_pot(self):
