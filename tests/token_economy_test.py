@@ -200,7 +200,7 @@ class TokenEconomyTest(unittest.TestCase):
 
     def test_block_reward(self):
         block_reward = {
-            'peaq-dev-fork': int(3.805175038 * 10 ** 18),
+            'peaq-dev-fork': int(1.902587519 * 10 ** 18),
             'krest-network-fork': int(3.805175038 * 10 ** 18),
             'peaq-network-fork': int(27.96803653 * 10 ** 18),
         }
