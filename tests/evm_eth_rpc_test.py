@@ -1,6 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
+from tools.runtime_upgrade import wait_until_block_height
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
 from peaq.utils import ExtrinsicBatch
@@ -78,6 +79,7 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
 @pytest.mark.eth
 class TestEVMEthRPC(unittest.TestCase):
     def setUp(self):
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._conn = SubstrateInterface(url=WS_URL)
         self._eth_chain_id = get_eth_chain_id(self._conn)
         self._kp_src = Keypair.create_from_uri('//Alice')
