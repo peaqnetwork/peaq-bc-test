@@ -7,7 +7,7 @@ import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
 ENDPOINTS = {
-    'peaq-dev': 'wss://wsspc1-qa.agung.peaq.network',
+    'peaq-dev': 'wss://wss-async.agung.peaq.network',
     'krest': 'wss://wss-krest.peaq.network',
     'peaq': 'wss://mpfn1.peaq.network',
     'docker': 'wss://docker-test.peaq.network',
