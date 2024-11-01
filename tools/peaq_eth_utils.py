@@ -92,8 +92,9 @@ def get_eth_chain_id(substrate):
         return forked_info[chain_name]
 
 
-def get_eth_info():
-    mnemonic = Keypair.generate_mnemonic()
+def get_eth_info(mnemonic=""):
+    if not mnemonic:
+        mnemonic = Keypair.generate_mnemonic()
     kp = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ECDSA)
     return {
         'mnemonic': mnemonic,
