@@ -220,5 +220,6 @@ def main():  # noqa: C901
         print('Setup delegators successfully {}'.format(i))
 
 
+# python3 tools/stress_delegator_multi_collators_evm.py --number 8 --ws wss://docker-test.peaq.network --rpc https://docker-test.peaq.network
 if __name__ == '__main__':
     main()
