@@ -15,6 +15,7 @@ from peaq.utils import ExtrinsicBatch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
 from tools.xcm_setup import setup_hrmp_channel
+from tools.utils import show_title
 import argparse
 
 import pprint
@@ -187,6 +188,7 @@ def main():
 
 
 if __name__ == '__main__':
+    show_title('Runtime upgrade')
     # For the monkey patching to work, the module must be reloaded
     # Avoid the dependency on the module name
     if 'substrateinterface' in sys.modules:
