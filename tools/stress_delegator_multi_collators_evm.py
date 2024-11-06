@@ -188,15 +188,17 @@ def main():  # noqa: C901
     # Leave the delegators
     try:
         evm_receipt = delegator_leave_delegators(w3, eth_chain_id, kps[0]['kp'])
+        print('Leave delegators successfully')
         if evm_receipt['status'] != 1:
             print('Leave delegators failed')
             raise IOError('Leave delegators failed')
-    except ValueError:
+    except ValueError as e:
+        print(f'Leave delegators failed {e}')
         pass
 
     for i in range(10000):
         print('Setup delegators start {}'.format(i))
-        setup_delegators(substrate, w3, contract, eth_chain_id, kps, validators, collator_nums, args.number)
+        setup_delegators(substrate, w3, eth_chain_id, kps, validators, collator_nums, args.number)
 
         if not check_delegator_number(substrate, kps[0]['substrate'], args.number):
             print('Delegator number not found')
