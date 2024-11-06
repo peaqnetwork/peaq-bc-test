@@ -5,7 +5,9 @@ import time
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import get_all_events
 from peaq.utils import get_block_height, get_block_hash
+from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tools.constants import KP_GLOBAL_SUDO
 from tools.utils import get_collators
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_info
@@ -113,6 +115,17 @@ def setup_delegators(substrate, w3, eth_chain_id, kps, validators, collator_nums
         return
     print('Wait for one session')
     block_hash = get_block_hash(substrate, evm_receipt['blockNumber'])
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'ParachainStaking',
+        'force_new_round',
+        {}
+    )
+    receipt = batch.execute()
+    if not receipt.is_success:
+        print('Force new round failed')
+        raise IOError('Force new round failed')
+
     wait_next_session(substrate, block_hash)
 
     # Delegate
@@ -128,6 +141,17 @@ def setup_delegators(substrate, w3, eth_chain_id, kps, validators, collator_nums
             collator_nums[idx])
         print(f'Setup delegators for {validator} successfully, {idx} / {len(validators)}')
         block_hash = get_block_hash(substrate, evm_receipt['blockNumber'])
+        batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'force_new_round',
+            {}
+        )
+        receipt = batch.execute()
+        if not receipt.is_success:
+            print('Force new round failed')
+            raise IOError('Force new round failed')
+
         wait_next_session(substrate, block_hash)
 
 
@@ -185,6 +209,17 @@ def main():  # noqa: C901
     )
     kps = [target_kp]
 
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'ParachainStaking',
+        'force_new_round',
+        {}
+    )
+    receipt = batch.execute()
+    if not receipt.is_success:
+        print('Force new round failed')
+        raise IOError('Force new round failed')
+
     # Leave the delegators
     try:
         evm_receipt = delegator_leave_delegators(w3, eth_chain_id, kps[0]['kp'])
@@ -205,7 +240,7 @@ def main():  # noqa: C901
             raise IOError('Delegator number not found')
 
         # Wait and check whether the delegators there
-        if not check_delegator_reward_event(substrate, kps[0]['substrate'], 24):
+        if not check_delegator_reward_event(substrate, kps[0]['substrate'], 100):
             print('Delegator reward event not found')
             raise IOError('Delegator reward event not found')
 
