@@ -105,6 +105,18 @@ def setup_delegators(substrate, kps, validators, number):
     if number == 1:
         return
     print('Wait for one session')
+    # [TODO] Let us skip this, only need to enable in Krest/Peaq docker env
+    # batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    # batch.compose_sudo_call(
+    #     'ParachainStaking',
+    #     'force_new_round',
+    #     {}
+    # )
+    # receipt = batch.execute()
+    # if not receipt.is_success:
+    #     print('Force new round failed')
+    #     raise IOError('Force new round failed')
+
     wait_next_session(substrate, receipt.block_hash)
 
     # Delegate
@@ -117,6 +129,11 @@ def setup_delegators(substrate, kps, validators, number):
             validator,
             get_collator_stake(substrate, validator))
         print(f'Setup delegators for {validator} successfully, {idx} / {len(validators)}')
+        # [TODO] Let us skip this, only need to enable in Krest/Peaq docker env
+        # receipt = batch.execute()
+        # if not receipt.is_success:
+        #     print('Force new round failed')
+        #     raise IOError('Force new round failed')
         wait_next_session(substrate, receipt.block_hash)
 
 
@@ -158,6 +175,17 @@ def main():
         return
 
     print(f'Number of validators are {len(validators)}')
+    # [TODO] Let us skip this, only need to enable in Krest/Peaq docker env
+    # batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    # batch.compose_sudo_call(
+    #     'ParachainStaking',
+    #     'force_new_round',
+    #     {}
+    # )
+    # receipt = batch.execute()
+    # if not receipt.is_success:
+    #     print('Force new round failed')
+    #     raise IOError('Force new round failed')
 
     kps = [Keypair.create_from_mnemonic('trumpet depth hidden success nominee twenty erode mixture pond bread easily cycle')]
     for i in range(10000):
