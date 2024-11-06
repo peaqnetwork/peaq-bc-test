@@ -5,7 +5,7 @@ import time
 import importlib
 
 from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -143,22 +143,9 @@ def do_runtime_upgrade(wasm_path):
     # Move it in front of the upgrade because this 1.7.2 upgrade will need to change the node
     remove_asset_id(substrate)
 
-    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    batch.compose_sudo_call(
-        'ParachainStaking',
-        'set_max_candidate_stake',
-        {'new': 1500000 * 10 ** 18}
-    )
-    batch.execute()
-
-    batch = ExtrinsicBatch(substrate, KP_COLLATOR)
-    batch.compose_call('ParachainStaking', 'candidate_stake_more', {'more': 50000 * 10 ** 18})
-    batch.execute()
-
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
-    update_xcm_default_version(substrate)
 
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if old_version == new_version:
