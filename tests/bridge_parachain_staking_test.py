@@ -2,8 +2,8 @@ import pytest
 import unittest
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
-from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL, ETH_URL
+from substrateinterface import SubstrateInterface, Keypair
+from tools.constants import WS_URL, ETH_URL, RELAYCHAIN_WS_URL
 from tools.peaq_eth_utils import sign_and_submit_evm_transaction
 from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
@@ -27,6 +27,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
         wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
 
     def setUp(self):
@@ -37,6 +38,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self._kp_moon = get_eth_info()
         self._kp_mars = get_eth_info()
         self._eth_chain_id = get_eth_chain_id(self._substrate)
+        self._kp_src = Keypair.create_from_uri('//Moon')
 
     def _fund_users(self, num=100 * 10 ** 18):
         if num < 100 * 10 ** 18:
@@ -56,6 +58,14 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'force_set_balance',
             {
                 'who': self._kp_mars['substrate'],
+                'new_free': num,
+            }
+        )
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': self._kp_src.ss58_address,
                 'new_free': num,
             }
         )

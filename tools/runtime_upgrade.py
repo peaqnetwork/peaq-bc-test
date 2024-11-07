@@ -18,6 +18,7 @@ from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
 from tools.xcm_setup import setup_hrmp_channel
+from tools.utils import show_title
 import argparse
 
 import pprint
@@ -148,7 +149,6 @@ def do_runtime_upgrade(wasm_path):
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
-    update_xcm_default_version(substrate)
 
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if old_version == new_version:
@@ -179,6 +179,7 @@ def main():
 
 
 if __name__ == '__main__':
+    show_title('Runtime upgrade')
     # For the monkey patching to work, the module must be reloaded
     # Avoid the dependency on the module name
     if 'substrateinterface' in sys.modules:
