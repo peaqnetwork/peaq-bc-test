@@ -420,6 +420,14 @@ def get_event(substrate, block_hash, pallet, event_name):
     return None
 
 
+def get_all_events(substrate, block_hash, pallet, event_name):
+    return [
+        event['event']
+        for event in substrate.get_events(block_hash)
+        if event.value['module_id'] == pallet and event.value['event_id'] == event_name
+    ]
+
+
 def batch_fund(batch, kp_or_addr, amount):
     addr = kp_or_addr
     if isinstance(kp_or_addr, Keypair):

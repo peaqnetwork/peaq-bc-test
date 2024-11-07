@@ -52,7 +52,7 @@
 				"type": "bytes"
 			}
 		],
-		"name": "RemoveAttribte",
+		"name": "RemoveAttribute",
 		"type": "event"
 	},
 	{
