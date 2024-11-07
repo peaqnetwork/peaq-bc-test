@@ -19,7 +19,18 @@ from peaq.rbac import rbac_rpc_fetch_permissions
 from peaq.rbac import rbac_rpc_fetch_groups
 from tools.utils import get_balance_reserve_value
 from tools.constants import KP_GLOBAL_SUDO
+from tools.runtime_upgrade import wait_until_block_height
+from tools.constants import PARACHAIN_WS_URL, RELAYCHAIN_WS_URL
+from peaq.utils import get_chain
+from tools.utils import get_modified_chain_spec
 import unittest
+
+
+RBAC_MIN_DEPOSIT = {
+    'peaq-dev': 0.1 * 10 ** 18,
+    'krest-network': 0.1 * 10 ** 18,
+    'peaq-network': 0.005 * 10 ** 18,
+}
 
 
 KP_TEST = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
@@ -437,6 +448,10 @@ class TestPalletRBAC(unittest.TestCase):
 
     def setUp(self):
         self.substrate = SubstrateInterface(url=WS_URL)
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
+        self.chain_spec = get_chain(self.substrate)
+        self.chain_spec = get_modified_chain_spec(self.chain_spec)
 
     def test_pallet_rbac(self):
         print('---- pallet_rbac_test!! ----')
@@ -474,6 +489,21 @@ class TestPalletRBAC(unittest.TestCase):
             filename, line, func, text = tb_info[1]
             print(f'🔥 Test/{func}, Failed')
             raise
+
+    def test_reserve_check(self):
+        ROLE_TEST = '{0}03456789abcdef0123456111abcde00123456111'.format(RANDOM_PREFIX)
+
+        kp_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        fund(self.substrate, KP_GLOBAL_SUDO, kp_src, 1000 * 10 ** 18)
+
+        reserved_before = get_balance_reserve_value(self.substrate, kp_src.ss58_address, 'peaqrbac')
+        batch = ExtrinsicBatch(self.substrate, kp_src)
+        rbac_add_role_payload(batch, f'0x{ROLE_TEST}', ROLE_NM1)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Extrinsic-call-stack failed: {receipt.error_message}')
+        reserved_after = get_balance_reserve_value(self.substrate, kp_src.ss58_address, 'peaqrbac')
+        self.assertGreater(reserved_after, reserved_before)
+        self.assertGreaterEqual(reserved_after - reserved_before, RBAC_MIN_DEPOSIT[self.chain_spec])
 
     def test_delete_types(self):
         ROLE_TEST = '{0}03456789abcdef0123456111abcdef0123456111'.format(RANDOM_PREFIX)
