@@ -32,7 +32,7 @@ FEE_CONFIG = {
         'max': 90 * 10 ** 9,
     },
     'peaq-dev': {
-        'min': 20 * 10 ** 9,
+        'min': 1 * 10 ** 9,
         'max': 90 * 10 ** 9,
     }
 }
@@ -268,7 +268,7 @@ class TestRewardDistribution(unittest.TestCase):
         self._check_transaction_fee_reward_from_sender(block_number)
         self._check_transaction_fee_reward_from_collator(block_number)
 
-    def test_transaction_fee_reward(self):
+    def test_transaction_fee_reward_with_tip(self):
         # Execute
         receipt = transfer_with_tip(
             self._substrate, self._kp_bob, self._kp_eve.ss58_address,
