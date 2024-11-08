@@ -35,8 +35,6 @@ if __name__ == '__main__':
         bytecode = f.read().strip()
 
     address = deploy_contract(w3, kp_eth_src, ETH_CHAIN_ID, ABI_FILE, bytecode)
-    # import pdb
-    # pdb.set_trace()
     # address = '0xb3284a2229214c4E0611A8E7d2620Bf2054417D3'
     contract = get_contract(w3, address, ABI_FILE)
 
@@ -51,8 +49,6 @@ if __name__ == '__main__':
         'chainId': ETH_CHAIN_ID})
 
     tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_eth_src)
-    import pdb
-    pdb.set_trace()
     block_number = tx_receipt['blockNumber']
     print(block_number)
 
