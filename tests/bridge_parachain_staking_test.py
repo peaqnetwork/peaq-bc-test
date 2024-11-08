@@ -149,6 +149,43 @@ class bridge_parachain_staking_test(unittest.TestCase):
                 return {'attributes': e.value['event']['attributes']}
         return None
 
+    # Make sure the lock token cannot be transfered
+    def test_evm_api_cannot_transfer_over_stake(self):
+        contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
+        out = contract.functions.getCollatorList().call()
+
+        collator_eth_addr = out[0][0]
+        collator_num = out[0][1]
+        receipt = self._fund_users(collator_num * 2)
+        self.assertEqual(receipt.is_success, True, f'fund_users fails, receipt: {receipt}')
+
+        evm_receipt = self.evm_join_delegators(contract, self._kp_moon['kp'], collator_eth_addr, collator_num)
+        self.assertEqual(evm_receipt['status'], 1, f'join fails, evm_receipt: {evm_receipt}')
+        bl_hash = get_block_hash(self._substrate, evm_receipt['blockNumber'])
+        event = self.get_event(bl_hash, 'ParachainStaking', 'Delegation')
+        self.assertEqual(
+            event['attributes'],
+            (self._kp_moon['substrate'], collator_num, KP_COLLATOR.ss58_address, 2 * collator_num),
+            f'join fails, event: {event}')
+
+        stake = self.get_stake_number(self._kp_moon['substrate'])
+        self.assertEqual(stake['total'], collator_num, f'join fails, stake: {stake}, collator_num: {collator_num}')
+
+        transfer_token = int(stake['delegations'][0]['amount'] * 1.5)
+        tx = {
+            'to': self._kp_mars['eth'],
+            'value': transfer_token,
+            'nonce': self._w3.eth.get_transaction_count(self._kp_moon['eth']),
+            'chainId': self._eth_chain_id,
+            'gas': 21000,
+            'maxFeePerGas': 1000 * 10 ** 9,
+            'maxPriorityFeePerGas': 1000 * 10 ** 9,
+        }
+        with self.assertRaises(ValueError) as tx_info:
+            sign_and_submit_evm_transaction(tx, self._w3, self._kp_moon['kp'])
+
+        self.assertIn('insufficient funds', tx_info.exception.args[0]['message'])
+
     def test_delegator_join_more_less_leave(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()

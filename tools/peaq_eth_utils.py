@@ -95,6 +95,7 @@ def get_eth_info(mnemonic=""):
         mnemonic = Keypair.generate_mnemonic()
     kp = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ECDSA)
     return {
+        'mnemonic': mnemonic,
         'kp': kp,
         'substrate': calculate_evm_account(kp.ss58_address),
         'eth': kp.ss58_address
