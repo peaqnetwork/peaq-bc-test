@@ -124,7 +124,6 @@ class TestEVMEthRPC(unittest.TestCase):
         new_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
         self.assertGreater(prev_balance - new_balance - 1 * 10 ** 18, 0.002 * 10 ** 18)
 
-    @pytest.mark.skipif(TestUtils.is_not_peaq_chain() is True, reason='Only peaq chain evm ED')
     def test_evm_remaining_without_ed(self):
         self._kp_moon = get_eth_info()
         self._kp_mars = get_eth_info()
@@ -134,7 +133,6 @@ class TestEVMEthRPC(unittest.TestCase):
         receipt = batch.execute()
         self.assertTrue(receipt.is_success)
 
-        prev_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
         nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
         # gas/maxFeePerGas/maxPriorityFeePerGas is decided by metamask's value
         tx = {
