@@ -33,6 +33,8 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
     included_block = None
     tx_identifier = None
     for i in range(5):
+        if now_block_num - i < 1 or tx_identifier:
+            break
         print(f'Checking block {now_block_num - i}')
         block_hash = self.get_block_hash(now_block_num - i)
         block = self.get_block(block_hash)
@@ -43,8 +45,6 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
                 print(f'Extrinsic {result.extrinsic_hash} is included in block {included_block}')
                 tx_identifier = f'{included_block}-{index}'
                 break
-        if tx_identifier:
-            break
     if not tx_identifier:
         raise SubstrateRequestException(
             f'Extrinsic {result.extrinsic_hash} is not included in the block after 3 blocks, invalid')
