@@ -30,7 +30,10 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
     RETRY_TIMES = 3
     for i in range(RETRY_TIMES):
         try:
-            print(f'{substrate.url}, {batch}')
+            if len(str(batch)) > 512:
+                print(f'{substrate.url}, {str(batch)[:512]}...')
+            else:
+                print(f'{substrate.url}, {batch}')
             receipt = origin_execute_extrinsic_batch(self, substrate, kp_src, batch, wait_for_finalization, tip)
             show_extrinsic(receipt, f'{substrate.url}')
             return receipt
