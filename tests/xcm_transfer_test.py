@@ -510,8 +510,6 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
 
     def _set_up_peaq_pallet_asset_on_peaq_if_not_exist(self, asset_id, kp_para_src):
-        import pdb
-        pdb.set_trace()
         asset_token = TEST_PALLET_ASSET_TOKEN
         kp_self_dst = kp_para_src
         batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
