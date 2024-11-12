@@ -42,7 +42,7 @@ def is_not_dev_chain():
 def is_not_peaq_chain():
     ws = SubstrateInterface(url=WS_URL)
     chain_name = get_chain(ws)
-    return chain_name not in ['peaq', 'peaq-network-fork']
+    return chain_name not in ['peaq-network', 'peaq-network-fork']
 
 
 def is_krest_related_chain():

@@ -121,6 +121,10 @@ class balance_erc20_asset_test(unittest.TestCase):
             f'Error: {data} != {total_balance.value}')
 
     def test_balance_erc20_balance_of(self):
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
         contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
         evm_balance = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
         sub_balance = get_account_balance(self._substrate, self._eth_kp_src['substrate'])

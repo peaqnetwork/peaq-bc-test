@@ -37,6 +37,8 @@ FEE_CONFIG = {
     }
 }
 
+FORCE_KEEP_POT_BALANCE = 10
+
 COLLATOR_DELEGATOR_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 DIVISION_FACTOR = pow(10, 7)
 
@@ -149,7 +151,8 @@ class TestRewardDistribution(unittest.TestCase):
             get_account_balance(self._substrate, PARACHAIN_STAKING_POT, second_receipt.block_hash) - \
             get_existential_deposit(self._substrate)
 
-        self.assertEqual(rewarded_number, pot_transferable_balance)
+        # Force keep the pot balance to avoid event annoy
+        self.assertEqual(rewarded_number, pot_transferable_balance - FORCE_KEEP_POT_BALANCE)
 
         # Check the block reward + transaction fee (Need to check again...)
         transaction_fee, transaction_tip = 0, 0
@@ -174,7 +177,7 @@ class TestRewardDistribution(unittest.TestCase):
         # Check all collator reward in collators
         first_balance = get_account_balance(self._substrate, kp_collator.ss58_address, first_new_session_block_hash)
         second_balance = get_account_balance(self._substrate, kp_collator.ss58_address, second_new_session_block_hash)
-        self.assertEqual(second_balance - first_balance, pot_transferable_balance)
+        self.assertEqual(second_balance - first_balance, pot_transferable_balance - FORCE_KEEP_POT_BALANCE)
 
     def _check_transaction_fee_reward_from_sender(self, block_height):
         block_hash = self._substrate.get_block_hash(block_height)
