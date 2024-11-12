@@ -1,7 +1,6 @@
 eventlet==0.33.3
 requests==2.31.0
-scalecodec==1.2.7
-substrate_interface==1.7.4
+substrate_interface==1.7.11
 behave==1.2.6
 peaq-py==0.2.2
 eth-account==0.9.0
@@ -9,3 +8,4 @@ web3==6.11.2
 pytest==7.4.3
 python-on-whales==0.66.0
 eth-typing==3.5.2
+eth-utils==2.3.1

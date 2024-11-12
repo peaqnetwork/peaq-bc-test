@@ -81,9 +81,9 @@ CONSTANT_INFOS = [{
     'module': 'ParachainStaking',
     'storage_function': 'MaxCollatorsPerDelegator',
     'type': {
-        'peaq-dev': 1,
-        'krest-network': 1,
-        'peaq-network': 1,
+        'peaq-dev': 8,
+        'krest-network': 8,
+        'peaq-network': 8,
     }
 }, {
     'module': 'ParachainStaking',
@@ -246,6 +246,9 @@ class TokenEconomyTest(unittest.TestCase):
             total_balance.value,
             golden_issuance_number[self._chain_spec],
             f'{total_balance.value} <= {golden_issuance_number[self._chain_spec]}')
+
+        # We only check the total issuance is greater than the golden issuance number because
+        # when time goes on, the total issuance will be increased.
 
     # Will fail after this runtime upgrade
     # In the future, after we extract the inflation manager's pot, we will not be able to test this

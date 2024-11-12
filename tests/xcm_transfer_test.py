@@ -85,6 +85,27 @@ def get_asset_token_location(asset_id):
     }
 
 
+def get_asset_pallet_location(asset_id):
+    if asset_id >= 16:
+        raise ValueError('Asset id should < 16')
+
+    return {
+        'peaq': {
+            XCM_VER: {
+                'parents': '1',
+                'interior': {
+                    'X2': [
+                        {'Parachain': 3000},
+                        {'PalletInstance': 10},
+                    ]
+                }
+            }
+        },
+        # Force failed
+        'para': {}
+    }
+
+
 def get_metadata(symbol):
     return {
         'name': symbol,
@@ -102,6 +123,12 @@ TEST_SUFF_ASSET_IDX = 7
 TEST_SUFF_ASSET_ID = get_test_asset_id(TEST_SUFF_ASSET_IDX)
 TEST_SUFF_ASSET_TOKEN = get_asset_token_location(TEST_SUFF_ASSET_IDX)
 TEST_SUFF_ASSET_METADATA = get_metadata('suf')
+
+TEST_PALLET_ASSET_IDX = 12
+TEST_PALLET_ASSET_ID = get_test_asset_id(TEST_PALLET_ASSET_IDX)
+TEST_PALLET_ASSET_TOKEN = get_asset_pallet_location(TEST_PALLET_ASSET_IDX)
+TEST_PALLET_ASSET_METADATA = get_metadata('pal')
+
 
 TEST_LP_ASSET_ID = {
     'peaq': convert_enum_to_asset_id({'LPToken': [0, 1]}),
@@ -329,6 +356,7 @@ class TestXCMTransfer(unittest.TestCase):
         kp_self_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         receipt = fund(self.si_peaq, KP_GLOBAL_SUDO, kp_self_dst, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
+        self.si_relay = SubstrateInterface(url=RELAYCHAIN_WS_URL, type_registry_preset='rococo')
         receipt = fund(self.si_relay, KP_GLOBAL_SUDO, kp_remote_src, INIT_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
 
@@ -470,6 +498,24 @@ class TestXCMTransfer(unittest.TestCase):
                 batch_force_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
             else:
                 batch_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
+            batch_set_metadata(
+                batch, asset_id,
+                TEST_ASSET_METADATA['name'], TEST_ASSET_METADATA['symbol'], TEST_ASSET_METADATA['decimals'])
+        batch_mint(batch, self.alice.ss58_address, asset_id, 10 * TEST_TOKEN_NUM)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Failed to create asset: {receipt.error_message}')
+        receipt = setup_xc_register_if_not_exist(
+            self.si_peaq, KP_GLOBAL_SUDO, asset_id,
+            asset_token['peaq'], UNITS_PER_SECOND)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
+
+    def _set_up_peaq_pallet_asset_on_peaq_if_not_exist(self, asset_id, kp_para_src):
+        asset_token = TEST_PALLET_ASSET_TOKEN
+        kp_self_dst = kp_para_src
+        batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
+        batch_fund(batch, kp_self_dst, INIT_TOKEN_NUM)
+        if not self.si_peaq.query("Assets", "Asset", [asset_id]).value:
+            batch_force_create_asset(batch, KP_GLOBAL_SUDO.ss58_address, asset_id)
             batch_set_metadata(
                 batch, asset_id,
                 TEST_ASSET_METADATA['name'], TEST_ASSET_METADATA['symbol'], TEST_ASSET_METADATA['decimals'])
@@ -645,3 +691,24 @@ class TestXCMTransfer(unittest.TestCase):
         # Assert that the delivery fee is within the expected range
         self.assertGreaterEqual(delivery_fee, TEST_FEES_RANGE[self.chain_spec]['min'])
         self.assertLessEqual(delivery_fee, TEST_FEES_RANGE[self.chain_spec]['max'])
+
+    # However, cannot receive on the other side
+    def test_asset_with_pallet_from_peaq_to_aca(self):
+        # From Alice transfer to kp_para_src (other chain) and move to the kp_self_dst
+        # Create new asset id and register on peaq
+        asset_id = TEST_PALLET_ASSET_ID['peaq']
+        kp_para_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        self._set_up_peaq_pallet_asset_on_peaq_if_not_exist(asset_id, kp_para_src)
+
+        batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
+        batch_fund(batch, SOVERIGN_ADDR, INIT_TOKEN_NUM)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Failed to create asset: {receipt.error_message}')
+
+        # we won't register on aca because the multilocation is not correct
+        # we won't need to setup the dst account because we cannot receive it
+
+        receipt = send_token_from_peaq_to_para(
+            self.si_peaq, self.alice, kp_para_src,
+            ACA_PD_CHAIN_ID, TEST_PALLET_ASSET_ID['peaq'], TEST_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to send token from peaq to para chain: {receipt.error_message}')

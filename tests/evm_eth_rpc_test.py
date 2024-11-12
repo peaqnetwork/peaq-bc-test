@@ -1,6 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
+from tools.runtime_upgrade import wait_until_block_height
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from peaq.extrinsic import transfer
 from peaq.utils import ExtrinsicBatch
@@ -12,6 +13,7 @@ from tools.peaq_eth_utils import deploy_contract
 from tools.peaq_eth_utils import call_eth_transfer_a_lot
 from tools.peaq_eth_utils import get_eth_balance, get_contract
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
+from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
 from tools.peaq_eth_utils import get_eth_info
 from tools.utils import batch_fund
@@ -24,7 +26,7 @@ pp = pprint.PrettyPrinter(indent=4)
 ERC_TOKEN_TRANSFER = 34
 HEX_STR = '1111'
 GAS_LIMIT = 4294967
-TOKEN_NUM = 10000 * pow(10, 15)
+TOKEN_NUM = 10 * 10 ** 18
 ABI_FILE = 'ETH/identity/abi'
 TOKEN_NUM_BASE = pow(10, 18)
 
@@ -73,6 +75,7 @@ def call_copy(w3, address, kp_src, eth_chain_id, file_name, data):
 @pytest.mark.eth
 class TestEVMEthRPC(unittest.TestCase):
     def setUp(self):
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._conn = SubstrateInterface(url=WS_URL)
         self._eth_chain_id = get_eth_chain_id(self._conn)
         self._kp_src = Keypair.create_from_uri('//Alice')
@@ -81,6 +84,19 @@ class TestEVMEthRPC(unittest.TestCase):
         self._kp_eth_dst = Keypair.create_from_mnemonic(MNEMONIC[1], crypto_type=KeypairType.ECDSA)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
         self._eth_deposited_src = calculate_evm_account(self._eth_src)
+
+    def test_evm_api_balance_same(self):
+        self._kp_moon = get_eth_info()
+        self._kp_mars = get_eth_info()
+
+        batch = ExtrinsicBatch(self._conn, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._kp_moon['substrate'], int(1.05 * 10 ** 18))
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        sub_balance = get_account_balance(self._conn, self._kp_moon['substrate'])
+        eth_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
+        self.assertEqual(sub_balance, eth_balance, f"sub: {sub_balance} != eth: {eth_balance}")
 
     @pytest.mark.skipif(TestUtils.is_not_peaq_chain() is True, reason='Only peaq chain evm tx change')
     def test_evm_fee(self):
@@ -93,13 +109,14 @@ class TestEVMEthRPC(unittest.TestCase):
 
         prev_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
         nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
+        # gas/maxFeePerGas/maxPriorityFeePerGas is decided by metamask's value
         tx = {
             'from': self._kp_moon['kp'].ss58_address,
             'to': self._kp_mars['kp'].ss58_address,
             'value': 1 * 10 ** 18,
             'gas': 21000,
-            'maxFeePerGas': 100 * 10 ** 9,
-            'maxPriorityFeePerGas': 1 * 10 ** 9,
+            'maxFeePerGas': 1000 * 10 ** 9,
+            'maxPriorityFeePerGas': 1000 * 10 ** 9,
             'nonce': nonce,
             'chainId': self._eth_chain_id
         }

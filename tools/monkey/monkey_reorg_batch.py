@@ -23,6 +23,13 @@ def _backtrace_blocks_by_extrinsic(substrate, extrinsic_hash):
     return None
 
 
+def short_print(batch):
+    if len(str(batch)) > 512:
+        return f'{str(batch)[:512]}...'
+    else:
+        return f'{batch}'
+
+
 # Try to fix the reorg issue by retrying the batch
 def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
                                    wait_for_finalization=False,
@@ -30,13 +37,13 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
     RETRY_TIMES = 3
     for i in range(RETRY_TIMES):
         try:
-            print(f'{substrate.url}, {batch}')
+            print(f'{substrate.url}, {short_print(batch)}')
             receipt = origin_execute_extrinsic_batch(self, substrate, kp_src, batch, wait_for_finalization, tip)
             show_extrinsic(receipt, f'{substrate.url}')
             return receipt
         except SubstrateRequestException as e:
             if 'invalid' in str(e):
-                print(f'Error: {e}, {batch}')
+                print(f'Error: {e}, {short_print(batch)}')
                 for i in range(4):
                     print('Wait for 6 seconds')
                     time.sleep(BLOCK_GENERATE_TIME)
