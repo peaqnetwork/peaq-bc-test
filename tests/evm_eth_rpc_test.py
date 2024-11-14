@@ -126,6 +126,33 @@ class TestEVMEthRPC(unittest.TestCase):
         new_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
         self.assertGreater(prev_balance - new_balance - 1 * 10 ** 18, 0.002 * 10 ** 18)
 
+    def test_evm_remaining_without_ed(self):
+        self._kp_moon = get_eth_info()
+        self._kp_mars = get_eth_info()
+
+        batch = ExtrinsicBatch(self._conn, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._kp_moon['substrate'], int(1.05 * 10 ** 18))
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
+        # gas/maxFeePerGas/maxPriorityFeePerGas is decided by metamask's value
+        tx = {
+            'from': self._kp_moon['kp'].ss58_address,
+            'to': self._kp_mars['kp'].ss58_address,
+            'value': 1 * 10 ** 18,
+            'gas': 21000,
+            'maxFeePerGas': 1000 * 10 ** 9,
+            'maxPriorityFeePerGas': 1000 * 10 ** 9,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id
+        }
+        response = sign_and_submit_evm_transaction(tx, self._w3, self._kp_moon['kp'])
+        self.assertTrue(response['status'] == TX_SUCCESS_STATUS, f'failed: {response}')
+
+        new_balance = self._w3.eth.get_balance(self._kp_moon['kp'].ss58_address)
+        self.assertGreater(10 ** 18, new_balance)
+
     def test_evm_rpc_transfer(self):
         conn = self._conn
         eth_chain_id = self._eth_chain_id
