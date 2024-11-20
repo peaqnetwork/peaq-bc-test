@@ -481,7 +481,8 @@ class TestPalletRBAC(unittest.TestCase):
             self.verify_rpc_fail_wrong_id(kp_src)
             self.verify_rpc_fail_disabled_id(kp_src)
             reserved_after = get_balance_reserve_value(self.substrate, kp_src.ss58_address, 'peaqrbac')
-            self.assertGreater(reserved_after, reserved_before)
+            # We disable the deposit now
+            self.assertEqual(reserved_after, reserved_before)
 
         except AssertionError:
             _, _, tb = sys.exc_info()
@@ -502,8 +503,9 @@ class TestPalletRBAC(unittest.TestCase):
         receipt = batch.execute()
         self.assertTrue(receipt.is_success, f'Extrinsic-call-stack failed: {receipt.error_message}')
         reserved_after = get_balance_reserve_value(self.substrate, kp_src.ss58_address, 'peaqrbac')
-        self.assertGreater(reserved_after, reserved_before)
-        self.assertGreaterEqual(reserved_after - reserved_before, RBAC_MIN_DEPOSIT[self.chain_spec])
+        # We disable the deposit now
+        self.assertEqual(reserved_after, reserved_before)
+        # self.assertGreaterEqual(reserved_after - reserved_before, RBAC_MIN_DEPOSIT[self.chain_spec])
 
     def test_delete_types(self):
         ROLE_TEST = '{0}03456789abcdef0123456111abcdef0123456111'.format(RANDOM_PREFIX)

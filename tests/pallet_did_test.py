@@ -46,8 +46,9 @@ class TestPalletDid(unittest.TestCase):
         self.assertEqual(data['name'], key)
         self.assertEqual(data['value'], value)
         reserved_after = get_balance_reserve_value(self.substrate, self.kp_src.ss58_address, 'peaq_did')
-        self.assertGreater(reserved_after, reserved_before)
-        self.assertGreaterEqual(reserved_after - reserved_before, DID_MIN_DEPOSIT[self.chain_spec])
+        self.assertEqual(reserved_after, reserved_before)
+        # We disable the deposit now
+        # self.assertGreaterEqual(reserved_after - reserved_before, DID_MIN_DEPOSIT[self.chain_spec])
 
     def test_did_update(self):
         name = int(time.time())

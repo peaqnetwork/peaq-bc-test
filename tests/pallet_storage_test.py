@@ -54,7 +54,8 @@ class TestPalletStorage(unittest.TestCase):
             storage_rpc_read(self._substrate, self._kp_src.ss58_address, item_type)['item'],
             item)
         reserved_after = get_balance_reserve_value(self._substrate, self._kp_src.ss58_address, 'peaqstor')
-        self.assertGreater(reserved_after, reserved_before)
+        self.assertEqual(reserved_after, reserved_before)
+        # We disable the deposit now
         self.assertGreaterEqual(reserved_after - reserved_before, STORAGE_MIN_DEPOSIT[self._chain_spec])
 
     def test_storage_update(self):
