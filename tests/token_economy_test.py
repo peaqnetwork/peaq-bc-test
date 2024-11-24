@@ -97,17 +97,17 @@ CONSTANT_INFOS = [{
     'module': 'ParachainStaking',
     'storage_function': 'MaxDelegatorsPerCollator',
     'type': {
-        'peaq-dev': 25,
+        'peaq-dev': 48,
         'krest-network': 25,
-        'peaq-network': 32,
+        'peaq-network': 48,
     }
 }, {
     'module': 'ParachainStaking',
     'storage_function': 'MaxTopCandidates',
     'type': {
-        'peaq-dev': 16,
+        'peaq-dev': 64,
         'krest-network': 128,
-        'peaq-network': 32,
+        'peaq-network': 64,
     }
 }, {
     'module': 'ParachainStaking',

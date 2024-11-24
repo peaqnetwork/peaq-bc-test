@@ -70,7 +70,7 @@ INFLATION_RECALCULATION = {
     'peaq-network': 5256000,
     'peaq-network-fork': 5684095,
     'peaq-dev': 5256000,
-    'peaq-dev-fork': 10169264,
+    'peaq-dev-fork': 9194356,
     # Because of the delay TGE
     'krest-network': 3469624,
     'krest-network-fork': 3469624,
