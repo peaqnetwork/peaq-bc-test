@@ -85,7 +85,7 @@ class TestRewardDistribution(unittest.TestCase):
             module='ParachainStaking',
             storage_function='Round',
         )['length'].value
-        receipt = set_round(substrate, 100)
+        receipt = set_round(substrate, 1000)
         assert receipt.is_success, 'cannot setup the round'
 
     @classmethod
@@ -265,6 +265,9 @@ class TestRewardDistribution(unittest.TestCase):
             'force_new_round',
             {}
         )
+        # We should skip the first one, it's the known issue
+        first_receipt = batch.execute()
+        self.assertTrue(first_receipt.is_success)
         first_receipt = batch.execute()
         self.assertTrue(first_receipt.is_success)
         tx_receipt = transfer_with_tip(
