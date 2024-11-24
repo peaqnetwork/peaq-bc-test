@@ -73,7 +73,7 @@ class TestRewardDistribution(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # restart_parachain_and_runtime_upgrade()
+        restart_parachain_and_runtime_upgrade()
         substrate = SubstrateInterface(url=WS_URL)
         cls.ori_reward_config = substrate.query(
             module='BlockReward',
