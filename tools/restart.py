@@ -31,6 +31,8 @@ def restart_parachain_launch():
             SubstrateInterface(
                 url=WS_URL,
             )
+            # Let us wait longer
+            time.sleep(BLOCK_GENERATE_TIME * 3)
             return
         except (ConnectionResetError, WebSocketConnectionClosedException) as e:
             print(f'Cannot connect to {WS_URL}, {e}')

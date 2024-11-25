@@ -9,7 +9,7 @@ from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
 from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL
+from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -79,6 +79,19 @@ def upgrade(runtime_path):
 def fund_account():
     print('update the info')
     substrate = SubstrateInterface(url=WS_URL)
+    # Fix the peaq network
+    batch = ExtrinsicBatch(substrate, KP_COLLATOR)
+    batch.compose_call(
+        'Balances',
+        'transfer_keep_alive',
+        {
+            'dest': KP_GLOBAL_SUDO.ss58_address,
+            'value': 10 * 10 ** 18,
+        }
+    )
+    # On peaq-dev, it will fail, but on peaq, it will pass
+    batch.execute()
+
     accounts = [
         '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY',
         '5GNJqTPyNqANBkUVMN1LPPrxXnFouWXoe2wNSmmEoLctxiZY',
