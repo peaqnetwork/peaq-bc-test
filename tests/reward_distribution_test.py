@@ -55,6 +55,17 @@ def set_commission(substrate, candidate_kp, commission_permill):
     return batch.execute()
 
 
+def set_round(substrate, round_number):
+    # Force to start a new round
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call(
+        'ParachainStaking',
+        'set_blocks_per_round',
+        {'new': round_number}
+    )
+    return batch.execute()
+
+
 @pytest.mark.substrate
 class TestRewardDistribution(unittest.TestCase):
     _kp_bob = Keypair.create_from_uri('//Bob')
@@ -70,12 +81,20 @@ class TestRewardDistribution(unittest.TestCase):
         )
         receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
         assert receipt.is_success, 'cannot setup the block reward configuration'
+        cls.ori_round = substrate.query(
+            module='ParachainStaking',
+            storage_function='Round',
+        )['length'].value
+        receipt = set_round(substrate, 1000)
+        assert receipt.is_success, 'cannot setup the round'
 
     @classmethod
     def tearDownClass(cls):
         substrate = SubstrateInterface(url=WS_URL)
         receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
         assert receipt.is_success, 'cannot setup the block reward configuration'
+        receipt = set_round(substrate, cls.ori_round)
+        assert receipt.is_success, 'cannot setup the round'
 
     def setUp(self):
         self._substrate = SubstrateInterface(url=WS_URL)
@@ -246,6 +265,9 @@ class TestRewardDistribution(unittest.TestCase):
             'force_new_round',
             {}
         )
+        # We should skip the first one, it's the known issue
+        first_receipt = batch.execute()
+        self.assertTrue(first_receipt.is_success)
         first_receipt = batch.execute()
         self.assertTrue(first_receipt.is_success)
         tx_receipt = transfer_with_tip(
@@ -255,7 +277,7 @@ class TestRewardDistribution(unittest.TestCase):
 
         second_receipt = batch.execute()
         self.assertTrue(second_receipt.is_success)
-        wait_for_event(self._substrate, 'ParachainStaking', 'Rewarded', {})
+        wait_for_event(self._substrate, 'ParachainStaking', 'Rewarded', {}, 30, second_receipt.block_number)
 
         self._check_block_reward_in_event(KP_COLLATOR, first_receipt, second_receipt, tx_receipt)
 
