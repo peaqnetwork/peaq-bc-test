@@ -67,3 +67,6 @@ Solution: Please install the wheel and reinstall the dependency library again. [
 pip3 install wheel
 pip3 install -r requirements.txt
 ```
+
+# Enviroment parameter
+- RUNTIME_UPGRADE_PATH: The runtime upgrade path. If we want to test the runtime upgrade, we should set this parameter.
