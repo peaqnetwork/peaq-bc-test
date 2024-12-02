@@ -3,7 +3,7 @@ import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import get_modified_chain_spec
-from tools.constants import WS_URL
+from tools.constants import WS_URL, ACA_WS_URL
 from peaq.utils import get_block_height, get_block_hash, get_chain
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
@@ -66,8 +66,8 @@ STATE_INFOS = [{
             'depin_incentivization_percent': 150000000,
         },
         'peaq-network-fork': {
-            'treasury_percent': 650000000,
-            'collators_delegators_percent': 0,
+            'treasury_percent': 250000000,
+            'collators_delegators_percent': 400000000,
             'coretime_percent': 100000000,
             'subsidization_pool_percent': 50000000,
             'depin_staking_percent': 50000000,
@@ -169,6 +169,8 @@ class TokenEconomyTest(unittest.TestCase):
         wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
 
     def setUp(self):
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 2)
+        wait_until_block_height(SubstrateInterface(url=ACA_WS_URL), 2)
         self._substrate = SubstrateInterface(url=WS_URL)
         current_height = get_block_height(self._substrate)
         self._block_hash = get_block_hash(self._substrate, current_height)
