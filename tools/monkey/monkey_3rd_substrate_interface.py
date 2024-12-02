@@ -2,7 +2,6 @@ from substrateinterface.exceptions import SubstrateRequestException, ExtrinsicNo
 from scalecodec.types import GenericExtrinsic
 from substrateinterface.base import ExtrinsicReceipt
 from peaq.utils import wait_for_n_blocks
-import time
 
 
 def _wait_finalization(substrate, included_block):
@@ -45,6 +44,7 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
                 print(f'Extrinsic {result.extrinsic_hash} is included in block {included_block}')
                 tx_identifier = f'{included_block}-{index}'
                 break
+
     if not tx_identifier:
         raise SubstrateRequestException(
             f'Extrinsic {result.extrinsic_hash} is not included in the block after 3 blocks, invalid')

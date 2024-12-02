@@ -1,6 +1,5 @@
 from peaq.utils import ExtrinsicBatch
 from substrateinterface.exceptions import SubstrateRequestException
-import time
 from peaq.utils import show_extrinsic
 from peaq.utils import wait_for_n_blocks
 from substrateinterface.base import ExtrinsicReceipt
@@ -47,8 +46,8 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
             if 'invalid' in str(e):
                 print(f'Error: {e}, {short_print(batch)}')
                 for i in range(4):
-                    print(f'Wait for next block')
-                    wait_for_n_blocks(substrate, 1)
+                    print('Wait for next 4 block')
+                    wait_for_n_blocks(substrate, 4)
                     tx_identifer = _backtrace_blocks_by_extrinsic(
                         substrate, self.submit_extrinsic.extrinsic_hash.hex())
                     if tx_identifer:
