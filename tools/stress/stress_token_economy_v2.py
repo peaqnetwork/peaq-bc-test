@@ -13,32 +13,54 @@ import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
 
-def travese_blocks_and_check(substrate, args):
-    check_data = {}
+def get_pervious_session_block(substrate):
+    round_info = substrate.query(
+        'ParachainStaking',
+        'Round',
+    )
+    return (round_info['first'].value, round_info['length'].value, round_info['current'].value)
 
-    now_block_height = get_block_height(substrate)
-    for i in range(args.session + 1, now_block_height):
-        # print(f'get author in block height: {i}')
+
+def traverse_single_blocks_and_check(substrate, session_height, round_length, session_idx):
+    print(f'Check session block: {session_height}')
+    print(f'Session idx: {session_idx}')
+
+    check_data = {}
+    end_block_height = session_height + round_length
+    # We don't check the latest block because we also distirbute the rewrd at the new session block
+    for i in range(session_height + 1, end_block_height):
+        # print(f'get author in block height: {i}, session idx: {session_idx}')
         block_hash = get_block_hash(substrate, i)
         block_info = substrate.get_block(block_hash, include_author=True)
         # print(f'block author: {block_info["author"]}')
+        # print(f'CollatorBlock: {result}')
         check_data[block_info['author']] = check_data.get(block_info["author"], 0) + 1
-
-    for k, v in check_data.items():
         result = substrate.query(
             module='ParachainStaking',
-            storage_function='CollatorBlock',
-            params=[k],
+            storage_function='CollatorBlocks',
+            params=[session_idx, block_info['author']],
             block_hash=block_hash,
         )
-        print(f'{k}: CollatorBlock: {result} v.s. {v}')
-        if result != v:
-            print(f'    error: {k}: CollatorBlock: {result} v.s. {v}')
-    print(f'End block: {now_block_height}, total length: {len(check_data.keys())}')
+        if result != check_data[block_info["author"]]:
+            raise IOError(f'    error: {block_info["author"]}: CollatorBlock: {result} v.s. {check_data.get(block_info["author"], 0)}')
+    print(f'End block: {end_block_height}, session: {session_idx}, contributed collators length: {len(check_data.keys())}')
 
 
-def validator_check(substrate):
+def travese_blocks_and_check(substrate, test_session_num):
+    session_block_height, session_block_length, session_idx = get_pervious_session_block(substrate)
+
+    for i in range(test_session_num):
+        prev_session_block_height = session_block_height - session_block_length * (i + 1)
+        if prev_session_block_height < 0:
+            print(f'End traverse for prev {i}th session because of block height < 0')
+            break
+        print(f'Check session block: {prev_session_block_height}')
+        traverse_single_blocks_and_check(substrate, prev_session_block_height, session_block_length, session_idx - i - 1)
+
+
+def validator_check(substrate, test_session_num):
     check_data = {}
+    session_block_height, session_block_length, session_idx = get_pervious_session_block(substrate)
 
     now_block_height = get_block_height(substrate)
     block_hash = get_block_hash(substrate, now_block_height)
@@ -181,6 +203,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get storage and constants from a Substrate chain')
     parser.add_argument('-r', '--runtime', type=str, required=True, help='Your runtime websocket endpoint')
     parser.add_argument('-s', '--session', type=int, required=False, help='session block blockheight, needed on traverse mode and distribution')
+    parser.add_argument('--test-session-num', type=int, required=False, default=10, help='test session number')
     parser.add_argument(
         '-t', '--type', choices=['traverse', 'validator', 'distribution'], required=True,
         help='Specify the type, '
@@ -195,12 +218,11 @@ if __name__ == '__main__':
     )
 
     if args.type == 'traverse':
-        if args.session is None:
-            print('Please specify session block blockheight')
-            sys.exit(1)
-        travese_blocks_and_check(substrate, args)
+        test_session_num = args.test_session_num
+        travese_blocks_and_check(substrate, test_session_num)
     elif args.type == 'validator':
-        validator_check(substrate)
+        test_session_num = args.test_session_num
+        validator_check(substrate, test_session_num)
     elif args.type == 'distribution':
         if args.session is None:
             print('Please specify session block blockheight')
