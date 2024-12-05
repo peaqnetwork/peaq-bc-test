@@ -188,7 +188,7 @@ def get_all_transaction_fee_in_block(substrate, block_hash):
             continue
         related_events = [
             event.value
-            for event in events if'extrinsic_idx' in event.value and event.value['extrinsic_idx'] == idx]
+            for event in events if 'extrinsic_idx' in event.value and event.value['extrinsic_idx'] == idx]
         if related_events[0]['module_id'] != 'Balances' or related_events[0]['event_id'] != 'Withdraw':
             raise IOError(f'    error: first event is not withdraw, {block_hash}, {idx}, {events[0]}')
         deposit_event = related_events[0]
