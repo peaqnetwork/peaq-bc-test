@@ -70,3 +70,8 @@ pip3 install -r requirements.txt
 
 # Enviroment parameter
 - RUNTIME_UPGRADE_PATH: The runtime upgrade path. If we want to test the runtime upgrade, we should set this parameter.
+
+# Stress tools
+python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.network --test-session-num 10 -t distribution
+python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.network --test-session-num 10 -t validator
+python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.network --test-session-num 10 -t traverse    
