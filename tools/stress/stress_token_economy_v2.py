@@ -133,7 +133,7 @@ def calculate_total_staking_ratio(staking_info, collator_block_info):
     for collator_addr, collator_stake_info in staking_info.items():
         staking_ratio = {}
         block_generated_num = float(collator_block_info[collator_addr])
-        commission = float(collator_stake_info['commission']) / 10 ** 7
+        commission = float(collator_stake_info['commission']) / 10 ** 6
 
         staking_ratio[collator_addr] = \
             block_generated_num * collator_stake_info['stake'] / total_staking_num \
@@ -186,19 +186,24 @@ def get_all_transaction_fee_in_block(substrate, block_hash):
     for idx, tx in enumerate(block['extrinsics']):
         if idx < 2:
             continue
-        related_events = [event for event in events if event['extrinsic_idx'] == idx]
+        related_events = [
+            event.value
+            for event in events if'extrinsic_idx' in event.value and event.value['extrinsic_idx'] == idx]
+        if related_events[0]['module_id'] != 'Balances' or related_events[0]['event_id'] != 'Withdraw':
+            raise IOError(f'    error: first event is not withdraw, {block_hash}, {idx}, {events[0]}')
         deposit_event = related_events[0]
-        deposit_value = deposit_event['event'][1][1].value
-        deposit_user = deposit_event['event'][1][0].value
+        deposit_user = deposit_event['event']['attributes']['who']
+        deposit_value = deposit_event['event']['attributes']['amount']
 
         for event in related_events[1:]:
-            if event.value['module_id'] != 'Balances' or event.value['event_id'] != 'Deposit':
+            if event['module_id'] != 'Balances' or event['event_id'] != 'Deposit':
                 continue
-            if deposit_user != event['event'][1][0].value:
+            if deposit_user != event['event']['attributes']['who']:
                 continue
-            deposit_value -= event['event'][1][1].value
+            deposit_value -= event['event']['attributes']['amount']
         if deposit_value < 0:
             raise IOError(f'    error: deposit_value < 0, {deposit_value}, {deposit_user}, {block_hash}, {idx}')
+        print(f' tx found: {block_hash}-{idx}: fee {deposit_value}')
         tx_fee += deposit_value
     return tx_fee
 
@@ -321,7 +326,6 @@ def distribution_check(substrate, test_session_num):
         if prev_session_block_height < 0:
             print(f'End traverse for prev {i}th session because of block height < 0')
             break
-        print(f'Check session block: {prev_session_block_height}')
         check_single_session_distribution(substrate, prev_session_block_height, session_block_length, session_idx - i - 2)
 
 
