@@ -156,8 +156,9 @@ def do_runtime_upgrade(wasm_path):
     fund_account()
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     # Remove the asset id 1: relay chain
-    # Move it in front of the upgrade because this 1.7.2 upgrade will need to change the node
+    # Because of the zenlink's test_create_pair_swap should only use asset 1
     remove_asset_id(substrate)
+    update_xcm_default_version(substrate)
 
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)

@@ -75,15 +75,40 @@ class TestDelegatorIssue(unittest.TestCase):
             Keypair.create_from_mnemonic(Keypair.generate_mnemonic()),
             Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         ]
-        self.ori_reward_config = self.substrate.query(
-            module='BlockReward',
-            storage_function='RewardDistributionConfigStorage',
-        )
-        self.set_collator_delegator_precentage()
+        receipt = self.set_collator_delegator_precentage()
+        self.assertTrue(receipt.is_success, 'cannot set the reward rate')
 
-    def tearDown(self):
-        receipt = set_block_reward_configuration(self.substrate, self.ori_reward_config.value)
-        self.assertTrue(receipt.is_success, 'cannot reset the block reward configuration')
+        receipt = self.set_commission_rate(50)
+        self.assertTrue(receipt.is_success, 'cannot set the commission rate')
+
+        receipt = self.set_round_length(100)
+        self.assertTrue(receipt.is_success, 'cannot set the round length')
+
+    @classmethod
+    def tearDownClass(cls):
+        restart_parachain_and_runtime_upgrade()
+
+    def set_commission_rate(self, rate):
+        batch = ExtrinsicBatch(self.substrate, KP_COLLATOR)
+        batch.compose_call(
+            'ParachainStaking',
+            'set_commission',
+            {
+                'commission': rate * 10_000,
+            }
+        )
+        return batch.execute()
+
+    def set_round_length(self, length):
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'set_blocks_per_round',
+            {
+                'new': length,
+            }
+        )
+        return batch.execute()
 
     def set_collator_delegator_precentage(self):
         # If the collator/delegator reward distirbution is less than ED, the collator/delegator cannot receive rewards
@@ -95,9 +120,7 @@ class TestDelegatorIssue(unittest.TestCase):
             'coretime_percent': 40000000,
             'subsidization_pool_percent': 660000000,
         }
-        receipt = set_block_reward_configuration(self.substrate, set_value)
-        self.assertTrue(receipt.is_success,
-                        'cannot setup the block reward configuration')
+        return set_block_reward_configuration(self.substrate, set_value)
 
     def get_one_collator_without_delegator(self, keys):
         for key in keys:
@@ -144,10 +167,12 @@ class TestDelegatorIssue(unittest.TestCase):
         first_receipt = batch.execute()
         self.assertTrue(first_receipt.is_success)
 
+        # Just send a random extrinsic for tx fee
+        receipt = set_max_candidate_stake(self.substrate, 10 ** 7 * mega_tokens)
+        self.assertTrue(receipt.is_success, 'cannot set the commission rate')
+
         second_receipt = batch.execute()
         self.assertTrue(second_receipt.is_success)
-
-        time.sleep(12 * 2)
 
         first_new_session_block_hash = self.substrate.get_block_hash(first_receipt.block_number + 1)
         second_new_session_block_hash = self.substrate.get_block_hash(second_receipt.block_number + 1)
@@ -172,6 +197,68 @@ class TestDelegatorIssue(unittest.TestCase):
             1, 7,
             f'{total_diff} v.s. {pot_transferable_balance} is not equal')
 
-        self.assertEqual(now_c_balance - prev_c_balance, now_d_1_balance - prev_d_1_balance)
-        self.assertEqual(now_c_balance - prev_c_balance, now_d_2_balance - prev_d_2_balance)
-        self.assertEqual(now_d_1_balance - prev_d_1_balance, now_d_2_balance - prev_d_2_balance)
+        self.assertAlmostEquals(
+            (now_c_balance - prev_c_balance) / ((now_d_1_balance - prev_d_1_balance) * 4),
+            1, 7,
+            f'{now_c_balance - prev_c_balance} v.s. {(now_d_1_balance - prev_d_1_balance) * 4} is not equal')
+
+        self.assertAlmostEquals(
+            (now_c_balance - prev_c_balance) / ((now_d_2_balance - prev_d_2_balance) * 4),
+            1, 7,
+            f'{now_c_balance - prev_c_balance} v.s. {(now_d_2_balance - prev_d_2_balance) * 4} is not equal')
+
+        self.assertAlmostEquals(
+            (now_d_1_balance - prev_d_1_balance) / (now_d_2_balance - prev_d_2_balance),
+            1, 7,
+            f'{now_d_1_balance - prev_d_1_balance} v.s. {now_d_2_balance - prev_d_2_balance} is not equal')
+
+    def test_commission_rate_in_snapshot(self):
+        mega_tokens = 500000 * 10 ** 18
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call('ParachainStaking', 'set_max_candidate_stake', {
+            'new': 10 ** 5 * mega_tokens
+        })
+        batch_fund(batch, KP_COLLATOR, 20 * mega_tokens)
+        batch_fund(batch, self.delegators[0], 10 * mega_tokens)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'batch execute failed, error: {receipt.error_message}')
+
+        # Get the collator account
+        receipt = collator_stake_more(self.substrate, KP_COLLATOR, 5 * mega_tokens)
+        self.assertTrue(receipt.is_success, 'Stake failed')
+
+        collator = self.get_one_collator_without_delegator(self.collator)
+        self.assertGreaterEqual(int(str(collator['stake'])), 5 * mega_tokens)
+        self.assertNotEqual(collator, None)
+
+        # Add the delegator
+        receipt = add_delegator(self.substrate, self.delegators[0], str(collator['id']), int(str(collator['stake'])))
+        self.assertTrue(receipt.is_success, 'Add delegator failed')
+
+        receipt = self.set_commission_rate(100)
+        # Avoid the session in block height 10
+        time.sleep(12 * 2)
+        # Check the delegator's issue number
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'force_new_round',
+            {}
+        )
+        first_receipt = batch.execute()
+        self.assertTrue(first_receipt.is_success)
+
+        receipt = self.set_commission_rate(0)
+        self.assertTrue(receipt.is_success, 'cannot set the commission rate')
+
+        second_receipt = batch.execute()
+        self.assertTrue(second_receipt.is_success)
+
+        first_new_session_block_hash = self.substrate.get_block_hash(first_receipt.block_number + 1)
+        second_new_session_block_hash = self.substrate.get_block_hash(second_receipt.block_number + 1)
+
+        # Check all collator reward in collators
+        prev_d_1_balance = get_account_balance(self.substrate, self.delegators[0].ss58_address, first_new_session_block_hash)
+        now_d_1_balance = get_account_balance(self.substrate, self.delegators[0].ss58_address, second_new_session_block_hash)
+
+        self.assertEqual(now_d_1_balance - prev_d_1_balance, 0)

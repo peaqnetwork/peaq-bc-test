@@ -1,8 +1,7 @@
 from substrateinterface.exceptions import SubstrateRequestException, ExtrinsicNotFound
 from scalecodec.types import GenericExtrinsic
 from substrateinterface.base import ExtrinsicReceipt
-from tools.constants import BLOCK_GENERATE_TIME
-import time
+from peaq.utils import wait_for_n_blocks
 
 
 def _wait_finalization(substrate, included_block):
@@ -11,7 +10,7 @@ def _wait_finalization(substrate, included_block):
         print(f'Checking finalized block {finalized_block} and included block {included_block}')
         if finalized_block >= included_block:
             break
-        time.sleep(BLOCK_GENERATE_TIME)
+        wait_for_n_blocks(substrate, 1)
 
 
 def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusion: bool = False,
@@ -28,7 +27,7 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
     if not wait_for_inclusion and not wait_for_finalization:
         return result
 
-    time.sleep(BLOCK_GENERATE_TIME * 4)
+    wait_for_n_blocks(self, 4)
     now_block_num = self.get_block_number(None)
     included_block = None
     tx_identifier = None
@@ -45,6 +44,7 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
                 print(f'Extrinsic {result.extrinsic_hash} is included in block {included_block}')
                 tx_identifier = f'{included_block}-{index}'
                 break
+
     if not tx_identifier:
         raise SubstrateRequestException(
             f'Extrinsic {result.extrinsic_hash} is not included in the block after 3 blocks, invalid')

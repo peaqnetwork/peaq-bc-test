@@ -1,6 +1,7 @@
 from substrateinterface import SubstrateInterface
 from peaq.utils import get_chain
 import argparse
+from argparse import RawDescriptionHelpFormatter
 
 
 import pprint
@@ -128,18 +129,24 @@ def query_storage(substrate, module, storage_function):
     except ValueError:
         pass
 
-    result = substrate.query_map(
-        module=module,
-        storage_function=storage_function,
-        max_results=1000,
-        page_size=1000,
-    )
+    start_key = None
+    batch_size = 1000
     out = {}
-    for k, v in result.records:
-        try:
-            out[str(k.value)] = v.value
-        except AttributeError:
-            out[str(k)] = v.value
+    while True:
+        result = substrate.query_map(
+            module=module,
+            storage_function=storage_function,
+            start_key=start_key,
+            page_size=batch_size,
+        )
+        for k, v in result.records:
+            try:
+                out[str(k.value)] = v.value
+            except AttributeError:
+                out[str(k)] = v.value
+        if len(result.records) < batch_size:
+            break
+        start_key = result.last_key
     print(f'Querying map: {module}::{storage_function}: v.value')
     return out
 
@@ -201,7 +208,13 @@ def get_all_constants(substrate, metadata, out, interested_out):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Get storage and constants from a Substrate chain')
+    parser = argparse.ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        description='''
+        Get storage and constants from a Substrate chain
+        python3 snapshot_info.py -r peaq-dev --sheet
+        '''
+    )
     parser.add_argument(
         '-r', '--runtime', type=str, required=True,
         help='Your runtime websocket endpoint. however,'
@@ -214,6 +227,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '-f', '--folder', type=str, default='tools/snapshot',
         help='The output folder to write the data to'
+    )
+    parser.add_argument(
+        '--sheet', default=False,
+        action="store_true",
+        help='The output folder to sheet format'
     )
 
     args = parser.parse_args()
@@ -245,3 +263,12 @@ if __name__ == '__main__':
             f.write(pp.pformat(out))
 
     pp.pprint(interested_out)
+
+    if args.sheet:
+        filepath = f'{args.folder}/{args.runtime}.{substrate.runtime_version}.sheet'
+        with open(filepath, 'w') as f:
+            keys = list(interested_out.keys())
+            keys = sorted(keys)
+            for k in keys:
+                f.write(f'{k}-{interested_out[k]}\n')
+        print(f'Wrote to {filepath}')

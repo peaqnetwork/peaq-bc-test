@@ -26,11 +26,11 @@ class bridge_parachain_staking_collators_test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
-        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 2)
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 2)
 
     def setUp(self):
-        wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+        wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
 
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
