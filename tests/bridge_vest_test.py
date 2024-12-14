@@ -9,7 +9,7 @@ from tools.constants import BLOCK_GENERATE_TIME
 from tools.constants import KP_GLOBAL_SUDO
 from tools.constants import WS_URL, ETH_URL
 from tools.utils import get_account_balance_locked
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import get_eth_info
 from tools.utils import batch_fund
