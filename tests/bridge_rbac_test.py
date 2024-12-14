@@ -1,7 +1,7 @@
 import pytest
 
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.constants import WS_URL, ETH_URL
 from peaq.eth import calculate_evm_account, calculate_evm_addr
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -22,7 +22,7 @@ RBAC_ADDRESS = '0x0000000000000000000000000000000000000802'
 # H160 Address to use for EVM transactions
 ETH_PRIVATE_KEY = generate_random_hex(15).encode("utf-8")
 # RBAC Precompile ABI
-ABI_FILE = 'ETH/rbac/rbac.sol.json'
+ABI_FILE = 'ETH/rbac/abi'
 # Number of tokens with decimals
 TOKEN_NUM = 10000 * pow(10, 15)
 

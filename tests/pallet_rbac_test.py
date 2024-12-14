@@ -459,6 +459,8 @@ class TestPalletRBAC(unittest.TestCase):
             # Success tests, default test setup
             kp_src = KP_TEST
             fund(self.substrate, KP_GLOBAL_SUDO, KP_TEST, 1000 * 10 ** 18)
+            import pdb
+            pdb.set_trace()
             reserved_before = get_balance_reserve_value(self.substrate, kp_src.ss58_address, 'peaqrbac')
             self.rbac_rpc_setup(kp_src)
 
