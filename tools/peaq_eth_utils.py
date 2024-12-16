@@ -109,25 +109,47 @@ def calculate_evm_default_addr(sub_addr):
     return Web3.to_checksum_address(new_addr.lower())
 
 
+def send_raw_tx(w3, signed_txn):
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        print(f'evm tx: {tx_hash.hex()}')
+        return tx_hash
+    except ValueError as e:
+        print("Error:", e)
+        if "already known" in str(e):
+            print("Transaction already known by the node.")
+            return signed_txn.hash
+        else:
+            raise e
+
+
+def wait_w3_tx(w3, tx_hash, timimeout=ETH_TIMEOUT):
+    try:
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+        while w3.eth.get_block('finalized').number < receipt.blockNumber:
+            time.sleep(BLOCK_GENERATE_TIME)
+    except Web3Exceptions.TimeExhausted:
+        print(f'Timeout for tx: {tx_hash.hex()}')
+    except Exception as e:
+        raise e
+
+
 def sign_and_submit_evm_transaction(tx, w3, signer):
     signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
     for i in range(3):
-        tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        print(f'evm tx: {tx_hash.hex()}')
-        try:
-            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
-        except Web3Exceptions.TimeExceeded:
-            print(f'Timeout for tx: {tx_hash.hex()}')
-            continue
+        tx_hash = send_raw_tx(w3, signed_txn)
+        wait_w3_tx(w3, tx_hash)
+
         # Check whether the block is finalized or not. If not, wait for it
-        while w3.eth.get_block('finalized').number < receipt.blockNumber:
-            time.sleep(BLOCK_GENERATE_TIME)
-        try:
-            receipt = w3.eth.get_transaction_receipt(tx_hash)
-            # Check the transaction is existed or not, if not, go back to send again
-            print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
-            return receipt
-        except Web3Exceptions.TransactionNotFound:
-            print(f'Tx {tx_hash.hex()} is not found')
-            continue
+        for i in range(3):
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                # Check the transaction is existed or not, if not, go back to send again
+                print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
+                return receipt
+            except Web3Exceptions.TransactionNotFound:
+                print(f'Tx {tx_hash.hex()} is not found')
+                time.sleep(BLOCK_GENERATE_TIME * 2)
+        else:
+            print(f'Cannot find tx {tx_hash.hex()}')
     raise IOError('Cannot send transaction')
