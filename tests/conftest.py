@@ -5,7 +5,6 @@ import tools.utils  # noqa: F401
 from tests.substrate_utils import monkey_submit_extrinsic_for_fee_weight
 from tests.substrate_utils import generate_substrate_weight_fee_report
 from tests.evm_utils import generate_evm_fee_report
-from tests.evm_utils import sign_and_submit_evm_transaction
 from substrateinterface import SubstrateInterface
 
 SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic_for_fee_weight
