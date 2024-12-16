@@ -34,7 +34,7 @@ def get_transaction_fee(substrate, extrinsic_idx, block_hash):
         if event.value['module_id'] != 'TransactionPayment' or \
            event.value['event_id'] != 'TransactionFeePaid':
             continue
-        return event['event'][1][1].value['actual_fee'] - event['event'][1][1].value['tip']
+        return event['event'][1][1].value['actual_fee'], event['event'][1][1].value['tip']
 
 
 def get_transaction_weight(substrate, extrinsic_idx, block_hash):
@@ -62,13 +62,14 @@ def monkey_submit_extrinsic_for_fee_weight(self, extrinsic, wait_for_inclusion, 
         if f'0x{extrinsic.extrinsic_hash.hex()}' != receipt.extrinsic_hash:
             continue
         name = compose_extrinsic_name(extrinsic.value['call'])
-        fee = get_transaction_fee(self, receipt.extrinsic_idx, block_hash)
+        fee, tip = get_transaction_fee(self, receipt.extrinsic_idx, block_hash)
         weight = get_transaction_weight(self, receipt.extrinsic_idx, block_hash)
         if name not in substrate_all_weight_fee_data:
             substrate_all_weight_fee_data[name] = []
 
         substrate_all_weight_fee_data[name].append({
             'fee': fee,
+            'tip': tip,
             'weight': weight
         })
 
@@ -105,6 +106,7 @@ def process_weight_fee_data():
         summary_data[extrinsic_name] = {
             'fee': sum([d['fee'] for d in data]) / len(data),
             'weight': sum([d['weight'] for d in data]) / len(data),
+            'tip': sum([d['tip'] for d in data]) / len(data),
             'len': len(data)
         }
     return summary_data
