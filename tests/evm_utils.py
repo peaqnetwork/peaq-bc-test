@@ -1,8 +1,9 @@
 from tools import peaq_eth_utils as PeaqEthUtils
-from eth_utils import keccak
+from eth_utils import function_abi_to_4byte_selector
 import os
 import json
 import datetime
+from tools.constants import PARACHAIN_ETH_URL
 
 evm_all_fee_data = {}
 func_selector_dict = {}
@@ -13,8 +14,7 @@ def load_all_function(folder, abi):
     for item in abi:
         if item["type"] != "function":
             continue
-        function_signature = f"{item['name']}({','.join([input['type'] for input in item['inputs']])})"
-        selector = "0x" + keccak(text=function_signature).hex()[:8]
+        selector = f'0x{function_abi_to_4byte_selector(item).hex()}'
         function_dict[selector] = f'{folder}.{item["name"]}'
     return function_dict
 
@@ -68,6 +68,9 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
     receipt = PeaqEthUtils.sign_and_submit_evm_transaction(tx, w3, signer)
     gas_used = receipt['gasUsed']
     effective_gas_price = receipt['effectiveGasPrice']
+
+    if w3.provider.endpoint_uri != PARACHAIN_ETH_URL:
+        return receipt
 
     if not func_selector_dict:
         load_all_abi()
