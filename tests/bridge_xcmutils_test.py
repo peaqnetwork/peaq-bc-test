@@ -10,7 +10,7 @@ from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
 from tools.constants import KP_GLOBAL_SUDO
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
 from tools.asset import wait_for_account_asset_change_wrap

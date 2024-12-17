@@ -10,7 +10,7 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import get_eth_info
 from tools.constants import KP_GLOBAL_SUDO
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from web3 import Web3
 
 
@@ -20,7 +20,7 @@ ASSET_FACTORY_ADDR = '0x0000000000000000000000000000000000000806'
 BATCH_ABI_FILE = 'ETH/batch/abi'
 BATCH_ADDRESS = '0x0000000000000000000000000000000000000805'
 
-IERC20PLUS_ABI_FILE = 'ETH/erc20/plus.abi'
+IERC20PLUS_ABI_FILE = 'ETH/erc20plus/abi'
 
 
 @pytest.mark.eth

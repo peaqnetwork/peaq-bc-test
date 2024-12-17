@@ -10,7 +10,7 @@ from substrateinterface import SubstrateInterface
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
 from tools.constants import KP_GLOBAL_SUDO
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import generate_random_hex
 
 
@@ -22,10 +22,10 @@ VALUE2 = '0x02'
 ABI_FILE = 'ETH/batch/abi'
 BATCH_ADDRESS = '0x0000000000000000000000000000000000000805'
 
-DID_ABI_FILE = 'ETH/did/did.sol.json'
+DID_ABI_FILE = 'ETH/did/abi'
 DID_ADDRESS = '0x0000000000000000000000000000000000000800'
 
-STORAGE_ABI_FILE = 'ETH/storage/storage.sol.json'
+STORAGE_ABI_FILE = 'ETH/storage/abi'
 STORAGE_ADDRESS = '0x0000000000000000000000000000000000000801'
 
 

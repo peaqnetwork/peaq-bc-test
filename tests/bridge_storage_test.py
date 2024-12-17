@@ -4,7 +4,7 @@ from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from peaq.eth import calculate_evm_account_hex, calculate_evm_addr, calculate_evm_account
 from peaq.extrinsic import transfer
 from tools.constants import WS_URL, ETH_URL
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import call_eth_transfer_a_lot, get_contract, generate_random_hex
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
@@ -24,7 +24,7 @@ NEW_ITEM = '0x10'
 KP_SRC = Keypair.create_from_uri('//Alice')
 STORAGE_ADDRESS = '0x0000000000000000000000000000000000000801'
 ETH_PRIVATE_KEY = '0xa2899b053679427c8c446dc990c8990c75052fd3009e563c6a613d982d6842fe'
-ABI_FILE = 'ETH/storage/storage.sol.json'
+ABI_FILE = 'ETH/storage/abi'
 TOKEN_NUM = 10000 * pow(10, 15)
 
 
