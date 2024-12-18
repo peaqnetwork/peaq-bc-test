@@ -68,6 +68,41 @@
 						"internalType": "uint256",
 						"name": "amount",
 						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "commission",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct ParachainStaking.CollatorInfo[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getWaitList",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "bytes32",
+						"name": "owner",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "commission",
+						"type": "uint256"
 					}
 				],
 				"internalType": "struct ParachainStaking.CollatorInfo[]",
