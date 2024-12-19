@@ -347,33 +347,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         receipt = self.set_commission_rate(0)
         self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
 
-    def set_parachain_staking_settings(self, length):
-        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
-        batch.compose_sudo_call(
-            'ParachainStaking',
-            'set_blocks_per_round',
-            {
-                'new': length,
-            }
-        )
-        batch.compose_sudo_call(
-            'ParachainStaking',
-            'set_max_selected_candidates',
-            {
-                'new': 4
-            }
-        )
-        batch.compose_sudo_call(
-            'ParachainStaking',
-            'force_new_round',
-            {}
-        )
-        return batch.execute()
-
     def test_wait_list(self):
-        receipt = self.set_parachain_staking_settings(100000)
-        self.assertEqual(receipt.is_success, True, f'set_blocks_per_round fails, receipt: {receipt}')
-
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
         collator_num = out[0][1]
@@ -404,6 +378,17 @@ class bridge_parachain_staking_test(unittest.TestCase):
         collator_list = contract.functions.getCollatorList().call()
         self.assertEqual(len(collator_list), 2)
         self.assertTrue(wait_list[0][0] in [collator[0] for collator in collator_list])
+
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'force_remove_candidate',
+            {
+                'collator': self._kp_new_collator.ss58_address,
+            }
+        )
+        receipt = batch.execute()
+        self.assertEqual(receipt.is_success, True, f'force_remove_candidate fails, receipt: {receipt}')
 
     def test_delegator_revoke(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
