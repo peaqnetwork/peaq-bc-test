@@ -152,6 +152,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
 
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         golden_data = self._substrate.query('ParachainStaking', 'TopCandidates')
         golden_data = golden_data.value
         self.assertEqual(len(out), len(golden_data))
@@ -174,6 +175,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_evm_api_cannot_transfer_over_stake_others(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -212,6 +214,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_evm_api_cannot_transfer_over_stake_agung(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -249,6 +252,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_delegator_join_more_less_leave(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -320,6 +324,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         all_colators_info = self._substrate.query_map(
             module='ParachainStaking',
             storage_function='CandidatePool',
@@ -350,6 +355,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_wait_list(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         collator_num = out[0][1]
         receipt = self._fund_users(collator_num * 2)
 
@@ -368,6 +374,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
 
         wait_list = contract.functions.getWaitList().call()
+        wait_list = sorted(wait_list, key=lambda x: x[1], reverse=True)
         self.assertEqual(len(wait_list), 1)
         pk = bytes.fromhex(self._substrate.ss58_decode(self._kp_new_collator.ss58_address))
         self.assertEqual(wait_list[0][0], pk)
@@ -376,6 +383,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         # Check the wait list
         collator_list = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         self.assertEqual(len(collator_list), 2)
         self.assertTrue(wait_list[0][0] in [collator[0] for collator in collator_list])
 
@@ -393,6 +401,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_delegator_revoke(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -445,6 +454,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]

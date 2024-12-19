@@ -137,6 +137,7 @@ class bridge_parachain_staking_collators_test(unittest.TestCase):
     def test_delegator_another_candidate(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         collator_num = out[0][1]
         collator_eth_addr = out[0][0]
 
