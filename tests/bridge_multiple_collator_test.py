@@ -181,6 +181,7 @@ class bridge_parachain_staking_collators_test(unittest.TestCase):
         self.assertEqual(receipt.is_success, True, f'force_new_round fails, receipt: {receipt}')
 
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         collator_eth_addr = out[0][0]
         collator_eth_addr = [out[i][0] for i in range(len(out)) if out[i][0] != collator_eth_addr][0]
 
