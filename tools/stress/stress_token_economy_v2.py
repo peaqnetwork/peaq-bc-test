@@ -12,6 +12,8 @@ import argparse
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+DEBUG = False
+
 
 def get_pervious_session_block(substrate):
     round_info = substrate.query(
@@ -218,6 +220,8 @@ def get_total_session_rewards(substrate, session_height, round_length):
     tx_fee = 0
     # We don include the latest block because we also distribute the reward at the new session block
     for block_idx in range(session_height, session_height + round_length):
+        if block_idx % 100 == 0:
+            print(f'get tx fee in block: {block_idx}')
         block_hash = get_block_hash(substrate, block_idx)
         tx_fee += get_all_transaction_fee_in_block(substrate, block_hash)
 
@@ -296,18 +300,27 @@ def check_single_session_distribution(substrate, session_height, round_length, s
     session_block_hash = get_block_hash(substrate, session_height)
 
     collator_block_info = calculate_collator_block_info(substrate, session_height, round_length, session_idx)
+    if DEBUG:
+        print('collator_block_info')
+        pp.pprint(collator_block_info)
     if round_length != sum(collator_block_info.values()):
         raise IOError(f'    error: round_length: {round_length} v.s. collator block length: {sum(collator_block_info.values())}')
 
     # Because we might change, we have to use the snapshot data
     # [TODO] We have to test the snapshot data
     snapshot_info = get_snapshot_info(substrate, session_block_hash, session_idx)
+    if DEBUG:
+        print('snapshot_info')
+        pp.pprint(snapshot_info)
     # [TODO] Check totalIssuance
     # Caculate the pot balance
     # [TODO] We have to test the pot balance
     total_session_reward = get_total_session_rewards(substrate, session_height, round_length)
     # {blockheight: {collator: reward, delegator1: reward, delegator2: reward}}
     distributed_reward_info = get_reward_info(substrate, session_height + round_length, round_length)
+    if DEBUG:
+        print('distributed_reward_info')
+        pp.pprint(distributed_reward_info)
 
     if len(distributed_reward_info.keys()) != len(collator_block_info.keys()):
         raise IOError(
