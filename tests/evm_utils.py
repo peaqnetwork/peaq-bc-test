@@ -52,8 +52,6 @@ def compose_function_name(w3, tx):
     input_data = tx['data']
     function_selector = input_data[:10]
     if function_selector not in func_selector_dict:
-        import pdb
-        pdb.set_trace()
         return f'Unknown.{function_selector}'
 
     name = func_selector_dict[function_selector]
