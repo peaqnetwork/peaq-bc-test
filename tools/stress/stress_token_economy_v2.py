@@ -78,7 +78,6 @@ def check_single_session_collators(substrate, session_height, round_length, sess
         start_key=None,
         page_size=1000,
     )
-    all_colators_info.records[0][0].value
     collators_block_set = set([addr.value for addr, _ in all_colators_info.records])
     if not collators_block_set.issubset(now_collator_set):
         raise IOError(f'    error: collators in session block: {now_collator_set} v.s. collators in collator block: {collators_block_set}')
