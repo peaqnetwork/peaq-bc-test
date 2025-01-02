@@ -133,6 +133,8 @@ def calculate_total_staking_ratio(staking_info, collator_block_info):
 
     for collator_addr, collator_stake_info in staking_info.items():
         staking_ratio = {}
+        if collator_addr not in collator_block_info:
+            continue
         block_generated_num = float(collator_block_info[collator_addr])
         commission = float(collator_stake_info['commission']) / 10 ** 6
 
@@ -153,6 +155,8 @@ def calculate_total_staking_ratio(staking_info, collator_block_info):
 def caculate_total_staking_num(staking_info, collator_block_info):
     total_staking_num = 0
     for collator_addr, collator_stake_info in staking_info.items():
+        if collator_addr not in collator_block_info:
+            continue
         block_generated_num = collator_block_info[collator_addr]
         total_staking_num += block_generated_num * collator_stake_info['stake']
         for delegator_info in collator_stake_info['delegators']:
