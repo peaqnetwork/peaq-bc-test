@@ -21,6 +21,8 @@ FixedLengthArray.process_encode = new_process_encode
 
 from tools.monkey.monkey_3rd_substrate_interface import monkey_submit_extrinsic
 SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
+from tools.monkey.monkey_3rd_substrate_interface import monkey_patch as monkey_3rd_substrate_patch
+monkey_3rd_substrate_patch()
 
 from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
