@@ -7,7 +7,7 @@ from peaq.extrinsic import transfer
 from peaq.utils import ExtrinsicBatch
 from tools.constants import KP_GLOBAL_SUDO
 from tools.constants import WS_URL, ETH_URL
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import deploy_contract
 from tools.peaq_eth_utils import call_eth_transfer_a_lot
