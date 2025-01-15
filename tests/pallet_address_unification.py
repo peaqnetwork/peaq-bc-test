@@ -3,7 +3,7 @@ import pytest
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.constants import WS_URL, ETH_URL
 from tools.constants import KP_GLOBAL_SUDO
-from tools.peaq_eth_utils import sign_and_submit_evm_transaction
+from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.asset import batch_create_asset, batch_mint, get_valid_asset_id
 from tools.asset import get_asset_balance
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
