@@ -121,9 +121,9 @@ def stress_substrate(substrate_url):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='''
+    parser = argparse.ArgumentParser(description=f'''
 Send tx to substrate and evm
-python3 tools/stress/send_tx.py \\
+python3 {__file__} \\
     --substrate wss://docker-test.peaq.network \\
     --evm https://docker-test.peaq.network \\
     --fund 20000
