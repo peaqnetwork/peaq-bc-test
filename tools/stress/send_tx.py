@@ -13,6 +13,7 @@ from peaq.did import did_add_payload
 from tools.peaq_eth_utils import get_eth_chain_id
 import multiprocessing
 import time
+import argparse
 
 
 DID_ADDRESS = '0x0000000000000000000000000000000000000800'
@@ -37,13 +38,13 @@ SUBSTRATE_MOMENNTS = [
 ]
 
 
-def fund_evm(substrate_url):
+def fund_evm(substrate_url, tokens):
     substrate = SubstrateInterface(substrate_url)
     eth_info = [get_eth_info(EVM_MNOMENICS[i]) for i in range(5)]
     receipt = funds(
         substrate, KP_GLOBAL_SUDO,
         [eth_info[i]['substrate'] for i in range(5)],
-        10000 * 10 ** 18)
+        tokens)
     if not receipt.is_success:
         raise Exception("EVM fund failed")
 
@@ -82,12 +83,12 @@ def stress_evm(substrate_url, evm_url):
         p.starmap(stress_evm_one_account, args)
 
 
-def fund_substrate(substrate_url):
+def fund_substrate(substrate_url, tokens):
     substrate = SubstrateInterface(substrate_url)
     receipt = funds(
         substrate, KP_GLOBAL_SUDO,
         [Keypair.create_from_mnemonic(SUBSTRATE_MOMENNTS[i]).ss58_address for i in range(5)],
-        10000 * 10 ** 18)
+        tokens)
     print(f"Substrate fund receipt: {receipt}")
     if not receipt.is_success:
         raise Exception("Substrate fund failed")
@@ -119,13 +120,27 @@ def stress_substrate(substrate_url):
 
 
 if __name__ == '__main__':
-    substrate_url = 'wss://docker-test.peaq.network'
-    evm_url = 'https://docker-test.peaq.network'
 
-    fund_evm(substrate_url)
+    parser = argparse.ArgumentParser(description='''
+Send tx to substrate and evm
+python3 tools/stress/send_tx.py \\
+    --substrate wss://docker-test.peaq.network \\
+    --evm https://docker-test.peaq.network \\
+    --fund 20000
+    ''', formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('-s', '--substrate', type=str, required=True, help='Your runtime websocket endpoint')
+    parser.add_argument('-e', '--evm', type=str, required=True, help='Your evm endpoint')
+    parser.add_argument('--fund', type=int, default=10000, help='Fund amount (in unit of 10^18)')
+
+    args = parser.parse_args()
+
+    substrate_url = args.substrate
+    evm_url = args.evm
+
+    fund_evm(substrate_url, args.fund * 10 ** 18)
     process1 = multiprocessing.Process(target=stress_evm, args=(substrate_url, evm_url,))
     # send substrate
-    fund_substrate(substrate_url)
+    fund_substrate(substrate_url, args.fund * 10 ** 18)
     process2 = multiprocessing.Process(target=stress_substrate, args=(substrate_url,))
     process1.start()
     process2.start()
