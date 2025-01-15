@@ -38,12 +38,12 @@ SUBSTRATE_MOMENNTS = [
 ]
 
 
-def fund_evm(substrate_url, tokens):
+def fund_evm(substrate_url, tokens, client):
     substrate = SubstrateInterface(substrate_url)
-    eth_info = [get_eth_info(EVM_MNOMENICS[i]) for i in range(5)]
+    eth_info = [get_eth_info(EVM_MNOMENICS[i]) for i in range(client)]
     receipt = funds(
         substrate, KP_GLOBAL_SUDO,
-        [eth_info[i]['substrate'] for i in range(5)],
+        [eth_info[i]['substrate'] for i in range(client)],
         tokens)
     if not receipt.is_success:
         raise Exception("EVM fund failed")
@@ -76,18 +76,18 @@ def stress_evm_one_account(substrate_url, evm_url, mnomenic):
         time.sleep(WAIT_PERIOD)
 
 
-def stress_evm(substrate_url, evm_url):
-    args = [(substrate_url, evm_url, EVM_MNOMENICS[i]) for i in range(len(EVM_MNOMENICS))]
-    with multiprocessing.Pool(5) as p:
+def stress_evm(substrate_url, evm_url, client):
+    args = [(substrate_url, evm_url, EVM_MNOMENICS[i]) for i in range(client)]
+    with multiprocessing.Pool(client) as p:
         print('start the substrate stress test')
         p.starmap(stress_evm_one_account, args)
 
 
-def fund_substrate(substrate_url, tokens):
+def fund_substrate(substrate_url, tokens, client):
     substrate = SubstrateInterface(substrate_url)
     receipt = funds(
         substrate, KP_GLOBAL_SUDO,
-        [Keypair.create_from_mnemonic(SUBSTRATE_MOMENNTS[i]).ss58_address for i in range(5)],
+        [Keypair.create_from_mnemonic(SUBSTRATE_MOMENNTS[i]).ss58_address for i in range(client)],
         tokens)
     print(f"Substrate fund receipt: {receipt}")
     if not receipt.is_success:
@@ -111,10 +111,10 @@ def stress_substrate_one_account(substrate_url, kp_src):
         time.sleep(WAIT_PERIOD)
 
 
-def stress_substrate(substrate_url):
-    kp_srcs = [Keypair.create_from_mnemonic(SUBSTRATE_MOMENNTS[i]) for i in range(5)]
+def stress_substrate(substrate_url, client):
+    kp_srcs = [Keypair.create_from_mnemonic(SUBSTRATE_MOMENNTS[i]) for i in range(client)]
     args = [(substrate_url, kp_src) for kp_src in kp_srcs]
-    with multiprocessing.Pool(5) as p:
+    with multiprocessing.Pool(client) as p:
         print('start the substrate stress test')
         p.starmap(stress_substrate_one_account, args)
 
@@ -126,22 +126,30 @@ Send tx to substrate and evm
 python3 {__file__} \\
     --substrate wss://docker-test.peaq.network \\
     --evm https://docker-test.peaq.network \\
-    --fund 20000
+    --fund 20000 \\
+    --client 3
     ''', formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-s', '--substrate', type=str, required=True, help='Your runtime websocket endpoint')
     parser.add_argument('-e', '--evm', type=str, required=True, help='Your evm endpoint')
-    parser.add_argument('--fund', type=int, default=10000, help='Fund amount (in unit of 10^18)')
+    parser.add_argument('-f', '--fund', type=int, default=10000, help='Fund amount (in unit of 10^18)')
+    parser.add_argument('-c', '--client', type=int, default=5, help='Number of client')
 
     args = parser.parse_args()
 
     substrate_url = args.substrate
     evm_url = args.evm
 
-    fund_evm(substrate_url, args.fund * 10 ** 18)
-    process1 = multiprocessing.Process(target=stress_evm, args=(substrate_url, evm_url,))
+    if args.client > min(len(EVM_MNOMENICS), len(SUBSTRATE_MOMENNTS)):
+        raise Exception(f"Client number should be less than {len(EVM_MNOMENICS)} or {len(SUBSTRATE_MOMENNTS)}")
+
+    if args.client < 1:
+        raise Exception("Client number should be greater than 0")
+
+    fund_evm(substrate_url, args.fund * 10 ** 18, args.client)
+    process1 = multiprocessing.Process(target=stress_evm, args=(substrate_url, evm_url, args.client))
     # send substrate
-    fund_substrate(substrate_url, args.fund * 10 ** 18)
-    process2 = multiprocessing.Process(target=stress_substrate, args=(substrate_url,))
+    fund_substrate(substrate_url, args.fund * 10 ** 18, args.client)
+    process2 = multiprocessing.Process(target=stress_substrate, args=(substrate_url, args.client))
     process1.start()
     process2.start()
 
