@@ -191,6 +191,7 @@ def main():  # noqa: C901
     wait_until_block_height(substrate, 1)
     contract = get_contract(w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
     validators = contract.functions.getCollatorList().call()
+    validators = sorted(validators, key=lambda x: x[1], reverse=True)
     collator_nums = [validator[1] for validator in validators]
     validators = [validator[0] for validator in validators]
     if len(validators) == 0:
