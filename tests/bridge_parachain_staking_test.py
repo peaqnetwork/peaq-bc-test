@@ -40,6 +40,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self._kp_mars = get_eth_info()
         self._eth_chain_id = get_eth_chain_id(self._substrate)
         self._kp_src = Keypair.create_from_uri('//Moon')
+        self._kp_new_collator = Keypair.create_from_uri('//NewMoon01')
 
     def _fund_users(self, num=100 * 10 ** 18):
         if num < 100 * 10 ** 18:
@@ -67,6 +68,14 @@ class bridge_parachain_staking_test(unittest.TestCase):
             'force_set_balance',
             {
                 'who': self._kp_src.ss58_address,
+                'new_free': num,
+            }
+        )
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': self._kp_new_collator.ss58_address,
                 'new_free': num,
             }
         )
@@ -143,6 +152,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
 
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
         golden_data = self._substrate.query('ParachainStaking', 'TopCandidates')
         golden_data = golden_data.value
         self.assertEqual(len(out), len(golden_data))
@@ -165,6 +175,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_evm_api_cannot_transfer_over_stake_others(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -203,6 +214,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_evm_api_cannot_transfer_over_stake_agung(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -240,6 +252,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
     def test_delegator_join_more_less_leave(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -293,9 +306,102 @@ class bridge_parachain_staking_test(unittest.TestCase):
         # Note: The unlock unstaked didn't success because we have to wait about 20+ blocks;
         # therefore, we don't test here. Can just test maunally
 
+    def set_commission_rate(self, rate, kp=KP_COLLATOR):
+        batch = ExtrinsicBatch(self._substrate, kp)
+        batch.compose_call(
+            'ParachainStaking',
+            'set_commission',
+            {
+                'commission': rate * 10_000,
+            }
+        )
+        return batch.execute()
+
+    def test_commission_rate(self):
+        # Set commission rate as 20
+        receipt = self.set_commission_rate(20)
+        self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
+
+        contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
+        out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
+        all_colators_info = self._substrate.query_map(
+            module='ParachainStaking',
+            storage_function='CandidatePool',
+            params=[],
+            start_key=None,
+            page_size=1000,
+        )
+
+        evm_out = {info[0]: {
+            'amount': info[1],
+            'commission': info[2],
+        } for info in out}
+
+        for collator_id, collator_info in all_colators_info.records:
+            pk = bytes.fromhex(self._substrate.ss58_decode(collator_info.value['id']))
+            self.assertEqual(
+                evm_out[pk]['commission'],
+                collator_info.value['commission'],
+                f'commission rate fails, out: {out}, all_colators_info: {all_colators_info}')
+            self.assertEqual(
+                evm_out[pk]['amount'],
+                collator_info.value['stake'],
+                f'commission rate fails, out: {out}, all_colators_info: {all_colators_info}')
+
+        receipt = self.set_commission_rate(0)
+        self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
+
+    def test_wait_list(self):
+        contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
+        out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
+        collator_num = out[0][1]
+        receipt = self._fund_users(collator_num * 2)
+
+        # Join one collator
+        batch = ExtrinsicBatch(self._substrate, self._kp_new_collator)
+        batch.compose_call(
+            'ParachainStaking',
+            'join_candidates',
+            {
+                'stake': collator_num,
+            }
+        )
+        receipt = batch.execute()
+        self.assertEqual(receipt.is_success, True, f'join_collator fails, receipt: {receipt}')
+        receipt = self.set_commission_rate(10, self._kp_new_collator)
+        self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
+
+        wait_list = contract.functions.getWaitList().call()
+        wait_list = sorted(wait_list, key=lambda x: x[1], reverse=True)
+        self.assertEqual(len(wait_list), 1)
+        pk = bytes.fromhex(self._substrate.ss58_decode(self._kp_new_collator.ss58_address))
+        self.assertEqual(wait_list[0][0], pk)
+        self.assertEqual(wait_list[0][1], collator_num)
+        self.assertEqual(wait_list[0][2], 10 * 10_000)
+
+        # Check the wait list
+        collator_list = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
+        self.assertEqual(len(collator_list), 2)
+        self.assertTrue(wait_list[0][0] in [collator[0] for collator in collator_list])
+
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'force_remove_candidate',
+            {
+                'collator': self._kp_new_collator.ss58_address,
+            }
+        )
+        receipt = batch.execute()
+        self.assertEqual(receipt.is_success, True, f'force_remove_candidate fails, receipt: {receipt}')
+
     def test_delegator_revoke(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]
@@ -348,6 +454,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
 
         collator_eth_addr = out[0][0]
         collator_num = out[0][1]

@@ -7,18 +7,49 @@ from peaq.utils import get_block_hash
 from peaq.utils import get_account_balance
 from tools.utils import PARACHAIN_STAKING_POT
 from tools.utils import get_existential_deposit
+from decimal import Decimal
 import argparse
 # from collections import Counter
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+DEBUG = False
 
-def get_pervious_session_block(substrate):
+COLLATOR_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
+PERCISION_ERROR = 0.000001
+
+
+def get_pervious_session_block(substrate, test_session_num):
+    out = []
+    now_block_hash = substrate.get_block_hash()
     round_info = substrate.query(
         'ParachainStaking',
         'Round',
+        block_hash=now_block_hash,
     )
-    return (round_info['first'].value, round_info['length'].value, round_info['current'].value)
+    if round_info['first'].value == 0:
+        print('End traverse because of first round')
+        raise IOError('End traverse because of first round')
+
+    new_session_height = round_info['first'].value
+    block_hash = get_block_hash(substrate, round_info['first'].value - 1)
+    for i in range(test_session_num):
+        round_info = substrate.query(
+            'ParachainStaking',
+            'Round',
+            block_hash=block_hash,
+        )
+        if round_info['first'].value == 0:
+            print(f'End traverse for prev {i}th session because of first round')
+            break
+        print(f'first: {round_info["first"].value},'
+              f'length: {new_session_height - round_info["first"].value}',
+              f'current: {round_info["current"].value}')
+
+        out.append((round_info['first'].value, new_session_height - round_info['first'].value, round_info['current'].value))
+        new_session_height = round_info['first'].value
+        block_hash = get_block_hash(substrate, round_info['first'].value - 1)
+    return out
 
 
 def traverse_single_blocks_and_check(substrate, session_height, round_length, session_idx):
@@ -40,25 +71,23 @@ def traverse_single_blocks_and_check(substrate, session_height, round_length, se
             params=[session_idx, block_info['author']],
             block_hash=block_hash,
         )
+        if i % 100 == 0:
+            print(f'during block: {i}, author: {block_info["author"]}, checked')
         if result != check_data[block_info["author"]]:
             raise IOError(f'    error: {block_info["author"]}: CollatorBlock: {result} v.s. {check_data.get(block_info["author"], 0)}')
     print(f'End block: {end_block_height}, session: {session_idx}, contributed collators length: {len(check_data.keys())}')
 
 
 def travese_blocks_and_check(substrate, test_session_num):
-    session_block_height, session_block_length, session_idx = get_pervious_session_block(substrate)
+    session_infos = get_pervious_session_block(substrate, test_session_num)
 
-    for i in range(test_session_num):
-        prev_session_block_height = session_block_height - session_block_length * (i + 1)
-        if prev_session_block_height < 0:
-            print(f'End traverse for prev {i}th session because of block height < 0')
-            break
+    for prev_session_block_height, session_block_length, session_idx in session_infos:
         print(f'Check session block: {prev_session_block_height}')
-        traverse_single_blocks_and_check(substrate, prev_session_block_height, session_block_length, session_idx - i - 1)
+        traverse_single_blocks_and_check(substrate, prev_session_block_height, session_block_length, session_idx)
 
 
 def check_single_session_collators(substrate, session_height, round_length, session_idx):
-    block_hash = get_block_hash(substrate, session_height - 1)
+    block_hash = get_block_hash(substrate, session_height)
     now_collators = substrate.query(
         module='Session',
         storage_function='Validators',
@@ -76,22 +105,60 @@ def check_single_session_collators(substrate, session_height, round_length, sess
         start_key=None,
         page_size=1000,
     )
-    all_colators_info.records[0][0].value
     collators_block_set = set([addr.value for addr, _ in all_colators_info.records])
     if not collators_block_set.issubset(now_collator_set):
+        for collator in collators_block_set:
+            if collator not in now_collator_set:
+                print(f'    error: collator: {collator} not in session block')
         raise IOError(f'    error: collators in session block: {now_collator_set} v.s. collators in collator block: {collators_block_set}')
 
 
 def collator_check(substrate, test_session_num):
-    session_block_height, session_block_length, session_idx = get_pervious_session_block(substrate)
+    session_infos = get_pervious_session_block(substrate, test_session_num)
 
-    for i in range(test_session_num):
-        prev_session_block_height = session_block_height - session_block_length * (i + 1)
-        if prev_session_block_height < 0:
-            print(f'End traverse for prev {i}th session because of block height < 0')
-            break
+    for prev_session_block_height, session_block_length, session_idx in session_infos:
         print(f'Check session block: {prev_session_block_height}')
-        check_single_session_collators(substrate, prev_session_block_height, session_block_length, session_idx - i - 1)
+        check_single_session_collators(substrate, prev_session_block_height, session_block_length, session_idx)
+
+
+def calculate_block_reward(substrate, block_height):
+    now_block_hash = get_block_hash(substrate, block_height)
+    tx_fee = get_all_deposits_to_pot(substrate, now_block_hash)
+    print(f'block: {block_height}, tx fee: {tx_fee/10**18}')
+    return tx_fee
+
+
+def get_all_distribution_to_collator_delegator_in_block(substrate, block_hash):
+    events = substrate.get_events(block_hash=block_hash)
+
+    distribution = Decimal(0)
+    for event in events:
+        if event.value['module_id'] != 'ParachainStaking' or event.value['event_id'] != 'Rewarded':
+            continue
+        distribution += Decimal(event.value['event']['attributes'][1])
+    return distribution
+
+
+def calculate_pot_balance(substrate, block_height):
+    prev_block_hash = get_block_hash(substrate, block_height - 1)
+
+    prev_block_pot_balance = get_account_balance(substrate, PARACHAIN_STAKING_POT, prev_block_hash)
+    now_block_hash = get_block_hash(substrate, block_height)
+    now_block_pot_balance = get_account_balance(substrate, PARACHAIN_STAKING_POT, now_block_hash)
+    print(f'block: {block_height}, pot balance: {now_block_pot_balance/10**18}, prev pot balance: {prev_block_pot_balance/10**18}')
+    distribution = get_all_distribution_to_collator_delegator_in_block(substrate, now_block_hash)
+    return Decimal(now_block_pot_balance) - Decimal(prev_block_pot_balance) + Decimal(distribution)
+
+
+def block_check(substrate, test_num):
+    now_block_height = substrate.get_block_number(None)
+    for block_height in range(now_block_height - test_num, now_block_height):
+        cal_block_reward = calculate_block_reward(substrate, block_height)
+        pot_balance = calculate_pot_balance(substrate, block_height)
+        print(f'block: {block_height}, reward: {cal_block_reward/10**18}, pot balance: {pot_balance/10**18}')
+        print(f'error: {(cal_block_reward - pot_balance) / 10**18}')
+        if (cal_block_reward - pot_balance) > Decimal(PERCISION_ERROR) * cal_block_reward:
+            raise IOError(f'    error: block: {block_height}, reward: {cal_block_reward}, pot balance: {pot_balance}')
 
 
 def calculate_collator_block_info(substrate, session_height, round_length, session_idx):
@@ -132,30 +199,34 @@ def calculate_total_staking_ratio(staking_info, collator_block_info):
 
     for collator_addr, collator_stake_info in staking_info.items():
         staking_ratio = {}
-        block_generated_num = float(collator_block_info[collator_addr])
-        commission = float(collator_stake_info['commission']) / 10 ** 6
+        if collator_addr not in collator_block_info:
+            continue
+        block_generated_num = Decimal(collator_block_info[collator_addr])
+        commission = Decimal(collator_stake_info['commission']) / Decimal(10 ** 6)
 
         staking_ratio[collator_addr] = \
-            block_generated_num * collator_stake_info['stake'] / total_staking_num \
+            block_generated_num * Decimal(collator_stake_info['stake']) / total_staking_num \
             + sum([
-                block_generated_num * commission * delegator_info['amount'] / total_staking_num
+                block_generated_num * commission * Decimal(delegator_info['amount']) / total_staking_num
                 for delegator_info in collator_stake_info['delegators']
             ])
         for delegator_info in collator_stake_info['delegators']:
             staking_ratio[delegator_info['owner']] = \
-                block_generated_num * (1 - commission) * delegator_info['amount'] / total_staking_num
+                block_generated_num * (1 - commission) * Decimal(delegator_info['amount']) / total_staking_num
         total_staking_ratio[collator_addr] = staking_ratio
 
     return total_staking_ratio
 
 
 def caculate_total_staking_num(staking_info, collator_block_info):
-    total_staking_num = 0
+    total_staking_num = Decimal(0)
     for collator_addr, collator_stake_info in staking_info.items():
+        if collator_addr not in collator_block_info:
+            continue
         block_generated_num = collator_block_info[collator_addr]
-        total_staking_num += block_generated_num * collator_stake_info['stake']
+        total_staking_num += Decimal(block_generated_num) * Decimal(collator_stake_info['stake'])
         for delegator_info in collator_stake_info['delegators']:
-            total_staking_num += block_generated_num * delegator_info['amount']
+            total_staking_num += Decimal(block_generated_num) * Decimal(delegator_info['amount'])
     return total_staking_num
 
 
@@ -175,14 +246,14 @@ def get_reward_config_info(substrate, session_block_hash):
         storage_function='RewardDistributionConfigStorage',
         block_hash=session_block_hash,
     )
-    return (reward_config['collators_delegators_percent'].decode() / 10 ** 7) / 100
+    return (Decimal(reward_config['collators_delegators_percent'].decode()) / 10 ** 7) / 100
 
 
-def get_all_transaction_fee_in_block(substrate, block_hash):
+def get_all_tip_reward_in_block(substrate, block_hash):
     block = substrate.get_block(block_hash)
     events = substrate.get_events(block_hash=block_hash)
 
-    tx_fee = 0
+    tx_fee = Decimal(0)
     for idx, tx in enumerate(block['extrinsics']):
         if idx < 2:
             continue
@@ -193,14 +264,14 @@ def get_all_transaction_fee_in_block(substrate, block_hash):
             raise IOError(f'    error: first event is not withdraw, {block_hash}, {idx}, {events[0]}')
         deposit_event = related_events[0]
         deposit_user = deposit_event['event']['attributes']['who']
-        deposit_value = deposit_event['event']['attributes']['amount']
+        deposit_value = Decimal(deposit_event['event']['attributes']['amount'])
 
         for event in related_events[1:]:
             if event['module_id'] != 'Balances' or event['event_id'] != 'Deposit':
                 continue
             if deposit_user != event['event']['attributes']['who']:
                 continue
-            deposit_value -= event['event']['attributes']['amount']
+            deposit_value -= Decimal(event['event']['attributes']['amount'])
         if deposit_value < 0:
             raise IOError(f'    error: deposit_value < 0, {deposit_value}, {deposit_user}, {block_hash}, {idx}')
         print(f' tx found: {block_hash}-{idx}: fee {deposit_value}')
@@ -208,22 +279,65 @@ def get_all_transaction_fee_in_block(substrate, block_hash):
     return tx_fee
 
 
-def get_total_session_rewards(substrate, session_height, round_length):
-    # assume we didn't change the block reward often
-    block_hash = get_block_hash(substrate, session_height + round_length - 1)
-    block_issuance_number = round_length \
-        * get_block_reward(substrate, block_hash) \
-        * get_reward_config_info(substrate, block_hash)
+def get_all_tx_fee_in_block(substrate, block_hash):
+    deposit = 0
+    block_reward = True
+    for event in substrate.get_events(block_hash=block_hash):
+        if event.value['module_id'] != 'Balances' or event.value['event_id'] != 'Deposit':
+            continue
+        if event.value['event']['attributes']['who'] != COLLATOR_POT:
+            continue
+        if block_reward:
+            block_reward = False
+            print(f'block_reward found: {block_hash}, {event.value["event"]["attributes"]["amount"] / 10 ** 18}')
+        else:
+            print(f'fee found: {block_hash}, {event.value["event"]["attributes"]["amount"] / 10 ** 18}')
+        deposit += Decimal(event.value['event']['attributes']['amount'])
+    print(f'block: {block_hash}, deposit: {deposit}')
+    return deposit
 
-    tx_fee = 0
+
+def get_all_transaction_fee_in_block(substrate, block_hash):
+    tip = get_all_tip_reward_in_block(substrate, block_hash)
+    tx_fee = get_all_tx_fee_in_block(substrate, block_hash)
+    return tip + tx_fee
+
+
+def get_all_deposits_to_pot(substrate, block_hash):
+    deposit = 0
+    block_reward = True
+    for event in substrate.get_events(block_hash=block_hash):
+        if event.value['module_id'] != 'Balances' or event.value['event_id'] != 'Deposit':
+            continue
+        if event.value['event']['attributes']['who'] != COLLATOR_POT:
+            continue
+        if block_reward:
+            block_reward = False
+            print(f'block_reward found: {block_hash}, {event.value["event"]["attributes"]["amount"] / 10 ** 18}')
+        else:
+            print(f'fee found: {block_hash}, {event.value["event"]["attributes"]["amount"] / 10 ** 18}')
+        deposit += Decimal(event.value['event']['attributes']['amount'])
+    print(f'block: {block_hash}, deposit: {deposit}')
+    return deposit
+
+
+def get_total_session_rewards(substrate, session_height, round_length):
+    # Now we are using the event in block to get the block + transaction reward
+    # [TODO] However, we should check EVM/Blockreward/Substrate fee's stress tool
+
+    deposit = Decimal(0)
     # We don include the latest block because we also distribute the reward at the new session block
     for block_idx in range(session_height, session_height + round_length):
+        if block_idx % 100 == 0:
+            print(f'get tx fee in block: {block_idx}')
         block_hash = get_block_hash(substrate, block_idx)
-        tx_fee += get_all_transaction_fee_in_block(substrate, block_hash)
+        this_deposit = get_all_deposits_to_pot(substrate, block_hash)
+        deposit += this_deposit
+        if DEBUG:
+            print(f'block: {block_idx}, tx fee: {this_deposit / 10 ** 18}')
+    print(f'total deposit: {deposit}')
 
-    tx_fee = tx_fee * get_reward_config_info(substrate, block_hash)
-
-    return block_issuance_number + tx_fee
+    return deposit
 
 
 def get_pot_balance(substrate, session_height, round_length):
@@ -250,7 +364,7 @@ def get_reward_info(substrate, payout_session_height, round_length):
                 continue
             if collator_addr is None:
                 collator_addr = event['event'][1][1][0].value
-            reward_info[event['event'][1][1][0].value] = event['event'][1][1][1].value
+            reward_info[event['event'][1][1][0].value] = Decimal(event['event'][1][1][1].value)
         if not reward_info:
             break
         all_reward_info[block_idx] = {
@@ -278,7 +392,8 @@ def check_reward(total_session_reward, distributed_reward_info, calculated_rewar
         reward_info = block_reward_info['reward']
         for addr, reward in reward_info.items():
             distribute_reward += reward
-    if abs(distribute_reward - total_session_reward) > 0.0000001 * total_session_reward:
+    if abs(distribute_reward - total_session_reward) > Decimal(0.0001) * total_session_reward:
+        print(f' error: {(distribute_reward - total_session_reward) / total_session_reward}')
         raise IOError(
             f'    error: distribute_reward: {distribute_reward} v.s. total_session_reward: {total_session_reward}')
 
@@ -286,7 +401,7 @@ def check_reward(total_session_reward, distributed_reward_info, calculated_rewar
         collator_addr = block_reward_info['collator']
         reward_info = block_reward_info['reward']
         for addr, reward in reward_info.items():
-            if abs(reward - calculated_reward_info[collator_addr][addr]) > 0.0000001 * reward:
+            if abs(reward - calculated_reward_info[collator_addr][addr]) > Decimal(0.0001) * reward:
                 raise IOError(f'    error: block_idx: {block_idx},'
                               f'reward: {reward} v.s. {calculated_reward_info[collator_addr][addr]}')
 
@@ -296,18 +411,28 @@ def check_single_session_distribution(substrate, session_height, round_length, s
     session_block_hash = get_block_hash(substrate, session_height)
 
     collator_block_info = calculate_collator_block_info(substrate, session_height, round_length, session_idx)
+    if DEBUG:
+        print('collator_block_info')
+        pp.pprint(collator_block_info)
     if round_length != sum(collator_block_info.values()):
         raise IOError(f'    error: round_length: {round_length} v.s. collator block length: {sum(collator_block_info.values())}')
 
     # Because we might change, we have to use the snapshot data
     # [TODO] We have to test the snapshot data
     snapshot_info = get_snapshot_info(substrate, session_block_hash, session_idx)
+    if DEBUG:
+        print('snapshot_info')
+        pp.pprint(snapshot_info)
+
     # [TODO] Check totalIssuance
     # Caculate the pot balance
     # [TODO] We have to test the pot balance
     total_session_reward = get_total_session_rewards(substrate, session_height, round_length)
     # {blockheight: {collator: reward, delegator1: reward, delegator2: reward}}
     distributed_reward_info = get_reward_info(substrate, session_height + round_length, round_length)
+    if DEBUG:
+        print('distributed_reward_info')
+        pp.pprint(distributed_reward_info)
 
     if len(distributed_reward_info.keys()) != len(collator_block_info.keys()):
         raise IOError(
@@ -319,14 +444,11 @@ def check_single_session_distribution(substrate, session_height, round_length, s
 
 
 def distribution_check(substrate, test_session_num):
-    session_block_height, session_block_length, session_idx = get_pervious_session_block(substrate)
+    session_infos = get_pervious_session_block(substrate, test_session_num)
 
-    for i in range(test_session_num):
-        prev_session_block_height = session_block_height - session_block_length * (i + 2)
-        if prev_session_block_height < 0:
-            print(f'End traverse for prev {i}th session because of block height < 0')
-            break
-        check_single_session_distribution(substrate, prev_session_block_height, session_block_length, session_idx - i - 2)
+    for prev_session_block_height, session_block_length, session_idx in session_infos:
+        print(f'Check session block: {prev_session_block_height}')
+        check_single_session_distribution(substrate, prev_session_block_height, session_block_length, session_idx)
 
 
 if __name__ == '__main__':
@@ -335,10 +457,11 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--session', type=int, required=False, help='session block blockheight, needed on traverse mode and distribution')
     parser.add_argument('--test-session-num', type=int, required=False, default=10, help='test session number')
     parser.add_argument(
-        '-t', '--type', choices=['traverse', 'collator', 'distribution'], required=True,
+        '-t', '--type', choices=['traverse', 'collator', 'distribution', 'block'], required=True,
         help='Specify the type, '
              'traverse: traverse check, from session block to now block,'
              'collator: check collator,'
+             'block: check block reward,'
              'distribution: check distribution')
 
     args = parser.parse_args()
@@ -352,5 +475,7 @@ if __name__ == '__main__':
         travese_blocks_and_check(substrate, test_session_num)
     elif args.type == 'collator':
         collator_check(substrate, test_session_num)
+    elif args.type == 'block':
+        block_check(substrate, test_session_num)
     elif args.type == 'distribution':
         distribution_check(substrate, test_session_num)
