@@ -82,7 +82,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
             }
         )
         return batch.execute()
-    
+
     def wait_for_n_blocks(self, n):
         block_height = get_block_height(self._substrate)
         trigger_height = block_height + n
