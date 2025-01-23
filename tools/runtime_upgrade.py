@@ -17,12 +17,48 @@ from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
+from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
+from tools.constants import DEFAULT_COLLATOR_DICT
 from tools.xcm_setup import setup_hrmp_channel
+from tools.collator_binary_utils import monitor_runtime_and_wake_collator
 from tools.utils import show_title
 import argparse
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
+
+
+def set_runtime_upgrade_path_to_env(runtime_path):
+    if not runtime_path:
+        print(f'use the default runtime path: {os.environ.get("RUNTIME_UPGRADE_PATH")}')
+        return
+    os.environ['RUNTIME_UPGRADE_PATH'] = runtime_path
+
+
+def fetch_runtime_upgrade_path_from_env():
+    return os.environ.get('RUNTIME_UPGRADE_PATH')
+
+
+def set_enable_collator_dict_to_env(enable_collator_binary, collator_binary, chain_data, docker_compose_folder):
+    os.environ['TEST_ENABLE_COLLATOR_BINARY'] = str(enable_collator_binary)
+    if enable_collator_binary:
+        os.environ['TEST_COLLATOR_BINARY'] = collator_binary
+        os.environ['TEST_CHAIN_DATA'] = chain_data
+        os.environ['TEST_DOCKER_COMPOSE_FOLDER'] = docker_compose_folder
+    else:
+        os.environ['TEST_COLLATOR_BINARY'] = ''
+        os.environ['TEST_CHAIN_DATA'] = ''
+        os.environ['TEST_DOCKER_COMPOSE_FOLDER'] = ''
+
+
+def fetch_collator_dict_from_env():
+    # Fetch the environment variables
+    enable_collator_dict = DEFAULT_COLLATOR_DICT.copy()
+    enable_collator_dict['enable_collator_binary'] = os.environ.get('TEST_ENABLE_COLLATOR_BINARY') == 'True'
+    enable_collator_dict['collator_binary'] = os.environ.get('TEST_COLLATOR_BINARY')
+    enable_collator_dict['chain_data'] = os.environ.get('TEST_CHAIN_DATA')
+    enable_collator_dict['docker_compose_folder'] = os.environ.get('TEST_DOCKER_COMPOSE_FOLDER')
+    return enable_collator_dict
 
 
 def send_upgrade_call(substrate, kp_sudo, wasm_file):
@@ -144,21 +180,27 @@ def remove_asset_id(substrate):
     batch.execute()
 
 
-def do_runtime_upgrade(wasm_path):
+def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
 
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-    setup_hrmp_channel(RELAYCHAIN_WS_URL)
+    ## setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
-    fund_account()
+    # fund_account()
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     # Remove the asset id 1: relay chain
     # Because of the zenlink's test_create_pair_swap should only use asset 1
-    remove_asset_id(substrate)
-    update_xcm_default_version(substrate)
+    ## remove_asset_id(substrate)
+    ## update_xcm_default_version(substrate)
+
+    # [TODO] If the default collator binary is set, we have to trigger the monitor process
+    if collator_dict['enable_collator_binary']:
+        # Below func fork one process, but we won't wait for it
+        # The func will exit by itself
+        wait_pid = monitor_runtime_and_wake_collator(SubstrateInterface(url=WS_URL), old_version, collator_dict)
 
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)
@@ -168,12 +210,29 @@ def do_runtime_upgrade(wasm_path):
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
     print(f'Upgrade from {old_version} to the {new_version}')
+    _pid, status = os.waitpid(wait_pid, 0)
+    if status != 0:
+        raise IOError(f'Runtime upgrade fails: the monitor and wake collator fails, {status}')
 
 
 def main():
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
     parser.add_argument('-r', '--runtime', type=str, help='Your runtime poisiton')
     parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
+
+    # Three options for the collator binary
+    #    1. Enable the collator binary: enable-collator-binary
+    #    2. Collator binary path: collator-binary: collator-binary
+    #    3. Chain data path: chain-data: chain-data
+    parser.add_argument('-c', '--enable-collator-binary', type=bool, default=False, help='Enable collator binary')
+    parser.add_argument(
+        '--collator-binary',
+        type=str, help='Collator binary path, only affect when enable collator binary',
+        default=DEFAULT_COLLATOR_PATH)
+    parser.add_argument(
+        '--chain-data',
+        type=str, help='Collator\'s chain data path, only affect when enable collator binary',
+        default=DEFAULT_BINARY_CHAIN_PATH)
 
     args = parser.parse_args()
     runtime_path = args.runtime
@@ -185,9 +244,18 @@ def main():
         print(f'Use runtime env {runtime_env} to overide the runtime path {runtime_path}')
         runtime_path = runtime_env
 
+    if args.enable_collator_binary:
+        # [TODO] Stop the collator
+        # [TODO] Remove the collator folder, but we have to keep keystore folder
+        raise IOError
+
     if args.docker_restart:
         restart_parachain_launch()
-    do_runtime_upgrade(runtime_path)
+    do_runtime_upgrade(runtime_path, {
+        'enable_collator_binary': args.enable_collator_binary,
+        'collator_binary': args.collator_binary,
+        'chain_data': args.chain_data,
+    })
     print('Done but wait 30s')
     time.sleep(BLOCK_GENERATE_TIME * 5)
 
