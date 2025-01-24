@@ -47,5 +47,5 @@ DEFAULT_COLLATOR_DICT = {
     'collator_binary': None,
     'chain_data': None,
     'enable_collator_binary': False,
-    'docker_composer_folder': None,
+    'docker_compose_folder': None,
 }

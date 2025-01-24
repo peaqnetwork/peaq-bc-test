@@ -20,7 +20,11 @@ from tools.constants import BLOCK_GENERATE_TIME
 from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
 from tools.constants import DEFAULT_COLLATOR_DICT
 from tools.xcm_setup import setup_hrmp_channel
-from tools.collator_binary_utils import monitor_runtime_and_wake_collator
+from tools.collator_binary_utils import wakeup_latest_collator
+from tools.collator_binary_utils import copy_all_chain_data
+from tools.collator_binary_utils import get_docker_info
+from tools.collator_binary_utils import stop_peaq_docker_container
+from tools.collator_binary_utils import stop_collator_binary
 from tools.utils import show_title
 import argparse
 
@@ -185,34 +189,45 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
         raise IOError(f'Runtime not found: {wasm_path}')
 
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-    ## setup_hrmp_channel(RELAYCHAIN_WS_URL)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
-    # fund_account()
+    fund_account()
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     # Remove the asset id 1: relay chain
     # Because of the zenlink's test_create_pair_swap should only use asset 1
-    ## remove_asset_id(substrate)
-    ## update_xcm_default_version(substrate)
-
-    # [TODO] If the default collator binary is set, we have to trigger the monitor process
-    if collator_dict['enable_collator_binary']:
-        # Below func fork one process, but we won't wait for it
-        # The func will exit by itself
-        wait_pid = monitor_runtime_and_wake_collator(SubstrateInterface(url=WS_URL), old_version, collator_dict)
+    remove_asset_id(substrate)
+    update_xcm_default_version(substrate)
 
     upgrade(wasm_path)
-    wait_for_n_blocks(substrate, 15)
+    try:
+        wait_for_n_blocks(substrate, 15)
+    except Exception as e:
+        print(f'Error: {e}')
+        if not collator_dict['enable_collator_binary']:
+            raise e
+        if 'runtime requires function imports' not in str(e):
+            raise e
+
+    if collator_dict['enable_collator_binary']:
+        copy_all_chain_data(collator_dict)
+        docker_info = get_docker_info(collator_dict)
+        print(f'docker info: {docker_info}')
+        stop_peaq_docker_container()
+        stop_collator_binary()
+        wakeup_latest_collator(collator_dict, docker_info)
+
+        substrate = SubstrateInterface(url=WS_URL)
+        substrate.connect_websocket()
+        wait_for_n_blocks(substrate, 3)
+
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
 
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
     print(f'Upgrade from {old_version} to the {new_version}')
-    _pid, status = os.waitpid(wait_pid, 0)
-    if status != 0:
-        raise IOError(f'Runtime upgrade fails: the monitor and wake collator fails, {status}')
 
 
 def main():

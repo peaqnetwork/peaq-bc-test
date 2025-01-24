@@ -16,13 +16,12 @@ def is_runtime_upgrade_test():
 
 # Will raise error
 def restart_parachain_and_runtime_upgrade():
-    # Break the circular import
     collator_options = fetch_collator_dict_from_env()
     cleanup_collator()
     restart_parachain_launch()
 
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-    # setup_hrmp_channel(RELAYCHAIN_WS_URL)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
