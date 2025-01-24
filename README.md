@@ -83,3 +83,10 @@ Now we are supporting the runtime upgrade that the node also need upgrade. When 
 ```
 pytest --runtime-upgrade-path=${RUNTIME_PATH} --enable-collator-binary --collator-binary-path /path/to/collator --enable-parachain-binary --parachain-binary-path /path/to/parachain --docker-compose-folder /path/to/docker-compose
 ```
+
+
+We can also use tools/runtime_upgrade.py to do the runtime upgrade
+
+```
+python3 tools/runtime_upgrade.py --runtime-upgrade-path=${RUNTIME_PATH} --enable-collator-binary --collator-binary-path /path/to/collator --enable-parachain-binary --parachain-binary-path /path/to/parachain --docker-compose-folder /path/to/docker-compose
+```

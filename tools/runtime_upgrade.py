@@ -18,6 +18,7 @@ from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
 from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
+from tools.constants import DEFAULT_DOCKER_COMPOSE_FOLDER
 from tools.constants import DEFAULT_COLLATOR_DICT
 from tools.xcm_setup import setup_hrmp_channel
 from tools.collator_binary_utils import wakeup_latest_collator
@@ -25,6 +26,7 @@ from tools.collator_binary_utils import copy_all_chain_data
 from tools.collator_binary_utils import get_docker_info
 from tools.collator_binary_utils import stop_peaq_docker_container
 from tools.collator_binary_utils import stop_collator_binary
+from tools.collator_binary_utils import cleanup_collator
 from tools.utils import show_title
 import argparse
 
@@ -232,14 +234,14 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 
 def main():
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
-    parser.add_argument('-r', '--runtime', type=str, help='Your runtime poisiton')
-    parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
+    parser.add_argument('--runtime-upgrade-path', type=str, help='Your runtime poisiton')
 
     # Three options for the collator binary
     #    1. Enable the collator binary: enable-collator-binary
     #    2. Collator binary path: collator-binary: collator-binary
     #    3. Chain data path: chain-data: chain-data
-    parser.add_argument('-c', '--enable-collator-binary', type=bool, default=False, help='Enable collator binary')
+    parser.add_argument(
+        '--enable-collator-binary', action="store_true", default=False, help='Enable collator binary')
     parser.add_argument(
         '--collator-binary',
         type=str, help='Collator binary path, only affect when enable collator binary',
@@ -248,9 +250,13 @@ def main():
         '--chain-data',
         type=str, help='Collator\'s chain data path, only affect when enable collator binary',
         default=DEFAULT_BINARY_CHAIN_PATH)
+    parser.add_argument(
+        '--docker-compose-folder',
+        help='Docker compose folder',
+        type=str, default=DEFAULT_DOCKER_COMPOSE_FOLDER)
 
     args = parser.parse_args()
-    runtime_path = args.runtime
+    runtime_path = args.runtime_upgrade_path
     runtime_env = os.environ.get('RUNTIME_UPGRADE_PATH')
 
     if not runtime_env and not runtime_path:
@@ -259,20 +265,31 @@ def main():
         print(f'Use runtime env {runtime_env} to overide the runtime path {runtime_path}')
         runtime_path = runtime_env
 
-    if args.enable_collator_binary:
-        # [TODO] Stop the collator
-        # [TODO] Remove the collator folder, but we have to keep keystore folder
-        raise IOError
+    set_enable_collator_dict_to_env(
+        args.enable_collator_binary,
+        args.collator_binary,
+        args.chain_data,
+        args.docker_compose_folder
+    )
+    set_runtime_upgrade_path_to_env(runtime_path)
 
-    if args.docker_restart:
-        restart_parachain_launch()
-    do_runtime_upgrade(runtime_path, {
-        'enable_collator_binary': args.enable_collator_binary,
-        'collator_binary': args.collator_binary,
-        'chain_data': args.chain_data,
-    })
+    cleanup_collator()
+    restart_parachain_launch()
+
+    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
+    wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+    substrate = SubstrateInterface(url=WS_URL)
+    old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+
+    do_runtime_upgrade(runtime_path, fetch_collator_dict_from_env())
     print('Done but wait 30s')
     time.sleep(BLOCK_GENERATE_TIME * 5)
+
+    substrate = SubstrateInterface(url=WS_URL)
+    new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+    if old_version == new_version:
+        raise Exception(f'Runtime upgrade failed. old_version: {old_version}, new_version: {new_version}')
 
 
 if __name__ == '__main__':

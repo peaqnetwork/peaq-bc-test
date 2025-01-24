@@ -28,6 +28,7 @@ def restart_parachain_and_runtime_upgrade():
     if is_runtime_upgrade_test():
         path = fetch_runtime_upgrade_path_from_env()
         do_runtime_upgrade(path, collator_options)
+        substrate = SubstrateInterface(url=WS_URL)
         new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
         if old_version == new_version:
             raise Exception(f'Runtime upgrade failed. old_version: {old_version}, new_version: {new_version}')

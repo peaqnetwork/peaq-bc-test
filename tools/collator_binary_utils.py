@@ -120,7 +120,7 @@ def get_docker_info(collator_dict):
 
 
 def stop_peaq_docker_container():
-    containers = [get_docker_service('peaq', 0), get_docker_service('peaq', 1)]
+    containers = [get_docker_service('peaq', 0)]
     for container in containers:
         container.stop()
         docker.container.remove(container.name, force=True)
@@ -164,16 +164,18 @@ def wakeup_latest_collator(collator_dict, docker_info):
     run_args = ['--ferdie'] + run_args
     command = f"""PYTHONUNBUFFERED=1 \
         {peaq_binary_path} \
-        {' '.join(run_args)} 2>&1 | tee {collator_chain_data_folder}/collator.log
+        {' '.join(run_args)}
     """
 
-    subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        shell=True,
-        executable="/bin/bash",
-        text=True,
-    )
+    with open(f'{collator_chain_data_folder}/collator.log', 'w') as logfile:
+        subprocess.Popen(
+            command,
+            stdout=logfile, stderr=logfile,
+            shell=True,
+            executable="/bin/bash",
+            text=True,
+            start_new_session=True,
+        )
 
     print(f'Wait for the collator to start...')
     time.sleep(120)
