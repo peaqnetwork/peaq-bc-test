@@ -183,7 +183,7 @@ def wakeup_latest_collator(collator_dict, docker_info):
             start_new_session=True,
         )
 
-    print(f'Wait for the collator to start...')
+    print('Wait for the collator to start...')
     time.sleep(120)
 
 
