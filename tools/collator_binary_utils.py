@@ -15,7 +15,7 @@ FORK_COLLATOR_PORT = 10044
 
 
 def stop_collator_binary():
-    command = "sudo pkill -9 peaq-node"
+    command = "pkill -9 peaq-node"
     subprocess.run(
         command,
         shell=True,
@@ -120,8 +120,14 @@ def get_docker_info(collator_dict):
 
 
 def stop_peaq_docker_container():
-    containers = [get_docker_service('peaq', 0)]
+    containers = []
+    try:
+        containers = [get_docker_service('peaq', 0)]
+    except Exception as e:
+        print(f'Error: {e}')
+
     for container in containers:
+        print(f'Stopping container {container.name}...')
         container.stop()
         docker.container.remove(container.name, force=True)
 
@@ -181,23 +187,24 @@ def wakeup_latest_collator(collator_dict, docker_info):
     time.sleep(120)
 
 
-def _get_docker_volume_path():
-    docker_container = get_docker_service('peaq')
+def get_docker_volume_path():
+    docker_container = get_docker_service('peaq', 0)
     return docker_container.mounts[0].source
 
 
-def copy_all_chain_data(collator_dict):
-    volume_path = _get_docker_volume_path()
+def copy_all_chain_data(collator_dict, volume_path=None):
+    if volume_path is None:
+        volume_path = get_docker_volume_path()
 
-    for folder in ['chains', 'polkadot']:
-        cmd = f"sudo cp -r {volume_path}/{folder} {collator_dict['chain_data']}/"
-        subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            executable="/bin/bash",
-            text=True,
-        )
+    os.makedirs(collator_dict['chain_data'], exist_ok=True)
+    cmd = f"sudo find {volume_path}/ -mindepth 1 -maxdepth 1 -exec cp -r {{}} {collator_dict['chain_data']}/ \\;"
+    subprocess.run(
+        cmd,
+        shell=True,
+        capture_output=True,
+        executable="/bin/bash",
+        text=True,
+    )
 
     user = getpass.getuser()
     group = user

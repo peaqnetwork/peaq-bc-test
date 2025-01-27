@@ -26,7 +26,7 @@ from tools.collator_binary_utils import copy_all_chain_data
 from tools.collator_binary_utils import get_docker_info
 from tools.collator_binary_utils import stop_peaq_docker_container
 from tools.collator_binary_utils import stop_collator_binary
-from tools.collator_binary_utils import cleanup_collator
+from tools.collator_binary_utils import get_docker_volume_path
 from tools.utils import show_title
 import argparse
 
@@ -190,6 +190,9 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
 
+    docker_volume_path = get_docker_volume_path()
+    docker_info = get_docker_info(collator_dict)
+
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
@@ -213,11 +216,10 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
             raise e
 
     if collator_dict['enable_collator_binary']:
-        copy_all_chain_data(collator_dict)
-        docker_info = get_docker_info(collator_dict)
+        copy_all_chain_data(collator_dict, docker_volume_path)
         print(f'docker info: {docker_info}')
-        stop_peaq_docker_container()
         stop_collator_binary()
+        stop_peaq_docker_container()
         wakeup_latest_collator(collator_dict, docker_info)
 
         substrate = SubstrateInterface(url=WS_URL)
@@ -235,6 +237,7 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 def main():
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
     parser.add_argument('--runtime-upgrade-path', type=str, help='Your runtime poisiton')
+    parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
 
     # Three options for the collator binary
     #    1. Enable the collator binary: enable-collator-binary
@@ -273,12 +276,9 @@ def main():
     )
     set_runtime_upgrade_path_to_env(runtime_path)
 
-    cleanup_collator()
-    restart_parachain_launch()
+    if args.docker_restart:
+        restart_parachain_launch()
 
-    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-    setup_hrmp_channel(RELAYCHAIN_WS_URL)
-    wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
 
