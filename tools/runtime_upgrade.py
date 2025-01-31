@@ -212,7 +212,7 @@ def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
         print(f'Error: {e}')
         if not collator_dict['enable_collator_binary']:
             raise e
-        if 'runtime requires function imports' not in str(e):
+        if 'runtime requires function imports' not in str(e) and 'Timeout for waiting blocks' not in str(e):
             raise e
 
     if collator_dict['enable_collator_binary']:
