@@ -94,7 +94,6 @@ class balance_erc20_asset_test(unittest.TestCase):
         return sign_and_submit_evm_transaction(tx, w3, eth_kp)
 
     def evm_balances_erc20_transfer_to_account_id(self, contract, eth_kp_src, ss58_kp_src, amount):
-        print("DOING TRANSACTIONNN")
         w3 = self._w3
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.transferToAccountId(ss58_kp_src.public_key, amount).build_transaction({
