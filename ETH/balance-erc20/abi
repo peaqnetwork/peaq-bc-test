@@ -62,7 +62,7 @@
 				"indexed": true,
 				"internalType": "address",
 				"name": "to",
-				"type": "address"
+				"type": "bytes32"
 			},
 			{
 				"indexed": false,
