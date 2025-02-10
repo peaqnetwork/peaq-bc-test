@@ -93,6 +93,16 @@ class balance_erc20_asset_test(unittest.TestCase):
 
         return sign_and_submit_evm_transaction(tx, w3, eth_kp)
 
+    def evm_balances_erc20_transfer_to_account_id(self, contract, eth_kp_src, ss58_kp_src, amount):
+        w3 = self._w3
+        nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
+        tx = contract.functions.transferToAccountId(ss58_kp_src.public_key, amount).build_transaction({
+            'from': eth_kp_src.ss58_address,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id})
+
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
+
     def test_balance_erc20_metadata(self):
         contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
         data = contract.functions.name().call()
@@ -202,3 +212,32 @@ class balance_erc20_asset_test(unittest.TestCase):
         self.assertEqual(
             balance, erc_transfer_num,
             f'Error: {balance} != {erc_transfer_num}')
+
+    def test_transfer_to_account_id(self):
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        erc_transfer_num = 2 * 10 ** 18
+        contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+
+        ss58_kp_src = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        eth_kp_balance_pre = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
+
+        evm_receipt = self.evm_balances_erc20_transfer_to_account_id(contract, self._eth_kp_src['kp'], ss58_kp_src, erc_transfer_num)
+        self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
+
+        eth_kp_balance_post = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
+        sub_kp_balance_post = get_account_balance(self._substrate, ss58_kp_src.ss58_address)
+
+        # Loss is (erc_transfer_num + tx fee)
+        # Not sure where to get accurate tx fee
+        self.assertGreater(
+            eth_kp_balance_pre - eth_kp_balance_post, erc_transfer_num,
+            f'Error: {self._eth_kp_src['eth']} difference incorrect'
+        )
+        self.assertEqual(
+            sub_kp_balance_post, erc_transfer_num,
+            f'Error: Transfer to {ss58_kp_src.ss58_address} failed.'
+        )
