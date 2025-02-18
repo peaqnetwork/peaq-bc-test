@@ -471,6 +471,35 @@ def get_balance_reserve_value(substrate, account, key):
     return 0
 
 
+def get_events_impl(substrate, block_hash, pallet, event_name, tx_id):
+    events = []
+    for event in substrate.get_events(block_hash):
+        if event.value['module_id'] != pallet or \
+                event.value['event_id'] != event_name:
+            continue
+        if event.value['extrinsic_idx'] != tx_id:
+            continue
+
+        events.append(event['event'])
+    return events
+
+
+def get_withdraw_events(substrate, block_hash, tx_id):
+    events = get_events_impl(substrate, block_hash, 'Balances', 'Withdraw', tx_id)
+    return [{
+        'addr': str(event[1][1]['who']),
+        'value': event[1][1]['amount'].value
+    } for event in events]
+
+
+def get_deposit_events(substrate, block_hash, tx_id):
+    events = get_events_impl(substrate, block_hash, 'Balances', 'Deposit', tx_id)
+    return [{
+        'addr': str(event[1][1]['who']),
+        'value': event[1][1]['amount'].value
+    } for event in events]
+
+
 if __name__ == '__main__':
     data = '5F1e2nuSgxwWZiL9jTxv3jrMQHeHHhuwP7oDmU87SMp1Ncxv'
     print(calculate_evm_addr(data))
