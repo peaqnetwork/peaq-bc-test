@@ -235,7 +235,7 @@ class balance_erc20_asset_test(unittest.TestCase):
         # Not sure where to get accurate tx fee
         self.assertGreater(
             eth_kp_balance_pre - eth_kp_balance_post, erc_transfer_num,
-            f'Error: {self._eth_kp_src['eth']} difference incorrect'
+            f'Error: {self._eth_kp_src["eth"]} difference incorrect'
         )
         self.assertEqual(
             sub_kp_balance_post, erc_transfer_num,
