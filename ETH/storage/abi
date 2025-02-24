@@ -38,6 +38,25 @@
 				"internalType": "bytes",
 				"name": "item_type",
 				"type": "bytes"
+			}
+		],
+		"name": "ItemRemoved",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "item_type",
+				"type": "bytes"
 			},
 			{
 				"indexed": false,
@@ -95,6 +114,25 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes",
+				"name": "item_type",
+				"type": "bytes"
+			}
+		],
+		"name": "removeItem",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
