@@ -52,6 +52,14 @@ def _eth_update_item(substrate, w3, contract, eth_kp_src, item_type, item):
     return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
 
+def _eth_remove_item(substrate, w3, contract, eth_kp_src, item_type):
+    tx = contract.functions.removeItem(item_type).build_transaction(
+        _calcualte_evm_basic_req(substrate, w3, eth_kp_src.ss58_address)
+    )
+
+    return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
+
+
 @pytest.mark.eth
 class TestBridgeStorage(unittest.TestCase):
 
@@ -62,11 +70,12 @@ class TestBridgeStorage(unittest.TestCase):
         self._eth_kp_src = Keypair.create_from_private_key(ETH_PRIVATE_KEY, crypto_type=KeypairType.ECDSA)
         self._account = calculate_evm_account_hex(self._eth_kp_src.ss58_address)
 
-    def check_item_from_event(self, event, sender, item_type, item):
+    def check_item_from_event(self, event, sender, item_type, item=None):
         events = event.get_all_entries()
         self.assertEqual(f"{events[0]['args']['sender']}", sender)
         self.assertEqual(f"0x{events[0]['args']['item_type'].hex()}", f"{item_type}")
-        self.assertEqual(f"0x{events[0]['args']['item'].hex()}", f"{item}")
+        if item:
+            self.assertEqual(f"0x{events[0]['args']['item'].hex()}", f"{item}")
 
     def test_bridge_storage(self):
         substrate = self._substrate
@@ -102,3 +111,12 @@ class TestBridgeStorage(unittest.TestCase):
         self.assertEqual(f'0x{data.hex()}', NEW_ITEM)
         event = contract.events.ItemUpdated.create_filter(fromBlock=block_idx, toBlock=block_idx)
         self.check_item_from_event(event, self._eth_kp_src.ss58_address, ITEM_TYPE, NEW_ITEM)
+
+        # Execute: Remove
+        tx_receipt = _eth_remove_item(substrate, w3, contract, eth_kp_src, ITEM_TYPE)
+        self.assertEqual(tx_receipt['status'], TX_SUCCESS_STATUS)
+        block_idx = tx_receipt['blockNumber']
+
+        # check
+        event = contract.events.ItemRemoved.create_filter(fromBlock=block_idx, toBlock=block_idx)
+        self.check_item_from_event(event, self._eth_kp_src.ss58_address, ITEM_TYPE, None)
