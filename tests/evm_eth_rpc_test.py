@@ -13,6 +13,7 @@ from tools.peaq_eth_utils import deploy_contract
 from tools.peaq_eth_utils import call_eth_transfer_a_lot
 from tools.peaq_eth_utils import get_eth_balance, get_contract
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
+from tools.utils import get_withdraw_events, get_deposit_events
 from peaq.utils import get_account_balance
 from tests import utils_func as TestUtils
 from tools.peaq_eth_utils import get_eth_info
@@ -222,3 +223,48 @@ class TestEVMEthRPC(unittest.TestCase):
 
         out = get_contract_data(w3, address, ABI_FILE)
         self.assertEqual(out, HEX_STR, 'call copy failed')
+
+    def test_evm_tip(self):
+        self._kp_moon = get_eth_info()
+        self._kp_mars = get_eth_info()
+        batch = ExtrinsicBatch(self._conn, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._kp_moon['substrate'], 1000 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        nonce = self._w3.eth.get_transaction_count(self._kp_moon['kp'].ss58_address)
+        # gas/maxFeePerGas/maxPriorityFeePerGas is decided by metamask's value
+        tx = {
+            'from': self._kp_moon['kp'].ss58_address,
+            'to': self._kp_mars['kp'].ss58_address,
+            'value': 1 * 10 ** 18,
+            'gas': 21000,
+            'maxFeePerGas': int(7.2 * 10 ** 13) + int(2 * 10 ** 9),
+            'maxPriorityFeePerGas': int(7.2 * 10 ** 13),
+            'nonce': nonce,
+            'chainId': self._eth_chain_id
+        }
+        response = sign_and_submit_evm_transaction(tx, self._w3, self._kp_moon['kp'])
+
+        self.assertTrue(response['status'] == TX_SUCCESS_STATUS, f'failed: {response}')
+
+        now_block_number = response.blockNumber
+        now_block_hash = self._conn.get_block_hash(now_block_number)
+
+        # Get the EVM tx id
+        block = self._conn.get_block(now_block_hash)
+        evm_tx_id = -1
+        for index, extrinsic in enumerate(block['extrinsics']):
+            if str(extrinsic['call']['call_module']['name']) != 'Ethereum':
+                continue
+            if str(extrinsic['call']['call_function']['name']) != 'transact':
+                continue
+            evm_tx_id = index
+            break
+
+        self.assertNotEqual(evm_tx_id, -1, 'evm_tx_id should not be -1, not found')
+        withdraws = get_withdraw_events(self._conn, now_block_hash, evm_tx_id)
+        deposits = get_deposit_events(self._conn, now_block_hash, evm_tx_id)
+        total_deposits = sum([deposit['value'] for deposit in deposits])
+        total_withdraws = sum([withdraw['value'] for withdraw in withdraws])
+        self.assertEqual(total_deposits, total_withdraws, 'total deposits and withdraws should be equal')
