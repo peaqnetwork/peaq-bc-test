@@ -73,6 +73,7 @@ class TestPalletEvmAccounts(unittest.TestCase):
         self._substrate = SubstrateInterface(url=WS_URL)
         self._eth_chain_id = get_eth_chain_id(self._substrate)
 
+    @pytest.mark.skip(reason="ED is 0 and then we don't delete any account")
     def test_remove_account(self):
         kp_sub = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
         kp_eth = Keypair.create_from_mnemonic(Keypair.generate_mnemonic(), crypto_type=KeypairType.ECDSA)
