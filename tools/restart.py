@@ -25,7 +25,7 @@ def restart_parachain_launch():
     my_docker.compose.down(volumes=True)
     my_docker.compose.up(detach=True, build=True)
     count_down = 0
-    wait_time = 60
+    wait_time = 120
     while count_down < wait_time:
         try:
             SubstrateInterface(
