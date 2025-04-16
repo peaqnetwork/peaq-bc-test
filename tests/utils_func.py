@@ -17,12 +17,15 @@ def get_runtime_upgrade_path():
     return os.environ.get('RUNTIME_UPGRADE_PATH')
 
 
-# Will raise error
-def restart_parachain_and_runtime_upgrade():
+def restart_with_setup():
     restart_parachain_launch()
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     setup_hrmp_channel(RELAYCHAIN_WS_URL)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+
+
+# [TODO] Need to clarify this with do_runtime_upgrade
+def do_runtime_upgrade_with_setup():
     substrate = SubstrateInterface(url=WS_URL)
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
     if is_runtime_upgrade_test():
@@ -31,6 +34,12 @@ def restart_parachain_and_runtime_upgrade():
         new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
         if old_version == new_version:
             raise Exception(f'Runtime upgrade failed. old_version: {old_version}, new_version: {new_version}')
+
+
+# Will raise error
+def restart_parachain_and_runtime_upgrade():
+    restart_with_setup()
+    do_runtime_upgrade()
 
 
 def is_not_dev_chain():
