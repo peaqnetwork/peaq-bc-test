@@ -53,6 +53,24 @@ def get_eth_balance(substrate, eth_src):
     return int(substrate.rpc_request("eth_getBalance", [eth_src, bl_num]).get('result'), 16)
 
 
+def deploy_contract_with_args(w3, kp_src, eth_chain_id, abi_file_name, bytecode, args):
+    with open(abi_file_name) as f:
+        abi = json.load(f)
+
+    nonce = w3.eth.get_transaction_count(kp_src.ss58_address)
+    tx = w3.eth.contract(
+        abi=abi,
+        bytecode=bytecode).constructor(*args).build_transaction({
+            'from': kp_src.ss58_address,
+            'nonce': nonce,
+            'chainId': eth_chain_id})
+
+    tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_src)
+
+    address = tx_receipt['contractAddress']
+    return address
+
+
 def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
     with open(abi_file_name) as f:
         abi = json.load(f)
