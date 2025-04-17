@@ -8,9 +8,14 @@ from functools import wraps
 def log_func(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        print(f"▶️ Calling: {func.__name__}")
+        class_name = self.__class__.__name__
+        print(f"▶️ Calling: {class_name}.{func.__name__}")
         return func(self, *args, **kwargs)
     return wrapper
+
+
+ABI_FILE = 'ETH/batch/abi'
+BATCH_ADDRESS = '0x0000000000000000000000000000000000000805'
 
 
 class SmartContractBehavior:
@@ -26,6 +31,8 @@ class SmartContractBehavior:
         self._unittest = unittest
 
         self._abi = f'{self._folder}/abi'
+
+        self._batch_contract = get_contract(self._w3, BATCH_ADDRESS, ABI_FILE)
 
     def _load_bytecode(self):
         bytecode_file = f"{self._folder}/bytecode"

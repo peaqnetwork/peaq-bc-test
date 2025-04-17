@@ -10,6 +10,7 @@ from web3 import Web3
 from tests.utils_func import restart_with_setup, do_runtime_upgrade_with_setup
 import unittest
 from tests.evm_sc.erc20 import ERC20SmartContractBehavior
+from tests.evm_sc.erc721 import ERC721SmartContractBehavior
 
 import pprint
 
@@ -20,27 +21,36 @@ pp = pprint.PrettyPrinter(indent=4)
 @pytest.mark.detail_upgrade_check
 class TestEVMEthUpgrade(unittest.TestCase):
     def setUp(self):
-        # restart_with_setup()
-        # Restart to make sure it in the old state
+        restart_with_setup()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
 
     def test_same_behavior_upgrade(self):
-        erc20SC = ERC20SmartContractBehavior(self, self._w3, get_eth_info())
-        erc20SC.compose_all_args()
+        smart_contracts = [
+            ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
+        ]
+        for smart_contract in smart_contracts:
+            smart_contract.compose_all_args()
+
+        ss58_addrs = []
+        for smart_contract in smart_contracts:
+            ss58_addrs += smart_contract.get_fund_ss58_keys()
 
         funds(
-            self._substrate, KP_GLOBAL_SUDO, erc20SC.get_fund_ss58_keys(), 1000 * 10**18
+            self._substrate, KP_GLOBAL_SUDO, ss58_addrs, 1000 * 10**18
         )
 
-        erc20SC.deploy()
+        for smart_contract in smart_contracts:
+            smart_contract.deploy()
 
-        erc20SC.before_migration_sc_behavior()
+        for smart_contract in smart_contracts:
+            smart_contract.before_migration_sc_behavior()
 
         # Upgrade
         do_runtime_upgrade_with_setup()
 
-        erc20SC.after_migration_sc_behavior()
-
-        erc20SC.check_migration_difference()
+        for smart_contract in smart_contracts:
+            smart_contract.after_migration_sc_behavior()
+            smart_contract.check_migration_difference()
