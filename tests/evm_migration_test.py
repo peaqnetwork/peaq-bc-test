@@ -1,4 +1,5 @@
 import pytest
+import time
 
 from substrateinterface import SubstrateInterface
 from tools.constants import KP_GLOBAL_SUDO
@@ -9,10 +10,11 @@ from peaq.sudo_extrinsic import funds
 from web3 import Web3
 from tests.utils_func import restart_with_setup, do_runtime_upgrade_with_setup
 import unittest
-# from tests.evm_sc.erc20 import ERC20SmartContractBehavior
-# from tests.evm_sc.erc721 import ERC721SmartContractBehavior
-# from tests.evm_sc.erc1155 import ERC1155SmartContractBehavior
+from tests.evm_sc.erc20 import ERC20SmartContractBehavior
+from tests.evm_sc.erc721 import ERC721SmartContractBehavior
+from tests.evm_sc.erc1155 import ERC1155SmartContractBehavior
 from tests.evm_sc.delegatecall import DelegateCallSCBehavior
+from tests.evm_sc.upgrade import UpgradeSCBehavior
 
 import pprint
 
@@ -23,17 +25,18 @@ pp = pprint.PrettyPrinter(indent=4)
 @pytest.mark.detail_upgrade_check
 class TestEVMEthUpgrade(unittest.TestCase):
     def setUp(self):
-        # restart_with_setup()
+        restart_with_setup()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
 
     def test_same_behavior_upgrade(self):
         smart_contracts = [
-            # ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
-            # ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
-            # ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
             DelegateCallSCBehavior(self, self._w3, get_eth_info()),
+            UpgradeSCBehavior(self, self._w3, get_eth_info()),
         ]
         for smart_contract in smart_contracts:
             smart_contract.compose_all_args()
@@ -51,10 +54,12 @@ class TestEVMEthUpgrade(unittest.TestCase):
 
         for smart_contract in smart_contracts:
             smart_contract.before_migration_sc_behavior()
+            time.sleep(6 * 3)
 
         # Upgrade
-        # do_runtime_upgrade_with_setup()
+        do_runtime_upgrade_with_setup()
 
         for smart_contract in smart_contracts:
             smart_contract.after_migration_sc_behavior()
             smart_contract.check_migration_difference()
+            time.sleep(6 * 3)

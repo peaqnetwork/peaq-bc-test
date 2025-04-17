@@ -29,7 +29,7 @@ class DelegateCallSCBehavior(SmartMultipleContractBehavior):
             self._w3,
             self._kp_deployer["kp"],
             self._eth_chain_id,
-            self._abis["logic"],
+            self._abis["proxy"],
             self._load_bytecode_by_key("proxy"),
             [logic_address, 2],
         )
