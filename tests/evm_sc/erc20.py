@@ -1,7 +1,9 @@
 from tests.evm_sc.base import SmartContractBehavior, log_func
-from tests.evm_utils import sign_and_submit_evm_transaction
-from tools.peaq_eth_utils import TX_SUCCESS_STATUS
 from tools.peaq_eth_utils import get_eth_info
+from web3 import Web3
+
+
+TOKEN_NUM = 10**15
 
 
 class ERC20SmartContractBehavior(SmartContractBehavior):
@@ -16,18 +18,9 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
         """Mint tokens to the address"""
         contract = self._get_contract()
         tx = contract.functions.mint(mint_addr, token_num).build_transaction(
-            {
-                "from": self._kp_deployer["kp"].ss58_address,
-                "nonce": self._w3.eth.get_transaction_count(
-                    self._kp_deployer["kp"].ss58_address
-                ),
-                "chainId": self._eth_chain_id,
-            }
+            self.compose_build_transaction_args(self._kp_deployer)
         )
-        receipt = sign_and_submit_evm_transaction(tx, self._w3, self._kp_deployer["kp"])
-        self._unittest.assertEqual(
-            receipt["status"], TX_SUCCESS_STATUS, "The transaction was not successful"
-        )
+        self.send_and_check_tx(tx, self._kp_deployer)
         evm_balance = contract.functions.balanceOf(mint_addr).call()
         return {
             "mint_addr": evm_balance,
@@ -36,21 +29,19 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
     def compose_all_args(self):
         self._args = {
             "pre": {
-                "mint_and_transfer_tokens": [get_eth_info(), get_eth_info(), 10**15],
+                "mint_burn_transfer_tokens": [get_eth_info(), get_eth_info()],
                 "approval_and_send_tokens": [
                     get_eth_info(),
                     get_eth_info(),
-                    get_eth_info(),
-                    10**15,
+                    get_eth_info()
                 ],
             },
             "after": {
-                "mint_and_transfer_tokens": [get_eth_info(), get_eth_info(), 10**15],
+                "mint_burn_transfer_tokens": [get_eth_info(), get_eth_info()],
                 "approval_and_send_tokens": [
                     get_eth_info(),
                     get_eth_info(),
                     get_eth_info(),
-                    10**15,
                 ],
             },
         }
@@ -62,7 +53,7 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
             + [
                 kp["substrate"]
                 for action_type in ["pre", "after"]
-                for kp in self._args[action_type]["mint_and_transfer_tokens"][:2]
+                for kp in self._args[action_type]["mint_burn_transfer_tokens"][:2]
             ]
             + [
                 kp["substrate"]
@@ -72,73 +63,54 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
         )
 
     @log_func
-    def mint_and_transfer_tokens(self, kp_from, kp_to, token_num):
-        self._mint_tokens(kp_from["kp"].ss58_address, 3 * token_num)
+    def mint_burn_transfer_tokens(self, kp_from, kp_to):
         contract = self._get_contract()
-        # TODO Let me move to the batch func...
-        tx = contract.functions.transfer(
-            kp_to["kp"].ss58_address, token_num
-        ).build_transaction(
-            {
-                "from": kp_from["kp"].ss58_address,
-                "nonce": self._w3.eth.get_transaction_count(
-                    kp_from["kp"].ss58_address
+
+        tx = self._batch_contract.functions.batchAll(
+            [
+                Web3.to_checksum_address(self._address),
+                Web3.to_checksum_address(self._address),
+            ],
+            [0, 0],
+            [
+                contract.encodeABI(
+                    fn_name="mint", args=[kp_from["kp"].ss58_address, 3 * TOKEN_NUM]
                 ),
-                "chainId": self._eth_chain_id,
-            }
-        )
-        tx_receipt = sign_and_submit_evm_transaction(
-            tx, self._w3, kp_from["kp"]
-        )
-        self._unittest.assertEqual(
-            tx_receipt["status"],
-            TX_SUCCESS_STATUS,
-            "The transaction was not successful",
-        )
+                contract.encodeABI(
+                    fn_name="burn", args=[kp_from["kp"].ss58_address, TOKEN_NUM]
+                ),
+            ],
+            [0, 0],
+        ).build_transaction(self.compose_build_transaction_args(self._kp_deployer))
+        self.send_and_check_tx(tx, self._kp_deployer)
+
+        tx = contract.functions.transfer(
+            kp_to["kp"].ss58_address, TOKEN_NUM
+        ).build_transaction(self.compose_build_transaction_args(kp_from))
+        self.send_and_check_tx(tx, kp_from)
+
         return {
-            "mint_and_transfer_tokens": {
+            "mint_burn_transfer_tokens": {
                 "from": contract.functions.balanceOf(kp_from["kp"].ss58_address).call(),
                 "to": contract.functions.balanceOf(kp_to["kp"].ss58_address).call(),
             }
         }
 
     @log_func
-    def approval_and_send_tokens(self, kp_from, kp_approval, kp_new, token_num):
-        self._mint_tokens(kp_from["kp"].ss58_address, 3 * token_num)
+    def approval_and_send_tokens(self, kp_from, kp_approval, kp_new):
+        self._mint_tokens(kp_from["kp"].ss58_address, 3 * TOKEN_NUM)
         contract = self._get_contract()
-        # TODO Let me move to the batch func...
+
         tx = contract.functions.approve(
-            kp_approval["kp"].ss58_address, token_num
-        ).build_transaction(
-            {
-                "from": kp_from["kp"].ss58_address,
-                "nonce": self._w3.eth.get_transaction_count(kp_from["kp"].ss58_address),
-                "chainId": self._eth_chain_id,
-            }
-        )
-        tx_receipt = sign_and_submit_evm_transaction(tx, self._w3, kp_from["kp"])
-        self._unittest.assertEqual(
-            tx_receipt["status"],
-            TX_SUCCESS_STATUS,
-            "The transaction was not successful",
-        )
+            kp_approval["kp"].ss58_address, TOKEN_NUM
+        ).build_transaction(self.compose_build_transaction_args(kp_from))
+        self.send_and_check_tx(tx, kp_from)
+
         tx = contract.functions.transferFrom(
-            kp_from["kp"].ss58_address, kp_new["kp"].ss58_address, token_num
-        ).build_transaction(
-            {
-                "from": kp_approval["kp"].ss58_address,
-                "nonce": self._w3.eth.get_transaction_count(
-                    kp_approval["kp"].ss58_address
-                ),
-                "chainId": self._eth_chain_id,
-            }
-        )
-        tx_receipt = sign_and_submit_evm_transaction(tx, self._w3, kp_approval["kp"])
-        self._unittest.assertEqual(
-            tx_receipt["status"],
-            TX_SUCCESS_STATUS,
-            "The transaction was not successful",
-        )
+            kp_from["kp"].ss58_address, kp_new["kp"].ss58_address, TOKEN_NUM
+        ).build_transaction(self.compose_build_transaction_args(kp_approval))
+        self.send_and_check_tx(tx, kp_approval)
+
         return {
             "approval_amount": contract.functions.allowance(
                 kp_from["kp"].ss58_address, kp_approval["kp"].ss58_address
@@ -150,8 +122,8 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
 
     def migration_same_behavior(self, args):
         return {
-            "mint_and_transfer_tokens": self.mint_and_transfer_tokens(
-                *args["mint_and_transfer_tokens"]
+            "mint_burn_transfer_tokens": self.mint_burn_transfer_tokens(
+                *args["mint_burn_transfer_tokens"]
             ),
             "approval_and_send_tokens": self.approval_and_send_tokens(
                 *args["approval_and_send_tokens"]
