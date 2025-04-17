@@ -8,6 +8,10 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
     def __init__(self, unittest, w3, kp_deployer):
         super().__init__(unittest, "ETH/erc20.openzeppelin", w3, kp_deployer)
 
+    @log_func
+    def deploy(self, deploy_args=None):
+        super().deploy(deploy_args)
+
     def _mint_tokens(self, mint_addr, token_num):
         """Mint tokens to the address"""
         contract = self._get_contract()
