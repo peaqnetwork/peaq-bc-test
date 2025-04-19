@@ -1,0 +1,196 @@
+[
+	{
+		"anonymous": false,
+		"inputs": [],
+		"name": "Event0",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			}
+		],
+		"name": "Event1",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			}
+		],
+		"name": "Event2",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "c",
+				"type": "string"
+			}
+		],
+		"name": "Event3",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "c",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "d",
+				"type": "bool"
+			}
+		],
+		"name": "Event4",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "c",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "d",
+				"type": "bool"
+			}
+		],
+		"name": "EventIndex1",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "c",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "d",
+				"type": "bool"
+			}
+		],
+		"name": "EventIndex2",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "a",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "b",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "string",
+				"name": "c",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "d",
+				"type": "bool"
+			}
+		],
+		"name": "EventIndex3",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "triggerAll",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

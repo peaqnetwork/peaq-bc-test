@@ -50,6 +50,7 @@ class SmartContractBehavior:
             TX_SUCCESS_STATUS,
             "The transaction was not successful",
         )
+        return tx_receipt
 
     def deploy(self, deploy_args=None):
         bytecode = self._load_bytecode()
@@ -196,6 +197,7 @@ class SmartMultipleContractBehavior:
             TX_SUCCESS_STATUS,
             "The transaction was not successful",
         )
+        return tx_receipt
 
     def before_migration_sc_behavior(self):
         if self._args is None:
