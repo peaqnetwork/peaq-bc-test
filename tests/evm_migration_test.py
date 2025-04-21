@@ -17,7 +17,8 @@ import unittest
 # from tests.evm_sc.upgrade import UpgradeSCBehavior
 # from tests.evm_sc.event import EventSCBehavior
 # from tests.evm_sc.error_handling import ErrorHandlingSCBehavior
-from tests.evm_sc.struct import StructSCBehavior
+# from tests.evm_sc.struct import StructSCBehavior
+from tests.evm_sc.reentry import ReentrySCBehavior
 
 import pprint
 
@@ -42,7 +43,8 @@ class TestEVMEthUpgrade(unittest.TestCase):
             # UpgradeSCBehavior(self, self._w3, get_eth_info()),
             # EventSCBehavior(self, self._w3, get_eth_info()),
             # ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
-            StructSCBehavior(self, self._w3, get_eth_info()),
+            # StructSCBehavior(self, self._w3, get_eth_info()),
+            ReentrySCBehavior(self, self._w3, get_eth_info()),
         ]
         for smart_contract in smart_contracts:
             smart_contract.compose_all_args()
