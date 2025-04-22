@@ -46,9 +46,7 @@ class DelegateCallSCBehavior(SmartMultipleContractBehavior):
         tx = (
             self._contracts["logic"]
             .functions.setNum(2)
-            .build_transaction(
-                self.compose_build_transaction_args(self._kp_deployer)
-            )
+            .build_transaction(self.compose_build_transaction_args(self._kp_deployer))
         )
         self.send_and_check_tx(tx, self._kp_deployer)
 
@@ -79,10 +77,10 @@ class DelegateCallSCBehavior(SmartMultipleContractBehavior):
 
         tx = (
             self._contracts["proxy"]
-            .functions.delegateSetNum(self._contracts["logic"].address, self._delegatecall_num)
-            .build_transaction(
-                self.compose_build_transaction_args(self._kp_deployer)
+            .functions.delegateSetNum(
+                self._contracts["logic"].address, self._delegatecall_num
             )
+            .build_transaction(self.compose_build_transaction_args(self._kp_deployer))
         )
         self.send_and_check_tx(tx, self._kp_deployer)
 
@@ -90,8 +88,10 @@ class DelegateCallSCBehavior(SmartMultipleContractBehavior):
         self._unittest.assertEqual(num, 2, "The number is not the same as expected: 5")
         num = self._contracts["proxy"].functions.num().call()
         self._unittest.assertEqual(
-            num, self._delegatecall_num,
-            f"The number is not the same as expected: {self._delegatecall_num}")
+            num,
+            self._delegatecall_num,
+            f"The number is not the same as expected: {self._delegatecall_num}",
+        )
         return None
 
     def migration_same_behavior(self, args):

@@ -44,14 +44,8 @@ class ReentrySCBehavior(SmartMultipleContractBehavior):
         }
 
         build_args = self.compose_build_transaction_args(self._kp_deployer)
-        build_args["value"] = self._w3.to_wei(1, 'ether')
-        tx = (
-            self._contracts["simple"]
-            .functions.deposit()
-            .build_transaction(
-                build_args
-            )
-        )
+        build_args["value"] = self._w3.to_wei(1, "ether")
+        tx = self._contracts["simple"].functions.deposit().build_transaction(build_args)
         self.send_and_check_tx(tx, self._kp_deployer)
 
     def compose_all_args(self):
@@ -81,7 +75,7 @@ class ReentrySCBehavior(SmartMultipleContractBehavior):
         remaining = self._contracts["simple"].functions.balance().call()
         self._unittest.assertEqual(
             remaining,
-            self._w3.to_wei(1, 'ether'),
+            self._w3.to_wei(1, "ether"),
         )
         return None
 
