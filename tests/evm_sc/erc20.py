@@ -33,7 +33,7 @@ class ERC20SmartContractBehavior(SmartContractBehavior):
                 "approval_and_send_tokens": [
                     get_eth_info(),
                     get_eth_info(),
-                    get_eth_info()
+                    get_eth_info(),
                 ],
             },
             "after": {

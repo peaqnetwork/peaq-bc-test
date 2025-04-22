@@ -9,6 +9,7 @@ from tools.peaq_eth_utils import get_eth_info
 from peaq.sudo_extrinsic import funds
 from web3 import Web3
 from tests.utils_func import restart_with_setup, do_runtime_upgrade_with_setup
+from tests.utils_func import is_runtime_upgrade_test
 import unittest
 # from tests.evm_sc.erc20 import ERC20SmartContractBehavior
 # from tests.evm_sc.erc721 import ERC721SmartContractBehavior
@@ -34,8 +35,7 @@ class TestEVMEthUpgrade(unittest.TestCase):
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
 
-    def test_same_behavior_upgrade(self):
-        smart_contracts = [
+        self._smart_contracts = [
             # ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
             # ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
             # ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
@@ -46,28 +46,51 @@ class TestEVMEthUpgrade(unittest.TestCase):
             # StructSCBehavior(self, self._w3, get_eth_info()),
             ReentrySCBehavior(self, self._w3, get_eth_info()),
         ]
-        for smart_contract in smart_contracts:
+
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="We only test it in non upgrade test")
+    def test_evm_sc_behavior(self):
+        for smart_contract in self._smart_contracts:
             smart_contract.compose_all_args()
 
         ss58_addrs = []
-        for smart_contract in smart_contracts:
+        for smart_contract in self._smart_contracts:
             ss58_addrs += smart_contract.get_fund_ss58_keys()
 
         funds(
             self._substrate, KP_GLOBAL_SUDO, ss58_addrs, 1000 * 10**18
         )
 
-        for smart_contract in smart_contracts:
+        for smart_contract in self._smart_contracts:
             smart_contract.deploy()
 
-        for smart_contract in smart_contracts:
+        for smart_contract in self._smart_contracts:
+            smart_contract.before_migration_sc_behavior()
+            time.sleep(6 * 3)
+
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="We only test it in runtime upgrade testing")
+    def test_evm_sc_upgrade_behavior(self):
+        for smart_contract in self._smart_contracts:
+            smart_contract.compose_all_args()
+
+        ss58_addrs = []
+        for smart_contract in self._smart_contracts:
+            ss58_addrs += smart_contract.get_fund_ss58_keys()
+
+        funds(
+            self._substrate, KP_GLOBAL_SUDO, ss58_addrs, 1000 * 10**18
+        )
+
+        for smart_contract in self._smart_contracts:
+            smart_contract.deploy()
+
+        for smart_contract in self._smart_contracts:
             smart_contract.before_migration_sc_behavior()
             time.sleep(6 * 3)
 
         # Upgrade
-        # do_runtime_upgrade_with_setup()
+        do_runtime_upgrade_with_setup()
 
-        for smart_contract in smart_contracts:
+        for smart_contract in self._smart_contracts:
             smart_contract.after_migration_sc_behavior()
             smart_contract.check_migration_difference()
             time.sleep(6 * 3)

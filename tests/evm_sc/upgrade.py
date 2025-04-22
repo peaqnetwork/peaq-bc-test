@@ -52,7 +52,9 @@ class UpgradeSCBehavior(SmartMultipleContractBehavior):
 
         # Check if the logic contract is initialized
         self._unittest.assertEqual(
-            get_contract(self._w3, proxy_address, self._abis["logic"]).functions.version().call(),
+            get_contract(self._w3, proxy_address, self._abis["logic"])
+            .functions.version()
+            .call(),
             f"v{self._upgrade_version}",
             "The logic contract is not initialized",
         )
@@ -98,16 +100,20 @@ class UpgradeSCBehavior(SmartMultipleContractBehavior):
             self._abis["logic"],
             self._load_bytecode_by_key("logic"),
         )
-        new_logic_contract = get_contract(self._w3, new_logic_address, self._abis["logic"])
+        new_logic_contract = get_contract(
+            self._w3, new_logic_address, self._abis["logic"]
+        )
         init_data = new_logic_contract.encodeABI(
             fn_name="setVersion",
             args=[f"v{self._upgrade_version}"],
         )
 
-        proxy_contract = get_contract(self._w3, self._addresses["proxy"], self._abis["logic"])
-        tx = proxy_contract.functions.upgradeToAndCall(new_logic_address, init_data).build_transaction(
-            self.compose_build_transaction_args(self._kp_deployer)
+        proxy_contract = get_contract(
+            self._w3, self._addresses["proxy"], self._abis["logic"]
         )
+        tx = proxy_contract.functions.upgradeToAndCall(
+            new_logic_address, init_data
+        ).build_transaction(self.compose_build_transaction_args(self._kp_deployer))
         self.send_and_check_tx(tx, self._kp_deployer)
 
         self._unittest.assertEqual(

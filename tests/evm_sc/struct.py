@@ -21,14 +21,11 @@ class StructSCBehavior(SmartContractBehavior):
 
     def get_fund_ss58_keys(self):
         """Get the ss58 keys for funding"""
-        return (
-            [self._kp_deployer["substrate"]]
-            + [
-                kp["substrate"]
-                for action_type in ["pre", "after"]
-                for kp in self._args[action_type]["struct_abi"][:1]
-            ]
-        )
+        return [self._kp_deployer["substrate"]] + [
+            kp["substrate"]
+            for action_type in ["pre", "after"]
+            for kp in self._args[action_type]["struct_abi"][:1]
+        ]
 
     @log_func
     def struct_abi(self):
@@ -50,7 +47,5 @@ class StructSCBehavior(SmartContractBehavior):
 
     def migration_same_behavior(self, args):
         return {
-            "struct_abi": self.struct_abi(
-                *args["struct_abi"]
-            ),
+            "struct_abi": self.struct_abi(*args["struct_abi"]),
         }
