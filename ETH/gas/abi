@@ -1,0 +1,35 @@
+[
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "remainingGas",
+				"type": "uint256"
+			}
+		],
+		"name": "Fail",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "remainingGas",
+				"type": "uint256"
+			}
+		],
+		"name": "Success",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "checkGas",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

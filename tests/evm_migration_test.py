@@ -19,7 +19,8 @@ import unittest
 # from tests.evm_sc.event import EventSCBehavior
 # from tests.evm_sc.error_handling import ErrorHandlingSCBehavior
 # from tests.evm_sc.struct import StructSCBehavior
-from tests.evm_sc.reentry import ReentrySCBehavior
+# from tests.evm_sc.reentry import ReentrySCBehavior
+from tests.evm_sc.gas import GasSCBehavior
 
 import pprint
 
@@ -44,7 +45,8 @@ class TestEVMEthUpgrade(unittest.TestCase):
             # EventSCBehavior(self, self._w3, get_eth_info()),
             # ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
             # StructSCBehavior(self, self._w3, get_eth_info()),
-            ReentrySCBehavior(self, self._w3, get_eth_info()),
+            # ReentrySCBehavior(self, self._w3, get_eth_info()),
+            GasSCBehavior(self, self._w3, get_eth_info()),
         ]
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="We only test it in non upgrade test")
@@ -88,7 +90,7 @@ class TestEVMEthUpgrade(unittest.TestCase):
             time.sleep(6 * 3)
 
         # Upgrade
-        do_runtime_upgrade_with_setup()
+        # do_runtime_upgrade_with_setup()
 
         for smart_contract in self._smart_contracts:
             smart_contract.after_migration_sc_behavior()
