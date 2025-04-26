@@ -39,7 +39,9 @@ def do_runtime_upgrade_with_setup():
 # Will raise error
 def restart_parachain_and_runtime_upgrade():
     restart_with_setup()
-    do_runtime_upgrade()
+    if is_runtime_upgrade_test():
+        path = get_runtime_upgrade_path()
+        do_runtime_upgrade(path)
 
 
 def is_not_dev_chain():
