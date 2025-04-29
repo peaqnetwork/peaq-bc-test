@@ -74,7 +74,7 @@ class TestBridgeStorage(unittest.TestCase):
         events = event.get_all_entries()
         self.assertEqual(f"{events[0]['args']['sender']}", sender)
         self.assertEqual(f"0x{events[0]['args']['item_type'].hex()}", f"{item_type}")
-        if item:
+        if item is not None:
             self.assertEqual(f"0x{events[0]['args']['item'].hex()}", f"{item}")
 
     def test_bridge_storage(self):
