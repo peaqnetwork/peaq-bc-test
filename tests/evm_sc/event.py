@@ -111,7 +111,7 @@ class EventSCBehavior(SmartContractBehavior):
             event["args"]["b"], self._kp_deployer["kp"].ss58_address
         )
         self._unittest.assertEqual(
-            event["args"]["c"].hex(), Web3.keccak(text="earth").hex()
+            f'0x{event["args"]["c"].hex()}', Web3.keccak(text="earth").hex()
         )
         self._unittest.assertEqual(event["args"]["d"], False)
 
