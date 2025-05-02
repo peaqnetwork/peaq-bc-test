@@ -1,5 +1,4 @@
 import pytest
-import time
 
 from substrateinterface import SubstrateInterface
 from tools.constants import KP_GLOBAL_SUDO
@@ -69,7 +68,6 @@ class TestEVMEthUpgrade(unittest.TestCase):
 
         for smart_contract in self._smart_contracts:
             smart_contract.before_migration_sc_behavior()
-            time.sleep(6 * 3)
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="We only test it in runtime upgrade testing")
     def test_evm_sc_upgrade_behavior(self):
@@ -89,7 +87,6 @@ class TestEVMEthUpgrade(unittest.TestCase):
 
         for smart_contract in self._smart_contracts:
             smart_contract.before_migration_sc_behavior()
-            time.sleep(6 * 3)
 
         # Upgrade
         do_runtime_upgrade_with_setup()
@@ -97,4 +94,3 @@ class TestEVMEthUpgrade(unittest.TestCase):
         for smart_contract in self._smart_contracts:
             smart_contract.after_migration_sc_behavior()
             smart_contract.check_migration_difference()
-            time.sleep(6 * 3)
