@@ -99,7 +99,7 @@ CONSTANT_INFOS = [{
     'type': {
         'peaq-dev': 48,
         'krest-network': 25,
-        'peaq-network': 48,
+        'peaq-network': 100,
     }
 }, {
     'module': 'ParachainStaking',
