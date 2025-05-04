@@ -170,4 +170,5 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
                 time.sleep(BLOCK_GENERATE_TIME * 2)
         else:
             print(f'Cannot find tx {tx_hash.hex()}')
+            tx['data'] = tx['data'] + '00'
     raise IOError('Cannot send transaction')
