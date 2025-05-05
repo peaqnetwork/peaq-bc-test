@@ -92,7 +92,7 @@ def fund_sudo_account():
                 'Balances',
                 'transfer_keep_alive',
                 {
-                    'dest': kp.ss58_address,
+                    'dest': KP_GLOBAL_SUDO.ss58_address,
                     'value': 3 * 10 ** 18,
                 }
             )
