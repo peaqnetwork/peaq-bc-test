@@ -7,7 +7,7 @@ from tools.constants import WS_URL, ETH_URL
 from tools.peaq_eth_utils import get_eth_info
 from peaq.sudo_extrinsic import funds
 from web3 import Web3
-from tests.utils_func import restart_with_setup, do_runtime_upgrade_with_setup
+from tests.utils_func import restart_with_setup, start_runtime_upgrade_only
 from tests.utils_func import is_runtime_upgrade_test
 import unittest
 from tests.evm_sc.erc20 import ERC20SmartContractBehavior
@@ -89,7 +89,7 @@ class TestEVMEthUpgrade(unittest.TestCase):
             smart_contract.before_migration_sc_behavior()
 
         # Upgrade
-        do_runtime_upgrade_with_setup()
+        start_runtime_upgrade_only()
 
         for smart_contract in self._smart_contracts:
             smart_contract.after_migration_sc_behavior()

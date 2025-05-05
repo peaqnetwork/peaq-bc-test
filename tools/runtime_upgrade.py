@@ -76,43 +76,42 @@ def upgrade(runtime_path):
     wait_relay_upgrade_block()
 
 
-def fund_account():
-    print('update the info')
+def fund_sudo_account():
     substrate = SubstrateInterface(url=WS_URL)
 
-    kp_out = Keypair.create_from_mnemonic(
-        "crane scheme tourist cigar exact asthma culture lamp bacon give wish certain")
-    # Fix the peaq network
-    batch = ExtrinsicBatch(substrate, kp_out)
-    batch.compose_call(
-        'Balances',
-        'transfer_keep_alive',
-        {
-            'dest': KP_GLOBAL_SUDO.ss58_address,
-            'value': 3 * 10 ** 18,
-        }
-    )
-    # On peaq-dev, it will fail, but on peaq, it will pass
-    receipt = batch.execute()
-    if not receipt.is_success:
-        print('Cannot transfer account')
-        print(receipt.error_message)
+    kps = [Keypair.create_from_mnemonic(
+        "crane scheme tourist cigar exact asthma culture lamp bacon give wish certain"),
+        KP_COLLATOR
+    ]
+    for kp in kps:
+        balance = get_account_balance(substrate, kp.ss58_address)
+        if get_account_balance(substrate, kp.ss58_address) > 1 * 10 ** 18:
+            print(f'Funding account {kp.ss58_address}')
+            batch = ExtrinsicBatch(substrate, kp)
+            batch.compose_call(
+                'Balances',
+                'transfer_keep_alive',
+                {
+                    'dest': kp.ss58_address,
+                    'value': 3 * 10 ** 18,
+                }
+            )
+            receipt = batch.execute()
+            if not receipt.is_success:
+                print('Cannot transfer account')
+                raise IOError(receipt.error_message)
+        if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+            print(f'Funding account {KP_GLOBAL_SUDO.ss58_address}')
+            break
+        else:
+            print(f'Account {KP_GLOBAL_SUDO.ss58_address} not have enough balance '
+                  f'becaues {kp.ss58_address} balance is {balance}')
+    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+        raise IOError('Sudo user still dont have enough balance')
 
-    # Fix the peaq network
-    batch = ExtrinsicBatch(substrate, KP_COLLATOR)
-    batch.compose_call(
-        'Balances',
-        'transfer_keep_alive',
-        {
-            'dest': KP_GLOBAL_SUDO.ss58_address,
-            'value': 3 * 10 ** 18,
-        }
-    )
-    # On peaq-dev, it will fail, but on peaq, it will pass
-    receipt = batch.execute()
-    if not receipt.is_success:
-        print('Cannot transfer account')
-        print(receipt.error_message)
+
+def fund_all_retated_accounts():
+    substrate = SubstrateInterface(url=WS_URL)
 
     accounts = [
         '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY',
@@ -125,10 +124,22 @@ def fund_account():
         '5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL',
     ]
     account_balances = [get_account_balance(substrate, a) for a in accounts]
-    recipt = funds(substrate, KP_GLOBAL_SUDO, accounts, max(account_balances) + 302231 * 10 ** 18)
-    if not recipt.is_success:
+    receipt = funds(substrate, KP_GLOBAL_SUDO, accounts, max(account_balances) + 302231 * 10 ** 18)
+    if not receipt.is_success:
         print('Cannot fund the sudo account')
         print(receipt.error_message)
+
+
+def fund_account():
+    print('update the info')
+    substrate = SubstrateInterface(url=WS_URL)
+
+    fund_sudo_account()
+    fund_all_retated_accounts()
+
+    balance = get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address)
+    if balance < 1 * 10 ** 18:
+        raise IOError('Sudo user still dont have enough balance')
 
 
 # [TODO] Will need to remove after precompile runtime upgrade
@@ -169,21 +180,12 @@ def remove_asset_id(substrate):
     batch.execute()
 
 
-def do_runtime_upgrade(wasm_path):
+def do_runtime_upgrade_only(wasm_path):
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
-
-    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
-    setup_hrmp_channel(RELAYCHAIN_WS_URL)
-
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
-    fund_account()
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
-    # Remove the asset id 1: relay chain
-    # Because of the zenlink's test_create_pair_swap should only use asset 1
-    remove_asset_id(substrate)
-    update_xcm_default_version(substrate)
 
     upgrade(wasm_path)
     wait_for_n_blocks(substrate, 15)
@@ -193,6 +195,28 @@ def do_runtime_upgrade(wasm_path):
     if old_version == new_version:
         raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
     print(f'Upgrade from {old_version} to the {new_version}')
+
+
+def setup_actions():
+    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
+    setup_hrmp_channel(RELAYCHAIN_WS_URL)
+
+    wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
+    substrate = SubstrateInterface(url=WS_URL)
+
+    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+        print(f'Funding account {KP_GLOBAL_SUDO.ss58_address}')
+        fund_account()
+
+    # Remove the asset id 1: relay chain
+    # Because of the zenlink's test_create_pair_swap should only use asset 1
+    remove_asset_id(substrate)
+    update_xcm_default_version(substrate)
+
+
+def do_runtime_upgrade(wasm_path):
+    setup_actions()
+    do_runtime_upgrade_only(wasm_path)
 
 
 def main():
