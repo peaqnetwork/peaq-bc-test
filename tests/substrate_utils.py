@@ -85,7 +85,7 @@ def generate_substrate_weight_fee_report():
     now = datetime.datetime.now()
     date = now.strftime("%Y-%m-%d-%H-%M")
 
-    folder = "reports"
+    folder = os.path.realpath("reports")
     report_file = f"substrate_weight_fee_summary_{date}.json"
 
     if not os.path.exists(folder):
