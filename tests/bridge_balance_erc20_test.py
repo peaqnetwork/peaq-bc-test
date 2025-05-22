@@ -13,7 +13,9 @@ from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import get_eth_info
 from peaq.utils import get_chain
 from tools.utils import batch_fund
+from tools.evm_precompiles import generate_permit2
 from web3 import Web3
+from web3.eth import Eth
 
 
 BALANCE_ERC20_ABI_FILE = 'ETH/balance-erc20/abi'
@@ -241,3 +243,27 @@ class balance_erc20_asset_test(unittest.TestCase):
             sub_kp_balance_post, erc_transfer_num,
             f'Error: Transfer to {ss58_kp_src.ss58_address} failed.'
         )
+
+    def test_permit(self):
+        owner = self._eth_kp_src['eth']
+        spender = self._eth_kp_dst['eth']
+        value = 500
+        deadline = 2^255 # or 0
+
+        contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+
+        # 1. permit = generate_permit(owner, spender, value, nonce=0, deadline)
+        # permit = generate_permit(owner, spender, value, 0, deadline)
+        permit = generate_permit2(owner, spender, value, 0, deadline)
+        # 2. (rs, v) = sign(permit, secret_key) | rs contains fields r, s
+        signer = self._eth_kp_src['kp']
+        print(signer.private_key)
+        w3 = self._w3
+        ticket = w3.eth.account.sign_transaction(permit, private_key=signer.private_key)
+        print(ticket)
+        # Use libsecp256k1 for signing, secret-key, and message if needed.
+        v = ticket.v
+        r = ticket.r
+        s = ticket.s
+
+        receipt = contract.functions.permit(owner, spender, value, deadline, v, r, s).call()
