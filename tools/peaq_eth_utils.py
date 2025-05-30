@@ -53,6 +53,24 @@ def get_eth_balance(substrate, eth_src):
     return int(substrate.rpc_request("eth_getBalance", [eth_src, bl_num]).get('result'), 16)
 
 
+def deploy_contract_with_args(w3, kp_src, eth_chain_id, abi_file_name, bytecode, args):
+    with open(abi_file_name) as f:
+        abi = json.load(f)
+
+    nonce = w3.eth.get_transaction_count(kp_src.ss58_address)
+    tx = w3.eth.contract(
+        abi=abi,
+        bytecode=bytecode).constructor(*args).build_transaction({
+            'from': kp_src.ss58_address,
+            'nonce': nonce,
+            'chainId': eth_chain_id})
+
+    tx_receipt = sign_and_submit_evm_transaction(tx, w3, kp_src)
+
+    address = tx_receipt['contractAddress']
+    return address
+
+
 def deploy_contract(w3, kp_src, eth_chain_id, abi_file_name, bytecode):
     with open(abi_file_name) as f:
         abi = json.load(f)
@@ -135,8 +153,8 @@ def wait_w3_tx(w3, tx_hash, timimeout=ETH_TIMEOUT):
 
 
 def sign_and_submit_evm_transaction(tx, w3, signer):
-    signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
     for i in range(3):
+        signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
         tx_hash = send_raw_tx(w3, signed_txn)
         wait_w3_tx(w3, tx_hash)
 
@@ -152,4 +170,5 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
                 time.sleep(BLOCK_GENERATE_TIME * 2)
         else:
             print(f'Cannot find tx {tx_hash.hex()}')
+            tx['data'] = tx['data'] + '00'
     raise IOError('Cannot send transaction')

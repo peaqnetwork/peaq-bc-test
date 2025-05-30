@@ -20,15 +20,30 @@ def load_all_function(folder, abi):
 
 
 def load_all_abi():
-    # traverse ETH/*/abi files
-    folders = os.listdir("ETH")
+    base_path = "ETH"
+    folders = os.listdir(base_path)
+
     for folder in folders:
         if folder == ".pytest_cache":
             continue
-        with open(os.path.join('ETH', folder, 'abi')) as f:
-            abi = json.load(f)
-        for k, v in load_all_function(folder, abi).items():
-            func_selector_dict[k] = v
+
+        primary_path = os.path.join(base_path, folder, "abi")
+
+        if os.path.isfile(primary_path):
+            with open(primary_path) as f:
+                abi = json.load(f)
+            for k, v in load_all_function(folder, abi).items():
+                func_selector_dict[k] = v
+        else:
+            # fallback: 嘗試 ETH/{folder}/*/abi
+            subdirs = os.listdir(os.path.join(base_path, folder))
+            for sub in subdirs:
+                nested_path = os.path.join(base_path, folder, sub, "abi")
+                if os.path.isfile(nested_path):
+                    with open(nested_path) as f:
+                        abi = json.load(f)
+                    for k, v in load_all_function(f"{folder}/{sub}", abi).items():
+                        func_selector_dict[k] = v
 
 
 def compose_batch_function_name(w3, input_data):
@@ -89,7 +104,7 @@ def generate_evm_fee_report():
     now = datetime.datetime.now()
     date = now.strftime("%Y-%m-%d-%H-%M")
 
-    folder = "reports"
+    folder = os.path.realpath("reports")
     report_file = f"evm_fee_summary_{date}.json"
 
     if not os.path.exists(folder):
