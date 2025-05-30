@@ -197,17 +197,17 @@ class TestDelegatorIssue(unittest.TestCase):
             1, 7,
             f'{total_diff} v.s. {pot_transferable_balance} is not equal')
 
-        self.assertAlmostEquals(
+        self.assertAlmostEqual(
             (now_c_balance - prev_c_balance) / ((now_d_1_balance - prev_d_1_balance) * 4),
             1, 7,
             f'{now_c_balance - prev_c_balance} v.s. {(now_d_1_balance - prev_d_1_balance) * 4} is not equal')
 
-        self.assertAlmostEquals(
+        self.assertAlmostEqual(
             (now_c_balance - prev_c_balance) / ((now_d_2_balance - prev_d_2_balance) * 4),
             1, 7,
             f'{now_c_balance - prev_c_balance} v.s. {(now_d_2_balance - prev_d_2_balance) * 4} is not equal')
 
-        self.assertAlmostEquals(
+        self.assertAlmostEqual(
             (now_d_1_balance - prev_d_1_balance) / (now_d_2_balance - prev_d_2_balance),
             1, 7,
             f'{now_d_1_balance - prev_d_1_balance} v.s. {now_d_2_balance - prev_d_2_balance} is not equal')
