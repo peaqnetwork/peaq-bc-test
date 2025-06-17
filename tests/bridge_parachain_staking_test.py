@@ -6,6 +6,7 @@ from substrateinterface import SubstrateInterface, Keypair
 from tools.constants import WS_URL, ETH_URL, RELAYCHAIN_WS_URL
 from tests.evm_utils import sign_and_submit_evm_transaction
 from peaq.utils import ExtrinsicBatch
+from peaq.utils import get_block_height
 from tests import utils_func as TestUtils
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
@@ -15,6 +16,7 @@ from tools.evm_claim_sign import calculate_claim_signature, claim_account
 from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import get_block_hash
 from web3 import Web3
+import time
 
 
 PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
@@ -80,6 +82,16 @@ class bridge_parachain_staking_test(unittest.TestCase):
             }
         )
         return batch.execute()
+
+    def wait_for_n_blocks(self, n):
+        block_height = get_block_height(self._substrate)
+        trigger_height = block_height + n
+        for i in range(n * 2):
+            now_height = get_block_height(self._substrate)
+            print(f'now_height: {now_height}, trigger_height: {trigger_height}')
+            if now_height >= trigger_height:
+                break
+            time.sleep(6)
 
     def evm_join_delegators(self, contract, eth_kp_src, sub_collator_addr, stake):
         w3 = self._w3
@@ -318,6 +330,9 @@ class bridge_parachain_staking_test(unittest.TestCase):
         return batch.execute()
 
     def test_commission_rate(self):
+        receipt = self.set_commission_rate(10)
+        self.assertFalse(receipt.is_success, f'set_commission fails, receipt: {receipt}')
+        self.wait_for_n_blocks(10)
         # Set commission rate as 20
         receipt = self.set_commission_rate(20)
         self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
@@ -349,6 +364,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
                 collator_info.value['stake'],
                 f'commission rate fails, out: {out}, all_colators_info: {all_colators_info}')
 
+        self.wait_for_n_blocks(10)
         receipt = self.set_commission_rate(0)
         self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
 
