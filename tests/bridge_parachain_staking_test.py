@@ -9,16 +9,22 @@ from peaq.utils import ExtrinsicBatch
 from tests import utils_func as TestUtils
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
-# , calculate_evm_default_addr
 from tools.peaq_eth_utils import get_eth_info
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
-from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR
-from peaq.utils import get_block_hash
+from tools.constants import KP_GLOBAL_SUDO, KP_COLLATOR, BLOCK_GENERATE_TIME
+from peaq.utils import get_block_hash, get_chain
+from tools.utils import get_modified_chain_spec
 from web3 import Web3
 
 
 PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
+
+UNSTAKING_PERIOD_BLOCKS = {
+    'peaq-network': int(14 * 24 * 60 * 60 / BLOCK_GENERATE_TIME),
+    'peaq-dev': int(7 * 60 / BLOCK_GENERATE_TIME),
+    'krest-network': int(4 * 60 * 60 / BLOCK_GENERATE_TIME),
+}
 
 
 @pytest.mark.relaunch
@@ -41,6 +47,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self._eth_chain_id = get_eth_chain_id(self._substrate)
         self._kp_src = Keypair.create_from_uri('//Moon')
         self._kp_new_collator = Keypair.create_from_uri('//NewMoon01')
+        self._chain_spec = get_modified_chain_spec(get_chain(self._substrate))
 
     def _fund_users(self, num=100 * 10 ** 18):
         if num < 100 * 10 ** 18:
@@ -297,14 +304,26 @@ class bridge_parachain_staking_test(unittest.TestCase):
             (self._kp_moon['substrate'], collator_num),
             f'join fails, event: {event}')
 
-        # Unstake the delegator
-        print(f'address {self._kp_moon["eth"]}')
-        evm_receipt = self.evm_delegator_unlock_unstaked(contract, self._kp_moon['kp'], self._kp_moon['eth'])
-        self.assertEqual(evm_receipt['status'], 1, f'unlock unstaked fails, evm_receipt: {evm_receipt}')
-        print(f'receipt block number: {evm_receipt["blockNumber"]}')
+        # Check unstaking period timing
+        leave_block_number = evm_receipt['blockNumber']
+        unstaking_data = self._substrate.query('ParachainStaking', 'Unstaking', [self._kp_moon['substrate']])
+        self.assertIsNotNone(unstaking_data.value, f'No unstaking data found for delegator {self._kp_moon["substrate"]}')
 
-        # Note: The unlock unstaked didn't success because we have to wait about 20+ blocks;
-        # therefore, we don't test here. Can just test maunally
+        # Get chain-specific unstaking period
+        unstaking_period = UNSTAKING_PERIOD_BLOCKS[self._chain_spec]
+        expected_unlock_block = leave_block_number + unstaking_period
+
+        # Extract the latest (most recent) unstaking entry - the one with the highest block number
+        latest_unstaking_entry = max(unstaking_data.value, key=lambda x: x[0])
+        actual_unlock_block = latest_unstaking_entry[0]
+
+        self.assertEqual(
+            actual_unlock_block,
+            expected_unlock_block,
+            f'Unstaking unlock block mismatch. Expected: {expected_unlock_block}, '
+            f'Actual: {actual_unlock_block}, Leave block: {leave_block_number}, '
+            f'Chain: {self._chain_spec}, Period: {unstaking_period}'
+        )
 
     def set_commission_rate(self, rate, kp=KP_COLLATOR):
         batch = ExtrinsicBatch(self._substrate, kp)
