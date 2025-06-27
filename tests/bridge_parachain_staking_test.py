@@ -307,7 +307,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         # Check unstaking period timing
         leave_block_number = evm_receipt['blockNumber']
         unstaking_data = self._substrate.query('ParachainStaking', 'Unstaking', [self._kp_moon['substrate']])
-        self.assertIsNotNone(unstaking_data.value, f'No unstaking data found for delegator {self._kp_moon["substrate"]}')
+        self.assertTrue(unstaking_data.value, f'No unstaking data found or unstaking list is empty for delegator {self._kp_moon["substrate"]}')
 
         # Get chain-specific unstaking period
         unstaking_period = UNSTAKING_PERIOD_BLOCKS[self._chain_spec]
