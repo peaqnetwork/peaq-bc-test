@@ -435,11 +435,15 @@ class balance_erc20_asset_test(unittest.TestCase):
                 expired_deadline,
                 v, r, s
             )
-            # If permit didn't revert, check that status is 0 (failed)
+            # If it doesn't revert, the transaction should fail
             self.assertEqual(permit_receipt['status'], 0, 'Permit with expired deadline should fail')
-        except Exception:
-            # Expected - permit should revert with expired deadline
-            pass
+        except ValueError as e:
+            # Expected - permit should revert with deadline/expired related message
+            error_msg = str(e).lower()
+            self.assertTrue(
+                'expired' in error_msg or 'deadline' in error_msg or 'invalid permit' in error_msg,
+                f'Should revert with deadline-related error, got: {e}'
+            )
 
     def test_permit_invalid_signature(self):
         """Test permit with invalid signature"""
@@ -462,8 +466,8 @@ class balance_erc20_asset_test(unittest.TestCase):
         
         # Use invalid signature components
         invalid_v = 28
-        invalid_r = b'\\x00' * 32
-        invalid_s = b'\\x00' * 32
+        invalid_r = b'\x00' * 32
+        invalid_s = b'\x00' * 32
         
         # Execute permit with invalid signature - should fail
         try:
@@ -475,8 +479,8 @@ class balance_erc20_asset_test(unittest.TestCase):
                 deadline,
                 invalid_v, invalid_r, invalid_s
             )
-            # If permit didn't revert, check that status is 0 (failed)
+            # If it doesn't revert, the transaction should fail
             self.assertEqual(permit_receipt['status'], 0, 'Permit with invalid signature should fail')
-        except Exception:
-            # Expected - permit should revert with invalid signature
-            pass
+        except ValueError as e:
+            # Expected - permit should revert with "Invalid permit" message
+            self.assertIn('Invalid permit', str(e), 'Should revert with Invalid permit message')
