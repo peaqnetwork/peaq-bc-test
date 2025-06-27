@@ -310,6 +310,8 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self.assertTrue(unstaking_data.value, f'No unstaking data found or unstaking list is empty for delegator {self._kp_moon["substrate"]}')
 
         # Get chain-specific unstaking period
+        if self._chain_spec not in UNSTAKING_PERIOD_BLOCKS:
+            raise ValueError(f"Unsupported chain spec '{self._chain_spec}'. Valid options are: {list(UNSTAKING_PERIOD_BLOCKS.keys())}")
         unstaking_period = UNSTAKING_PERIOD_BLOCKS[self._chain_spec]
         expected_unlock_block = leave_block_number + unstaking_period
 
