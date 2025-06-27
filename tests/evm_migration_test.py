@@ -21,6 +21,8 @@ from tests.evm_sc.struct import StructSCBehavior
 from tests.evm_sc.reentry import ReentrySCBehavior
 from tests.evm_sc.gas import GasSCBehavior
 from tests.evm_sc.calldata import CalldataSCBehavior
+from tests.evm_sc.calltest import CallTestSCBehavior
+from tests.evm_sc.storage import StorageTestSCBehavior
 
 import pprint
 
@@ -48,6 +50,8 @@ class TestEVMEthUpgrade(unittest.TestCase):
             ReentrySCBehavior(self, self._w3, get_eth_info()),
             GasSCBehavior(self, self._w3, get_eth_info()),
             CalldataSCBehavior(self, self._w3, get_eth_info()),
+            CallTestSCBehavior(self, self._w3, get_eth_info()),
+            StorageTestSCBehavior(self, self._w3, get_eth_info()),
         ]
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="We only test it in non upgrade test")
