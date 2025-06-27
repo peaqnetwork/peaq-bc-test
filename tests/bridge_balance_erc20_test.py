@@ -107,11 +107,11 @@ class balance_erc20_asset_test(unittest.TestCase):
 
         return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
-    def generate_permit_signature(self, contract, owner_kp, spender_address, value, deadline):
+    def generate_permit_signature(self, contract, owner_kp, owner_address, spender_address, value, deadline):
         """Generate EIP-712 permit signature"""
         # Get domain separator and nonce
         expected_domain_separator = contract.functions.DOMAIN_SEPARATOR().call()
-        nonce = contract.functions.nonces(owner_kp.ss58_address).call()
+        nonce = contract.functions.nonces(owner_address).call()
 
         # Get token name from the regular ERC20 contract
         erc20_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
@@ -142,7 +142,7 @@ class balance_erc20_asset_test(unittest.TestCase):
                 'verifyingContract': BALANCE_ERC20_ADDR
             },
             'message': {
-                'owner': owner_kp.ss58_address,
+                'owner': owner_address,
                 'spender': spender_address,
                 'value': value,
                 'nonce': nonce,
@@ -167,12 +167,12 @@ class balance_erc20_asset_test(unittest.TestCase):
 
         return v, r, s, nonce
 
-    def evm_permit(self, contract, owner_kp, spender_address, value, deadline, v, r, s):
+    def evm_permit(self, contract, owner_kp, owner_address, spender_address, value, deadline, v, r, s):
         """Execute permit function"""
         w3 = self._w3
-        nonce = w3.eth.get_transaction_count(owner_kp.ss58_address)
+        nonce = w3.eth.get_transaction_count(owner_address)
         tx = contract.functions.permit(
-            owner_kp.ss58_address,
+            owner_address,
             spender_address,
             value,
             deadline,
@@ -180,7 +180,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             r,
             s
         ).build_transaction({
-            'from': owner_kp.ss58_address,
+            'from': owner_address,
             'nonce': nonce,
             'chainId': self._eth_chain_id
         })
@@ -357,6 +357,7 @@ class balance_erc20_asset_test(unittest.TestCase):
         v, r, s, nonce = self.generate_permit_signature(
             permit_contract,
             self._eth_kp_src['kp'],
+            self._eth_kp_src['eth'],
             self._eth_kp_dst['eth'],
             permit_value,
             deadline
@@ -368,6 +369,7 @@ class balance_erc20_asset_test(unittest.TestCase):
         permit_receipt = self.evm_permit(
             permit_contract,
             self._eth_kp_src['kp'],
+            self._eth_kp_src['eth'],
             self._eth_kp_dst['eth'],
             permit_value,
             deadline,
@@ -426,6 +428,7 @@ class balance_erc20_asset_test(unittest.TestCase):
         v, r, s, nonce = self.generate_permit_signature(
             permit_contract,
             self._eth_kp_src['kp'],
+            self._eth_kp_src['eth'],
             self._eth_kp_dst['eth'],
             permit_value,
             expired_deadline
@@ -436,6 +439,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             permit_receipt = self.evm_permit(
                 permit_contract,
                 self._eth_kp_src['kp'],
+                self._eth_kp_src['eth'],
                 self._eth_kp_dst['eth'],
                 permit_value,
                 expired_deadline,
@@ -480,6 +484,7 @@ class balance_erc20_asset_test(unittest.TestCase):
             permit_receipt = self.evm_permit(
                 permit_contract,
                 self._eth_kp_src['kp'],
+                self._eth_kp_src['eth'],
                 self._eth_kp_dst['eth'],
                 permit_value,
                 deadline,
