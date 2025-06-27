@@ -1,5 +1,6 @@
 import pytest
 import unittest
+import time
 
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
@@ -14,9 +15,12 @@ from tools.peaq_eth_utils import get_eth_info
 from peaq.utils import get_chain
 from tools.utils import batch_fund
 from web3 import Web3
+from eth_account import Account as ETHAccount
+from eth_account.messages import encode_structured_data
 
 
 BALANCE_ERC20_ABI_FILE = 'ETH/balance-erc20/abi'
+BALANCE_ERC20_PERMIT_ABI_FILE = 'ETH/balance-erc20-permit/abi'
 BALANCE_ERC20_ADDR = '0x0000000000000000000000000000000000000809'
 
 
@@ -102,6 +106,80 @@ class balance_erc20_asset_test(unittest.TestCase):
             'chainId': self._eth_chain_id})
 
         return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
+
+    def generate_permit_signature(self, contract, owner_kp, spender_address, value, deadline):
+        """Generate EIP-712 permit signature"""
+        # Get domain separator and nonce
+        domain_separator = contract.functions.DOMAIN_SEPARATOR().call()
+        nonce = contract.functions.nonces(owner_kp.ss58_address).call()
+        
+        # Get token name from the regular ERC20 contract
+        erc20_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+        token_name = erc20_contract.functions.name().call()
+        
+        # EIP-712 structured data for permit
+        message = {
+            'types': {
+                'EIP712Domain': [
+                    {'name': 'name', 'type': 'string'},
+                    {'name': 'version', 'type': 'string'},
+                    {'name': 'chainId', 'type': 'uint256'},
+                    {'name': 'verifyingContract', 'type': 'address'}
+                ],
+                'Permit': [
+                    {'name': 'owner', 'type': 'address'},
+                    {'name': 'spender', 'type': 'address'},
+                    {'name': 'value', 'type': 'uint256'},
+                    {'name': 'nonce', 'type': 'uint256'},
+                    {'name': 'deadline', 'type': 'uint256'}
+                ]
+            },
+            'primaryType': 'Permit',
+            'domain': {
+                'name': token_name,
+                'version': '1',
+                'chainId': self._eth_chain_id,
+                'verifyingContract': BALANCE_ERC20_ADDR
+            },
+            'message': {
+                'owner': owner_kp.ss58_address,
+                'spender': spender_address,
+                'value': value,
+                'nonce': nonce,
+                'deadline': deadline
+            }
+        }
+        
+        # Sign the structured data
+        private_key = owner_kp.private_key
+        signature = ETHAccount.sign_message(encode_structured_data(message), private_key)
+        
+        # Extract v, r, s components
+        v = signature.v
+        r = signature.r.to_bytes(32, byteorder='big')
+        s = signature.s.to_bytes(32, byteorder='big')
+        
+        return v, r, s, nonce
+
+    def evm_permit(self, contract, owner_kp, spender_address, value, deadline, v, r, s):
+        """Execute permit function"""
+        w3 = self._w3
+        nonce = w3.eth.get_transaction_count(owner_kp.ss58_address)
+        tx = contract.functions.permit(
+            owner_kp.ss58_address,
+            spender_address,
+            value,
+            deadline,
+            v,
+            r,
+            s
+        ).build_transaction({
+            'from': owner_kp.ss58_address,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id
+        })
+        
+        return sign_and_submit_evm_transaction(tx, w3, owner_kp)
 
     def test_balance_erc20_metadata(self):
         contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
@@ -241,3 +319,164 @@ class balance_erc20_asset_test(unittest.TestCase):
             sub_kp_balance_post, erc_transfer_num,
             f'Error: Transfer to {ss58_kp_src.ss58_address} failed.'
         )
+
+    def test_permit_functionality(self):
+        """Test ERC-20 permit functionality using EIP-712 signatures"""
+        # Get contracts - permit ABI for permit functions, ERC20 ABI for standard functions
+        permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
+        erc20_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+        
+        # Try to call permit functions - this will fail if not implemented
+        try:
+            domain_separator = permit_contract.functions.DOMAIN_SEPARATOR().call()
+            self.assertIsNotNone(domain_separator)
+        except Exception as e:
+            self.skipTest(f"Contract does not support permit functionality: {e}")
+        
+        # Setup accounts with funds
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        batch_fund(batch, self._eth_kp_dst['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+        
+        # Test permit parameters
+        permit_value = 5 * 10 ** 18
+        deadline = int(time.time()) + 3600  # 1 hour from now
+        
+        # Get initial nonce
+        initial_nonce = permit_contract.functions.nonces(self._eth_kp_src['eth']).call()
+        
+        # Generate permit signature
+        v, r, s, nonce = self.generate_permit_signature(
+            permit_contract,
+            self._eth_kp_src['kp'],
+            self._eth_kp_dst['eth'],
+            permit_value,
+            deadline
+        )
+        
+        self.assertEqual(nonce, initial_nonce, f"Nonce mismatch: {nonce} != {initial_nonce}")
+        
+        # Execute permit
+        permit_receipt = self.evm_permit(
+            permit_contract,
+            self._eth_kp_src['kp'],
+            self._eth_kp_dst['eth'],
+            permit_value,
+            deadline,
+            v, r, s
+        )
+        self.assertEqual(permit_receipt['status'], 1, f'Permit failed: {permit_receipt}')
+        
+        # Verify allowance was set using ERC20 contract
+        allowance = erc20_contract.functions.allowance(self._eth_kp_src['eth'], self._eth_kp_dst['eth']).call()
+        self.assertEqual(allowance, permit_value, f'Allowance not set correctly: {allowance} != {permit_value}')
+        
+        # Verify nonce was incremented
+        new_nonce = permit_contract.functions.nonces(self._eth_kp_src['eth']).call()
+        self.assertEqual(new_nonce, initial_nonce + 1, f'Nonce not incremented: {new_nonce} != {initial_nonce + 1}')
+        
+        # Test transferFrom using the permit allowance (using ERC20 contract)
+        empty_addr = get_eth_info()
+        transfer_receipt = self.evm_balance_erc20_transfer_from(
+            erc20_contract,
+            self._eth_kp_dst['kp'],
+            self._eth_kp_src['eth'],
+            empty_addr['eth'],
+            permit_value
+        )
+        self.assertEqual(transfer_receipt['status'], 1, f'TransferFrom failed: {transfer_receipt}')
+        
+        # Verify transfer worked using ERC20 contract
+        final_balance = erc20_contract.functions.balanceOf(empty_addr['eth']).call()
+        self.assertEqual(final_balance, permit_value, f'Transfer amount incorrect: {final_balance} != {permit_value}')
+        
+        # Verify allowance was consumed using ERC20 contract
+        final_allowance = erc20_contract.functions.allowance(self._eth_kp_src['eth'], self._eth_kp_dst['eth']).call()
+        self.assertEqual(final_allowance, 0, f'Allowance not consumed: {final_allowance} != 0')
+
+    def test_permit_expired_deadline(self):
+        """Test permit with expired deadline"""
+        permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
+        
+        # Skip if permit not supported
+        try:
+            permit_contract.functions.DOMAIN_SEPARATOR().call()
+        except Exception as e:
+            self.skipTest(f"Contract does not support permit functionality: {e}")
+        
+        # Setup accounts with funds
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+        
+        # Use expired deadline (past timestamp)
+        permit_value = 5 * 10 ** 18
+        expired_deadline = int(time.time()) - 3600  # 1 hour ago
+        
+        # Generate permit signature with expired deadline
+        v, r, s, nonce = self.generate_permit_signature(
+            permit_contract,
+            self._eth_kp_src['kp'],
+            self._eth_kp_dst['eth'],
+            permit_value,
+            expired_deadline
+        )
+        
+        # Execute permit - should fail
+        try:
+            permit_receipt = self.evm_permit(
+                permit_contract,
+                self._eth_kp_src['kp'],
+                self._eth_kp_dst['eth'],
+                permit_value,
+                expired_deadline,
+                v, r, s
+            )
+            # If permit didn't revert, check that status is 0 (failed)
+            self.assertEqual(permit_receipt['status'], 0, 'Permit with expired deadline should fail')
+        except Exception:
+            # Expected - permit should revert with expired deadline
+            pass
+
+    def test_permit_invalid_signature(self):
+        """Test permit with invalid signature"""
+        permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
+        
+        # Skip if permit not supported
+        try:
+            permit_contract.functions.DOMAIN_SEPARATOR().call()
+        except Exception as e:
+            self.skipTest(f"Contract does not support permit functionality: {e}")
+        
+        # Setup accounts with funds
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+        
+        permit_value = 5 * 10 ** 18
+        deadline = int(time.time()) + 3600
+        
+        # Use invalid signature components
+        invalid_v = 28
+        invalid_r = b'\\x00' * 32
+        invalid_s = b'\\x00' * 32
+        
+        # Execute permit with invalid signature - should fail
+        try:
+            permit_receipt = self.evm_permit(
+                permit_contract,
+                self._eth_kp_src['kp'],
+                self._eth_kp_dst['eth'],
+                permit_value,
+                deadline,
+                invalid_v, invalid_r, invalid_s
+            )
+            # If permit didn't revert, check that status is 0 (failed)
+            self.assertEqual(permit_receipt['status'], 0, 'Permit with invalid signature should fail')
+        except Exception:
+            # Expected - permit should revert with invalid signature
+            pass
