@@ -35,3 +35,17 @@ URI_GLOBAL_SUDO = '//Alice'
 KP_GLOBAL_SUDO = Keypair.create_from_uri(URI_GLOBAL_SUDO)
 KP_COLLATOR = Keypair.create_from_uri('//Ferdie')
 ACA_PD_CHAIN_ID = 3000
+
+DEFAULT_COLLATOR_PATH = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'peaq-network-node', 'target', 'release', 'peaq-node')
+DEFAULT_BINARY_CHAIN_PATH = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'peaq-network-node', 'collator')
+DEFAULT_DOCKER_COMPOSE_FOLDER = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'parachain-launch', 'yoyo')
+
+DEFAULT_COLLATOR_DICT = {
+    'collator_binary': None,
+    'chain_data': None,
+    'enable_collator_binary': False,
+    'docker_compose_folder': None,
+}

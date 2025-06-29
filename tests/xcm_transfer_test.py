@@ -140,26 +140,11 @@ TEST_LP_ASSET_TOKEN = get_asset_token_location(15)
 TEST_FEES_RANGE = {
     'peaq-dev': {
         'min': 0,
-        'max': 200000000000,
+        'max': 400000000000,
     },
     'krest-network': {
         'min': 0,
-        'max': 200000000000,
-    },
-    'peaq-network': {
-        'min': 0,
-        'max': 40000000000000000,
-    },
-}
-
-TEST_FEES_RANGE = {
-    'peaq-dev': {
-        'min': 0,
-        'max': 200000000000,
-    },
-    'krest-network': {
-        'min': 0,
-        'max': 200000000000,
+        'max': 400000000000,
     },
     'peaq-network': {
         'min': 0,

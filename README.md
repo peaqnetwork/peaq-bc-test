@@ -77,3 +77,16 @@ python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.networ
 python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.network --test-session-num 10 -t validator
 python3 tools/stress/stress_token_economy_v2.py -r wss://docker-test.peaq.network --test-session-num 10 -t traverse    
 ```
+
+# Supoport runtime upgrade
+Now we are supporting the runtime upgrade that the node also need upgrade. When you wanto to do that, please add below arguments
+```
+pytest --runtime-upgrade-path=${RUNTIME_PATH} --enable-collator-binary --collator-binary-path /path/to/collator --enable-parachain-binary --parachain-binary-path /path/to/parachain --docker-compose-folder /path/to/docker-compose
+```
+
+
+We can also use tools/runtime_upgrade.py to do the runtime upgrade
+
+```
+python3 tools/runtime_upgrade.py --runtime-upgrade-path=${RUNTIME_PATH} --enable-collator-binary --collator-binary-path /path/to/collator --enable-parachain-binary --parachain-binary-path /path/to/parachain --docker-compose-folder /path/to/docker-compose
+```

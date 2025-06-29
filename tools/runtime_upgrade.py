@@ -17,12 +17,54 @@ from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
 from tools.constants import BLOCK_GENERATE_TIME
+from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
+from tools.constants import DEFAULT_DOCKER_COMPOSE_FOLDER
+from tools.constants import DEFAULT_COLLATOR_DICT
 from tools.xcm_setup import setup_hrmp_channel
+from tools.collator_binary_utils import wakeup_latest_collator
+from tools.collator_binary_utils import copy_all_chain_data
+from tools.collator_binary_utils import get_docker_info
+from tools.collator_binary_utils import stop_peaq_docker_container
+from tools.collator_binary_utils import stop_collator_binary
+from tools.collator_binary_utils import get_docker_volume_path
 from tools.utils import show_title
 import argparse
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
+
+
+def set_runtime_upgrade_path_to_env(runtime_path):
+    if not runtime_path:
+        print(f'use the default runtime path: {os.environ.get("RUNTIME_UPGRADE_PATH")}')
+        return
+    os.environ['RUNTIME_UPGRADE_PATH'] = runtime_path
+
+
+def fetch_runtime_upgrade_path_from_env():
+    return os.environ.get('RUNTIME_UPGRADE_PATH')
+
+
+def set_enable_collator_dict_to_env(enable_collator_binary, collator_binary, chain_data, docker_compose_folder):
+    os.environ['TEST_ENABLE_COLLATOR_BINARY'] = str(enable_collator_binary)
+    if enable_collator_binary:
+        os.environ['TEST_COLLATOR_BINARY'] = collator_binary
+        os.environ['TEST_CHAIN_DATA'] = chain_data
+        os.environ['TEST_DOCKER_COMPOSE_FOLDER'] = docker_compose_folder
+    else:
+        os.environ['TEST_COLLATOR_BINARY'] = ''
+        os.environ['TEST_CHAIN_DATA'] = ''
+        os.environ['TEST_DOCKER_COMPOSE_FOLDER'] = ''
+
+
+def fetch_collator_dict_from_env():
+    # Fetch the environment variables
+    enable_collator_dict = DEFAULT_COLLATOR_DICT.copy()
+    enable_collator_dict['enable_collator_binary'] = os.environ.get('TEST_ENABLE_COLLATOR_BINARY') == 'True'
+    enable_collator_dict['collator_binary'] = os.environ.get('TEST_COLLATOR_BINARY')
+    enable_collator_dict['chain_data'] = os.environ.get('TEST_CHAIN_DATA')
+    enable_collator_dict['docker_compose_folder'] = os.environ.get('TEST_DOCKER_COMPOSE_FOLDER')
+    return enable_collator_dict
 
 
 def send_upgrade_call(substrate, kp_sudo, wasm_file):
@@ -180,15 +222,39 @@ def remove_asset_id(substrate):
     batch.execute()
 
 
-def do_runtime_upgrade_only(wasm_path):
+def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
+
+    docker_volume_path = get_docker_volume_path()
+    docker_info = get_docker_info(collator_dict)
+
+    wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
 
     upgrade(wasm_path)
-    wait_for_n_blocks(substrate, 15)
+    try:
+        wait_for_n_blocks(substrate, 15)
+    except Exception as e:
+        print(f'Error: {e}')
+        if not collator_dict['enable_collator_binary']:
+            raise e
+        if 'runtime requires function imports' not in str(e) and 'Timeout for waiting blocks' not in str(e):
+            raise e
+
+    if collator_dict['enable_collator_binary']:
+        copy_all_chain_data(collator_dict, docker_volume_path)
+        print(f'docker info: {docker_info}')
+        stop_collator_binary()
+        stop_peaq_docker_container()
+        wakeup_latest_collator(collator_dict, docker_info)
+
+        substrate = SubstrateInterface(url=WS_URL)
+        substrate.connect_websocket()
+        wait_for_n_blocks(substrate, 3)
+
     # Cannot move in front of the upgrade because V4 only exists in 1.7.2
 
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
@@ -214,18 +280,37 @@ def setup_actions():
     update_xcm_default_version(substrate)
 
 
-def do_runtime_upgrade(wasm_path):
+def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     setup_actions()
-    do_runtime_upgrade_only(wasm_path)
+    do_runtime_upgrade_only(wasm_path, collator_dict)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
-    parser.add_argument('-r', '--runtime', type=str, help='Your runtime poisiton')
+    parser.add_argument('--runtime-upgrade-path', type=str, help='Your runtime poisiton')
     parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
 
+    # Three options for the collator binary
+    #    1. Enable the collator binary: enable-collator-binary
+    #    2. Collator binary path: collator-binary: collator-binary
+    #    3. Chain data path: chain-data: chain-data
+    parser.add_argument(
+        '--enable-collator-binary', action="store_true", default=False, help='Enable collator binary')
+    parser.add_argument(
+        '--collator-binary',
+        type=str, help='Collator binary path, only affect when enable collator binary',
+        default=DEFAULT_COLLATOR_PATH)
+    parser.add_argument(
+        '--chain-data',
+        type=str, help='Collator\'s chain data path, only affect when enable collator binary',
+        default=DEFAULT_BINARY_CHAIN_PATH)
+    parser.add_argument(
+        '--docker-compose-folder',
+        help='Docker compose folder',
+        type=str, default=DEFAULT_DOCKER_COMPOSE_FOLDER)
+
     args = parser.parse_args()
-    runtime_path = args.runtime
+    runtime_path = args.runtime_upgrade_path
     runtime_env = os.environ.get('RUNTIME_UPGRADE_PATH')
 
     if not runtime_env and not runtime_path:
@@ -234,11 +319,28 @@ def main():
         print(f'Use runtime env {runtime_env} to overide the runtime path {runtime_path}')
         runtime_path = runtime_env
 
+    set_enable_collator_dict_to_env(
+        args.enable_collator_binary,
+        args.collator_binary,
+        args.chain_data,
+        args.docker_compose_folder
+    )
+    set_runtime_upgrade_path_to_env(runtime_path)
+
     if args.docker_restart:
         restart_parachain_launch()
-    do_runtime_upgrade(runtime_path)
+
+    substrate = SubstrateInterface(url=WS_URL)
+    old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+
+    do_runtime_upgrade(runtime_path, fetch_collator_dict_from_env())
     print('Done but wait 30s')
     time.sleep(BLOCK_GENERATE_TIME * 5)
+
+    substrate = SubstrateInterface(url=WS_URL)
+    new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+    if old_version == new_version:
+        raise Exception(f'Runtime upgrade failed. old_version: {old_version}, new_version: {new_version}')
 
 
 if __name__ == '__main__':
