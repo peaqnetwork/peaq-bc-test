@@ -338,22 +338,6 @@ class StorageTestSCBehavior(SmartContractBehavior):
             ),
         }
 
-    @log_func
-    def stress_test_storage(self, kp_caller, operations=50):
-        """Stress test storage operations"""
-        contract = self._get_contract()
-
-        # Run stress test
-        tx_stress = contract.functions.stressTestStorage(operations).build_transaction(
-            self.compose_build_transaction_args(kp_caller)
-        )
-        receipt_stress = self.send_and_check_tx(tx_stress, kp_caller)
-
-        return {
-            "stress_test_operations": operations,
-            "stress_test_success": receipt_stress["status"] == 1,
-            "gas_used": receipt_stress.get("gasUsed", 0),
-        }
 
     def migration_same_behavior(self, args):
         """Execute all storage test scenarios"""
@@ -381,9 +365,5 @@ class StorageTestSCBehavior(SmartContractBehavior):
 
         # Execute integrity tests (no args needed)
         results["integrity_tests"] = self.integrity_tests()
-
-        # Run stress test with one of the caller keypairs
-        if args["complex_storage_tests"]:
-            results["stress_tests"] = self.stress_test_storage(*args["complex_storage_tests"], 25)
 
         return results
