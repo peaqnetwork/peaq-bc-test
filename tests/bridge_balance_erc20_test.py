@@ -167,10 +167,10 @@ class balance_erc20_asset_test(unittest.TestCase):
 
         return v, r, s, nonce
 
-    def evm_permit(self, contract, owner_kp, owner_address, spender_address, value, deadline, v, r, s):
+    def evm_permit(self, contract, submitter_kp, owner_address, spender_address, value, deadline, v, r, s):
         """Execute permit function"""
         w3 = self._w3
-        nonce = w3.eth.get_transaction_count(owner_address)
+        nonce = w3.eth.get_transaction_count(submitter_kp.ss58_address)
         tx = contract.functions.permit(
             owner_address,
             spender_address,
@@ -180,12 +180,12 @@ class balance_erc20_asset_test(unittest.TestCase):
             r,
             s
         ).build_transaction({
-            'from': owner_address,
+            'from': submitter_kp.ss58_address,
             'nonce': nonce,
             'chainId': self._eth_chain_id
         })
 
-        return sign_and_submit_evm_transaction(tx, w3, owner_kp)
+        return sign_and_submit_evm_transaction(tx, w3, submitter_kp)
 
     def test_balance_erc20_metadata(self):
         contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
@@ -409,10 +409,9 @@ class balance_erc20_asset_test(unittest.TestCase):
         permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
 
         # Skip if permit not supported
-        try:
-            permit_contract.functions.DOMAIN_SEPARATOR().call()
-        except Exception as e:
-            self.skipTest(f"Contract does not support permit functionality: {e}")
+        # Verify permit functionality is available
+        domain_separator = permit_contract.functions.DOMAIN_SEPARATOR().call()
+        self.assertIsNotNone(domain_separator)
 
         # Setup accounts with funds
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
@@ -460,10 +459,9 @@ class balance_erc20_asset_test(unittest.TestCase):
         permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
 
         # Skip if permit not supported
-        try:
-            permit_contract.functions.DOMAIN_SEPARATOR().call()
-        except Exception as e:
-            self.skipTest(f"Contract does not support permit functionality: {e}")
+        # Verify permit functionality is available
+        domain_separator = permit_contract.functions.DOMAIN_SEPARATOR().call()
+        self.assertIsNotNone(domain_separator)
 
         # Setup accounts with funds
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
@@ -495,3 +493,73 @@ class balance_erc20_asset_test(unittest.TestCase):
         except ValueError as e:
             # Expected - permit should revert with "Invalid permit" message
             self.assertIn('Invalid permit', str(e), 'Should revert with Invalid permit message')
+
+    def test_permit_third_party_submission(self):
+        """Test that someone else can submit a valid permit signed by the owner"""
+        # Setup - reuse existing permit setup logic
+        permit_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_PERMIT_ABI_FILE)
+        erc20_contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+
+        # Verify permit functionality is available
+        domain_separator = permit_contract.functions.DOMAIN_SEPARATOR().call()
+        self.assertIsNotNone(domain_separator)
+
+        # Fund accounts including third party
+        third_party_kp = get_eth_info()
+        self._fund_accounts_for_permit([self._eth_kp_src, self._eth_kp_dst, third_party_kp])
+
+        permit_value = 7 * 10 ** 18
+        deadline = int(time.time()) + 3600
+
+        # Owner signs permit for spender
+        v, r, s, initial_nonce = self.generate_permit_signature(
+            permit_contract, self._eth_kp_src['kp'], self._eth_kp_src['eth'],
+            self._eth_kp_dst['eth'], permit_value, deadline)
+
+        # Third party submits the permit (key difference from other tests)
+        w3 = self._w3
+        third_party_nonce = w3.eth.get_transaction_count(third_party_kp['eth'])
+        tx = permit_contract.functions.permit(
+            self._eth_kp_src['eth'],  # Owner
+            self._eth_kp_dst['eth'],  # Spender
+            permit_value,
+            deadline,
+            v, r, s
+        ).build_transaction({
+            'from': third_party_kp['eth'],  # Third party submits!
+            'nonce': third_party_nonce,
+            'chainId': self._eth_chain_id
+        })
+        permit_receipt = sign_and_submit_evm_transaction(tx, w3, third_party_kp['kp'])
+        self.assertEqual(permit_receipt['status'], 1)
+
+        # Verify permit worked correctly
+        self._verify_permit_success(erc20_contract, permit_contract, permit_value, initial_nonce)
+
+    def _fund_accounts_for_permit(self, accounts):
+        """Helper to fund multiple accounts for permit tests"""
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        for account in accounts:
+            batch_fund(batch, account['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+    def _verify_permit_success(self, erc20_contract, permit_contract, permit_value, initial_nonce):
+        """Helper to verify permit was successful"""
+        # Check allowance set
+        allowance = erc20_contract.functions.allowance(self._eth_kp_src['eth'], self._eth_kp_dst['eth']).call()
+        self.assertEqual(allowance, permit_value, f'Allowance not set correctly: {allowance} != {permit_value}')
+
+        # Check nonce incremented
+        new_nonce = permit_contract.functions.nonces(self._eth_kp_src['eth']).call()
+        self.assertEqual(new_nonce, initial_nonce + 1, f'Nonce not incremented: {new_nonce} != {initial_nonce + 1}')
+
+        # Verify spender can use allowance
+        empty_addr = get_eth_info()
+        transfer_receipt = self.evm_balance_erc20_transfer_from(
+            erc20_contract, self._eth_kp_dst['kp'], self._eth_kp_src['eth'],
+            empty_addr['eth'], permit_value)
+        self.assertEqual(transfer_receipt['status'], 1, f'TransferFrom failed: {transfer_receipt}')
+
+        final_balance = erc20_contract.functions.balanceOf(empty_addr['eth']).call()
+        self.assertEqual(final_balance, permit_value, f'Transfer amount incorrect: {final_balance} != {permit_value}')
