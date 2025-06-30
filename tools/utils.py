@@ -34,6 +34,23 @@ monkey_patch_wait_for_blocks()
 PARACHAIN_STAKING_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 
 
+def has_sufficient_balance(substrate, address, threshold):
+    """
+    Checks if an account has sufficient balance above a threshold.
+
+    Args:
+        substrate: SubstrateInterface instance
+        address: Account address (string or Keypair)
+        threshold: Minimum balance required
+
+    Returns:
+        bool: True if balance >= threshold
+    """
+    if hasattr(address, 'ss58_address'):
+        address = address.ss58_address
+    return get_account_balance(substrate, address) >= threshold
+
+
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 

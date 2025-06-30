@@ -10,6 +10,9 @@ ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
+from tools.constants import UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT, POST_UPGRADE_WAIT_TIME
+from tools.constants import MIN_BALANCE_THRESHOLD, TRANSFER_AMOUNT, SUDO_MIN_BALANCE, FUNDING_AMOUNT_BASE
+from tools.constants import XCM_VERSION, RELAY_ASSET_ID, DEFAULT_BLOCK_TIME
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -27,11 +30,11 @@ from tools.collator_binary_utils import get_docker_info
 from tools.collator_binary_utils import stop_peaq_docker_container
 from tools.collator_binary_utils import stop_collator_binary
 from tools.collator_binary_utils import get_docker_volume_path
-from tools.utils import show_title
+from tools.utils import show_title, has_sufficient_balance
 import argparse
 
 import pprint
-pp = pprint.PrettyPrinter(indent=4)
+pretty_printer = pprint.PrettyPrinter(indent=4)
 
 
 def set_runtime_upgrade_path_to_env(runtime_path):
@@ -107,6 +110,15 @@ def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
 
 
 def upgrade(runtime_path):
+    """
+    Performs the actual runtime upgrade process.
+
+    Args:
+        runtime_path: Path to the compiled runtime WASM file
+
+    Raises:
+        IOError: If upgrade fails
+    """
     substrate = SubstrateInterface(url=WS_URL)
     wait_for_n_blocks(substrate, 1)
 
@@ -119,6 +131,12 @@ def upgrade(runtime_path):
 
 
 def fund_sudo_account():
+    """
+    Ensures the sudo account has sufficient balance for operations.
+
+    Transfers funds from well-funded accounts to the sudo account
+    if the sudo balance is below the minimum threshold.
+    """
     substrate = SubstrateInterface(url=WS_URL)
 
     kps = [Keypair.create_from_mnemonic(
@@ -127,7 +145,7 @@ def fund_sudo_account():
     ]
     for kp in kps:
         balance = get_account_balance(substrate, kp.ss58_address)
-        if get_account_balance(substrate, kp.ss58_address) > 1 * 10 ** 18:
+        if get_account_balance(substrate, kp.ss58_address) > MIN_BALANCE_THRESHOLD:
             print(f'Funding account {kp.ss58_address}')
             batch = ExtrinsicBatch(substrate, kp)
             batch.compose_call(
@@ -135,20 +153,20 @@ def fund_sudo_account():
                 'transfer_keep_alive',
                 {
                     'dest': KP_GLOBAL_SUDO.ss58_address,
-                    'value': 3 * 10 ** 18,
+                    'value': TRANSFER_AMOUNT,
                 }
             )
             receipt = batch.execute()
             if not receipt.is_success:
                 print('Cannot transfer account')
                 raise IOError(receipt.error_message)
-        if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+        if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < SUDO_MIN_BALANCE:
             print(f'Funding account {KP_GLOBAL_SUDO.ss58_address}')
             break
         else:
             print(f'Account {KP_GLOBAL_SUDO.ss58_address} not have enough balance '
                   f'becaues {kp.ss58_address} balance is {balance}')
-    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < SUDO_MIN_BALANCE:
         raise IOError('Sudo user still dont have enough balance')
 
 
@@ -165,8 +183,8 @@ def fund_all_retated_accounts():
         '5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw',
         '5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL',
     ]
-    account_balances = [get_account_balance(substrate, a) for a in accounts]
-    receipt = funds(substrate, KP_GLOBAL_SUDO, accounts, max(account_balances) + 302231 * 10 ** 18)
+    account_balances = [get_account_balance(substrate, account) for account in accounts]
+    receipt = funds(substrate, KP_GLOBAL_SUDO, accounts, max(account_balances) + FUNDING_AMOUNT_BASE)
     if not receipt.is_success:
         print('Cannot fund the sudo account')
         print(receipt.error_message)
@@ -180,19 +198,28 @@ def fund_account():
     fund_all_retated_accounts()
 
     balance = get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address)
-    if balance < 1 * 10 ** 18:
+    if balance < MIN_BALANCE_THRESHOLD:
         raise IOError('Sudo user still dont have enough balance')
 
 
 # [TODO] Will need to remove after precompile runtime upgrade
 # Fix from dev 0.0.12 to 0.0.16
 def update_xcm_default_version(substrate):
+    """
+    Updates the default XCM version to v4.
+
+    This is required after runtime upgrade from dev 0.0.12 to 0.0.16
+    as XCM v4 is only available in runtime version 1.7.2+.
+
+    Args:
+        substrate: SubstrateInterface instance
+    """
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
     batch.compose_sudo_call(
         'PolkadotXcm',
         'force_default_xcm_version',
         {
-            'maybe_xcm_version': 4,
+            'maybe_xcm_version': XCM_VERSION,
         }
     )
     batch.execute()
@@ -200,77 +227,136 @@ def update_xcm_default_version(substrate):
 
 # Please check that...
 def remove_asset_id(substrate):
+    """
+    Removes the default relay chain asset (ID 1) from the parachain.
+
+    This is required for zenlink's test_create_pair_swap which
+    expects asset ID 1 to be available for use.
+
+    Args:
+        substrate: SubstrateInterface instance
+    """
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
     batch.compose_sudo_call(
         'XcAssetConfig',
         'remove_asset',
         {
-            'asset_id': 1,
+            'asset_id': RELAY_ASSET_ID,
         }
     )
     batch.compose_sudo_call(
         'Assets',
         'start_destroy',
-        {'id': 1}
+        {'id': RELAY_ASSET_ID}
     )
     batch.compose_call(
         'Assets',
         'finish_destroy',
-        {'id': 1}
+        {'id': RELAY_ASSET_ID}
     )
 
     batch.execute()
 
 
-def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
+def validate_runtime_path(wasm_path):
+    """Validates that the runtime WASM file exists."""
     if not os.path.exists(wasm_path):
         raise IOError(f'Runtime not found: {wasm_path}')
+
+
+def get_current_runtime_version(substrate):
+    """Gets the current runtime spec version."""
+    return substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
+
+
+def should_handle_upgrade_error(error, collator_dict):
+    """Determines if upgrade error should trigger binary collator fallback."""
+    if not collator_dict['enable_collator_binary']:
+        return False
+    error_msg = str(error)
+    return ('runtime requires function imports' in error_msg or
+            'Timeout waiting for blocks' in error_msg)
+
+
+def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
+    """Handles the transition from docker to binary collator."""
+    copy_all_chain_data(collator_dict, docker_volume_path)
+    print(f'docker info: {docker_info}')
+    stop_collator_binary()
+    stop_peaq_docker_container()
+    wakeup_latest_collator(collator_dict, docker_info)
+
+    # Reconnect to the new collator
+    substrate = SubstrateInterface(url=WS_URL)
+    substrate.connect_websocket()
+    wait_for_n_blocks(substrate, 3, timeout=3*DEFAULT_BLOCK_TIME*2)
+    return substrate
+
+
+def validate_runtime_upgrade_result(old_version, new_version):
+    """Validates that the runtime upgrade was successful."""
+    if old_version == new_version:
+        raise IOError(f'Runtime upgrade fails: {old_version} == {new_version}')
+    print(f'Upgrade from {old_version} to the {new_version}')
+
+
+def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
+    """
+    Performs runtime upgrade with optional binary collator fallback.
+
+    Args:
+        wasm_path: Path to the runtime WASM file
+        collator_dict: Configuration for binary collator fallback
+
+    Raises:
+        IOError: If runtime file not found or upgrade fails
+    """
+    validate_runtime_path(wasm_path)
 
     docker_volume_path = get_docker_volume_path()
     docker_info = get_docker_info(collator_dict)
 
+    # Wait for both chains to be ready
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
-    substrate = SubstrateInterface(url=WS_URL)
-    old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
 
+    substrate = SubstrateInterface(url=WS_URL)
+    old_version = get_current_runtime_version(substrate)
+
+    # Perform the upgrade
     upgrade(wasm_path)
+
+    # Wait for upgrade completion with error handling
     try:
-        wait_for_n_blocks(substrate, 15, timeout=15*12)
+        wait_for_n_blocks(substrate, UPGRADE_WAIT_BLOCKS, timeout=UPGRADE_TIMEOUT)
     except Exception as e:
         print(f'Error: {e}')
-        if not collator_dict['enable_collator_binary']:
-            raise e
-        if 'runtime requires function imports' not in str(e) and 'Timeout waiting for blocks' not in str(e):
+        if not should_handle_upgrade_error(e, collator_dict):
             raise e
 
+    # Switch to binary collator if enabled
     if collator_dict['enable_collator_binary']:
-        copy_all_chain_data(collator_dict, docker_volume_path)
-        print(f'docker info: {docker_info}')
-        stop_collator_binary()
-        stop_peaq_docker_container()
-        wakeup_latest_collator(collator_dict, docker_info)
+        substrate = switch_to_binary_collator(collator_dict, docker_volume_path, docker_info)
 
-        substrate = SubstrateInterface(url=WS_URL)
-        substrate.connect_websocket()
-        wait_for_n_blocks(substrate, 3)
-
-    # Cannot move in front of the upgrade because V4 only exists in 1.7.2
-
-    new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
-    if old_version == new_version:
-        raise IOError(f'Runtime ugprade fails: {old_version} == {new_version}')
-    print(f'Upgrade from {old_version} to the {new_version}')
+    # Validate upgrade was successful
+    new_version = get_current_runtime_version(substrate)
+    validate_runtime_upgrade_result(old_version, new_version)
 
 
 def setup_actions():
+    """
+    Performs initial setup actions before runtime upgrade.
+
+    Sets up HRMP channels, funds accounts, removes default assets,
+    and configures XCM version.
+    """
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     setup_hrmp_channel(RELAYCHAIN_WS_URL)
 
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     substrate = SubstrateInterface(url=WS_URL)
 
-    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
+    if get_account_balance(substrate, KP_GLOBAL_SUDO.ss58_address) < SUDO_MIN_BALANCE:
         print(f'Funding account {KP_GLOBAL_SUDO.ss58_address}')
         fund_account()
 
@@ -281,11 +367,24 @@ def setup_actions():
 
 
 def do_runtime_upgrade(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
+    """
+    Complete runtime upgrade process including setup and upgrade.
+
+    Args:
+        wasm_path: Path to the runtime WASM file
+        collator_dict: Configuration for binary collator fallback
+    """
     setup_actions()
     do_runtime_upgrade_only(wasm_path, collator_dict)
 
 
 def main():
+    """
+    Main entry point for runtime upgrade script.
+
+    Parses command line arguments, validates runtime path,
+    performs upgrade, and validates the result.
+    """
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
     parser.add_argument('--runtime-upgrade-path', type=str, help='Your runtime poisiton')
     parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
@@ -335,7 +434,7 @@ def main():
 
     do_runtime_upgrade(runtime_path, fetch_collator_dict_from_env())
     print('Done but wait 30s')
-    time.sleep(BLOCK_GENERATE_TIME * 5)
+    time.sleep(POST_UPGRADE_WAIT_TIME)
 
     substrate = SubstrateInterface(url=WS_URL)
     new_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']

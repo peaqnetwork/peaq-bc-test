@@ -3,6 +3,8 @@ sys.path.append('./')
 
 from tools.docker_utils import get_docker_service
 from python_on_whales import docker
+from tools.constants import COLLATOR_STOP_WAIT_TIME, COLLATOR_START_WAIT_TIME
+from tools.constants import FORK_COLLATOR_PORT, PARACHAIN_PORT, RELAYCHAIN_PORT, RPC_PORT
 import time
 import subprocess
 import os
@@ -11,10 +13,13 @@ import sys
 import getpass
 
 
-FORK_COLLATOR_PORT = 10044
-
-
 def stop_collator_binary():
+    """
+    Stops any running peaq-node binary collator processes.
+
+    Uses pkill to forcefully terminate all peaq-node processes
+    and waits for cleanup to complete.
+    """
     command = "pkill -9 peaq-node"
     subprocess.run(
         command,
@@ -23,23 +28,36 @@ def stop_collator_binary():
         executable="/bin/bash",
         text=True,
     )
-    time.sleep(12)
+    time.sleep(COLLATOR_STOP_WAIT_TIME)
 
 
 def remove_chain_data(folder_path, is_keep_keystores):
+    """
+    Recursively removes chain data while optionally preserving keystores.
+
+    Args:
+        folder_path: Path to the chain data directory
+        is_keep_keystores: If True, preserves keystore directories
+
+    Returns:
+        bool: True if keystores were found and preserved
+
+    Raises:
+        Exception: If attempting to remove dangerous system paths
+    """
     if os.path.realpath(folder_path) == os.path.realpath(os.path.expanduser('~')) or \
        os.path.realpath(folder_path) == os.path.realpath("/"):
         raise Exception(f"The folder path is too dangerous to remove, {os.path.realpath(folder_path)}")
 
     for root, dirs, files in os.walk(folder_path, topdown=True):
-        filter_dirs = [d for d in dirs if not is_keep_keystores or d != "keystore"]
-        found_keystore = dirs != filter_dirs
+        non_keystore_dirs = [d for d in dirs if not is_keep_keystores or d != "keystore"]
+        found_keystore = dirs != non_keystore_dirs
         for file in files:
             file_path = os.path.join(root, file)
             print(f'remove file: {file_path}')
             os.remove(file_path)
 
-        for dir in filter_dirs:
+        for dir in non_keystore_dirs:
             dir_path = os.path.join(root, dir)
             if not remove_chain_data(dir_path, is_keep_keystores):
                 print(f'remove dir: {dir_path}')
@@ -109,6 +127,16 @@ def get_node_key():
 
 
 def get_docker_info(collator_dict):
+    """
+    Extracts configuration information from running docker collator.
+
+    Args:
+        collator_dict: Collator configuration dictionary
+
+    Returns:
+        dict: Docker configuration including parachain ID, peer ID,
+              node key, and chainspec paths
+    """
     return {
         'parachain_id': get_parachain_id(),
         'parachain_bootnode': get_parachain_bootnode(),
@@ -120,6 +148,12 @@ def get_docker_info(collator_dict):
 
 
 def stop_peaq_docker_container():
+    """
+    Stops and removes the peaq docker container.
+
+    Gracefully stops the container and forcefully removes it
+    to ensure clean shutdown.
+    """
     containers = []
     try:
         containers = [get_docker_service('peaq', 0)]
@@ -132,19 +166,14 @@ def stop_peaq_docker_container():
         docker.container.remove(container.name, force=True)
 
 
-def wakeup_latest_collator(collator_dict, docker_info):
-    peaq_binary_path = collator_dict['collator_binary']
+def build_parachain_args(collator_dict, docker_info):
+    """Build command line arguments for parachain collator."""
     collator_chain_data_folder = collator_dict['chain_data']
-    parachain_id = docker_info['parachain_id']
     parachain_config = os.path.join(
         collator_dict['docker_compose_folder'],
         os.path.basename(docker_info['parachain_chainspec']))
-    relaychain_config = os.path.join(
-        collator_dict['docker_compose_folder'],
-        os.path.basename(docker_info['relaychain_chainspec']))
-    node_key = docker_info['node_key']
 
-    run_args = [
+    return [
         f'--base-path {collator_chain_data_folder}',
         f'--chain {parachain_config}',
         '--rpc-external',
@@ -154,26 +183,36 @@ def wakeup_latest_collator(collator_dict, docker_info):
         '--rpc-methods unsafe',
         '--execution wasm',
         '--state-pruning archive',
-        f'--node-key {node_key}',
-        f'--parachain-id {parachain_id}',
-        '--port 40333',
+        f'--node-key {docker_info["node_key"]}',
+        f'--parachain-id {docker_info["parachain_id"]}',
+        f'--port {PARACHAIN_PORT}',
         f'--rpc-port {FORK_COLLATOR_PORT}',
-        '--',
+    ]
+
+
+def build_relaychain_args(collator_dict, docker_info):
+    """Build command line arguments for relaychain connection."""
+    relaychain_config = os.path.join(
+        collator_dict['docker_compose_folder'],
+        os.path.basename(docker_info['relaychain_chainspec']))
+
+    return [
         f'--chain {relaychain_config}',
-        '--port 50345',
-        '--rpc-port 30055',
+        f'--port {RELAYCHAIN_PORT}',
+        f'--rpc-port {RPC_PORT}',
         '--unsafe-rpc-external',
         '--rpc-cors=all',
     ]
 
-    # [TODO] Add --ferdie there...
-    run_args = ['--ferdie'] + run_args
+
+def start_collator_process(binary_path, args, log_path):
+    """Start the collator binary process with given arguments."""
     command = f"""PYTHONUNBUFFERED=1 \
-        {peaq_binary_path} \
-        {' '.join(run_args)}
+        {binary_path} \
+        {' '.join(args)}
     """
 
-    with open(f'{collator_chain_data_folder}/collator.log', 'w') as logfile:
+    with open(log_path, 'w') as logfile:
         subprocess.Popen(
             command,
             stdout=logfile, stderr=logfile,
@@ -183,8 +222,31 @@ def wakeup_latest_collator(collator_dict, docker_info):
             start_new_session=True,
         )
 
+
+def wakeup_latest_collator(collator_dict, docker_info):
+    """
+    Starts the binary collator with configuration from docker container.
+
+    Args:
+        collator_dict: Dictionary containing binary collator configuration
+        docker_info: Information extracted from docker container
+    """
+    peaq_binary_path = collator_dict['collator_binary']
+    collator_chain_data_folder = collator_dict['chain_data']
+
+    # Build command arguments
+    parachain_args = build_parachain_args(collator_dict, docker_info)
+    relaychain_args = build_relaychain_args(collator_dict, docker_info)
+
+    # Combine with separator and add validator key
+    run_args = ['--ferdie'] + parachain_args + ['--'] + relaychain_args
+
+    # Start the collator process
+    log_path = f'{collator_chain_data_folder}/collator.log'
+    start_collator_process(peaq_binary_path, run_args, log_path)
+
     print('Wait for the collator to start...')
-    time.sleep(120)
+    time.sleep(COLLATOR_START_WAIT_TIME)
 
 
 def get_docker_volume_path():
@@ -193,6 +255,16 @@ def get_docker_volume_path():
 
 
 def copy_all_chain_data(collator_dict, volume_path=None):
+    """
+    Copies chain data from docker volume to binary collator location.
+
+    Args:
+        collator_dict: Collator configuration with target paths
+        volume_path: Source docker volume path (auto-detected if None)
+
+    Creates the target directory and copies all chain state data
+    while ensuring proper file ownership for the current user.
+    """
     if volume_path is None:
         volume_path = get_docker_volume_path()
 
@@ -218,6 +290,15 @@ def copy_all_chain_data(collator_dict, volume_path=None):
 
 
 def cleanup_collator(is_keep_keystores=True):
+    """
+    Cleans up binary collator processes and chain data.
+
+    Args:
+        is_keep_keystores: If True, preserves keystore files
+
+    Stops any running binary collator and removes its chain data
+    based on environment configuration.
+    """
     from tools.runtime_upgrade import fetch_collator_dict_from_env
     stop_collator_binary()
     collator_options = fetch_collator_dict_from_env()

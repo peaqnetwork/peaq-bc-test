@@ -43,6 +43,33 @@ DEFAULT_BINARY_CHAIN_PATH = os.path.join(
 DEFAULT_DOCKER_COMPOSE_FOLDER = os.path.join(
     os.path.expanduser('~'), 'Work', 'peaq', 'parachain-launch', 'yoyo')
 
+# Runtime upgrade constants
+UPGRADE_WAIT_BLOCKS = 15
+DEFAULT_BLOCK_TIME = 12  # seconds per block
+UPGRADE_TIMEOUT = UPGRADE_WAIT_BLOCKS * DEFAULT_BLOCK_TIME
+POST_UPGRADE_WAIT_TIME = DEFAULT_BLOCK_TIME * 5
+
+# Balance constants (in Wei)
+MIN_BALANCE_THRESHOLD = 1 * 10 ** 18
+TRANSFER_AMOUNT = 3 * 10 ** 18
+SUDO_MIN_BALANCE = 0.5 * 10 ** 18
+FUNDING_AMOUNT_BASE = 302231 * 10 ** 18
+
+# Collator constants
+COLLATOR_STOP_WAIT_TIME = 12  # seconds
+COLLATOR_START_WAIT_TIME = 120  # seconds
+POLL_INTERVAL = 1  # seconds
+
+# Network ports
+FORK_COLLATOR_PORT = 10044
+PARACHAIN_PORT = 40333
+RELAYCHAIN_PORT = 50345
+RPC_PORT = 30055
+
+# XCM configuration
+XCM_VERSION = 4
+RELAY_ASSET_ID = 1
+
 DEFAULT_COLLATOR_DICT = {
     'collator_binary': None,
     'chain_data': None,
