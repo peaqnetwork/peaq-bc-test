@@ -124,11 +124,9 @@ class ChainInfoTestBehavior(SmartContractBehavior):
             result2 = contract.functions.timeLockedOperation(
                 future_unlock, test_amount
             ).call()
-            future_test_success = True
         except Exception:
             # Expected to fail or return false
             result2 = (0, current_time, False)
-            future_test_success = False
             receipt2 = {"status": 0, "gasUsed": 0}
 
         # Test 3: Edge case - unlock time exactly now
@@ -215,14 +213,14 @@ class ChainInfoTestBehavior(SmartContractBehavior):
                 "current_block": result1[0],
                 "is_ready": result1[1],
                 "data_hash": Web3.to_hex(result1[2]),
-                "correctly_ready": result1[1] == True,
+                "correctly_ready": result1[1] is True,
                 "gas_used": receipt1.get("gasUsed", 0)
             },
             "future_block_test": {
                 "current_block": result2[0],
                 "is_ready": result2[1],
                 "data_hash": Web3.to_hex(result2[2]),
-                "correctly_not_ready": result2[1] == False,
+                "correctly_not_ready": result2[1] is False,
                 "gas_used": receipt2.get("gasUsed", 0)
             },
             "current_block_test": {

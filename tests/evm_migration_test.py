@@ -39,30 +39,30 @@ pp = pprint.PrettyPrinter(indent=4)
 @pytest.mark.detail_upgrade_check
 class TestEVMEthUpgrade(unittest.TestCase):
     def setUp(self):
-        # restart_with_setup()
+        restart_with_setup()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
 
         self._smart_contracts = [
-            # ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
-            # ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
-            # ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
-            # DelegateCallSCBehavior(self, self._w3, get_eth_info()),
-            # UpgradeSCBehavior(self, self._w3, get_eth_info()),
-            # EventSCBehavior(self, self._w3, get_eth_info()),
-            # ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
-            # StructSCBehavior(self, self._w3, get_eth_info()),
-            # ReentrySCBehavior(self, self._w3, get_eth_info()),
-            # GasSCBehavior(self, self._w3, get_eth_info()),
-            # CalldataSCBehavior(self, self._w3, get_eth_info()),
-            # CallTestSCBehavior(self, self._w3, get_eth_info()),
-            # StorageTestSCBehavior(self, self._w3, get_eth_info()),
-            # PrecompileTestSCBehavior(self, self._w3, get_eth_info()),
-            # PrecompileDirectTestBehavior(self, self._w3, get_eth_info()),
-            # CalldataHeavyTestBehavior(self, self._w3, get_eth_info()),
-            # ChainInfoTestBehavior(self, self._w3, get_eth_info()),
-            # EIP1153TransientTestBehavior(self, self._w3, get_eth_info()),
+            ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
+            ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
+            DelegateCallSCBehavior(self, self._w3, get_eth_info()),
+            UpgradeSCBehavior(self, self._w3, get_eth_info()),
+            EventSCBehavior(self, self._w3, get_eth_info()),
+            ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
+            StructSCBehavior(self, self._w3, get_eth_info()),
+            ReentrySCBehavior(self, self._w3, get_eth_info()),
+            GasSCBehavior(self, self._w3, get_eth_info()),
+            CalldataSCBehavior(self, self._w3, get_eth_info()),
+            CallTestSCBehavior(self, self._w3, get_eth_info()),
+            StorageTestSCBehavior(self, self._w3, get_eth_info()),
+            PrecompileTestSCBehavior(self, self._w3, get_eth_info()),
+            PrecompileDirectTestBehavior(self, self._w3, get_eth_info()),
+            CalldataHeavyTestBehavior(self, self._w3, get_eth_info()),
+            ChainInfoTestBehavior(self, self._w3, get_eth_info()),
+            EIP1153TransientTestBehavior(self, self._w3, get_eth_info()),
             EIP5656MCOPYTestBehavior(self, self._w3, get_eth_info()),
         ]
 

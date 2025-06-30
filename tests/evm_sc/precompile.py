@@ -7,7 +7,7 @@ import hashlib
 class PrecompileTestSCBehavior(SmartContractBehavior):
     def __init__(self, unittest, w3, kp_deployer):
         super().__init__(unittest, "ETH/precompile", w3, kp_deployer)
-        
+
         # Known test vectors for verification
         self._test_vectors = {
             "ecrecover": {
@@ -22,7 +22,7 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
                 "expected": "0xdffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
             },
             "ripemd160": {
-                "input": b"Hello, World!", 
+                "input": b"Hello, World!",
                 "expected": "0x527a6a4b9a6da75607546842e0e00105350b1aaf"
             },
             "identity": {
@@ -71,7 +71,7 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
     def ecrecover_tests(self, kp_caller):
         """Test ecrecover precompile functionality"""
         contract = self._get_contract()
-        
+
         # Test with known vector
         vector = self._test_vectors["ecrecover"]
         tx = contract.functions.testEcrecover(
@@ -80,9 +80,9 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             Web3.to_bytes(hexstr=vector["r"]),
             Web3.to_bytes(hexstr=vector["s"])
         ).build_transaction(self.compose_build_transaction_args(kp_caller))
-        
+
         receipt = self.send_and_check_tx(tx, kp_caller)
-        
+
         # Get function result from call
         result = contract.functions.testEcrecover(
             Web3.to_bytes(hexstr=vector["hash"]),
@@ -90,14 +90,14 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             Web3.to_bytes(hexstr=vector["r"]),
             Web3.to_bytes(hexstr=vector["s"])
         ).call()
-        
+
         recovered_address = result[0]
         success = result[1]
-        
+
         # Verify against expected result
         expected_address = Web3.to_checksum_address(vector["expected"])
         address_correct = recovered_address.lower() == expected_address.lower()
-        
+
         # Test with invalid signature (should return zero address)
         invalid_result = contract.functions.testEcrecover(
             Web3.to_bytes(hexstr=vector["hash"]),
@@ -105,9 +105,9 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             Web3.to_bytes(hexstr=vector["r"]),
             Web3.to_bytes(hexstr=vector["s"])
         ).call()
-        
+
         invalid_recovered = invalid_result[0]
-        
+
         return {
             "transaction_success": receipt["status"] == 1,
             "precompile_success": success,
@@ -123,17 +123,17 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
         """Test hash precompiles (SHA256, RIPEMD160, Identity)"""
         contract = self._get_contract()
         results = {}
-        
+
         # Test SHA256
         sha256_vector = self._test_vectors["sha256"]
         sha256_result = contract.functions.testSha256(sha256_vector["input"]).call()
         sha256_hash = Web3.to_hex(sha256_result[0])
         sha256_success = sha256_result[1]
-        
+
         # Verify with Python hashlib
         expected_sha256 = "0x" + hashlib.sha256(sha256_vector["input"]).hexdigest()
         sha256_correct = sha256_hash.lower() == expected_sha256.lower()
-        
+
         results["sha256"] = {
             "precompile_success": sha256_success,
             "hash_result": sha256_hash,
@@ -141,13 +141,13 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "hash_correct": sha256_correct,
             "test_success": sha256_success and sha256_correct,
         }
-        
+
         # Test RIPEMD160
         ripemd_vector = self._test_vectors["ripemd160"]
         ripemd_result = contract.functions.testRipemd160(ripemd_vector["input"]).call()
         ripemd_hash = Web3.to_hex(ripemd_result[0])
         ripemd_success = ripemd_result[1]
-        
+
         results["ripemd160"] = {
             "precompile_success": ripemd_success,
             "hash_result": ripemd_hash,
@@ -155,16 +155,16 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "hash_correct": ripemd_hash.lower() == ripemd_vector["expected"].lower(),
             "test_success": ripemd_success,
         }
-        
+
         # Test Identity precompile
         identity_vector = self._test_vectors["identity"]
         identity_result = contract.functions.testIdentity(identity_vector["input"]).call()
         identity_output = identity_result[0]
         identity_success = identity_result[1]
-        
+
         # Verify output matches input
         identity_correct = identity_output == identity_vector["input"]
-        
+
         results["identity"] = {
             "precompile_success": identity_success,
             "input_data": Web3.to_hex(identity_vector["input"]),
@@ -172,39 +172,39 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "data_matches": identity_correct,
             "test_success": identity_success and identity_correct,
         }
-        
+
         return results
 
     @log_func
     def modexp_tests(self, kp_caller):
         """Test modular exponentiation precompile"""
         contract = self._get_contract()
-        
+
         vector = self._test_vectors["modexp"]
-        
+
         # Prepare input as bytes
         base_bytes = vector["base"].to_bytes(32, byteorder='big')
         exp_bytes = vector["exp"].to_bytes(32, byteorder='big')
         mod_bytes = vector["mod"].to_bytes(32, byteorder='big')
-        
+
         # Test modexp
         tx = contract.functions.testModExp(base_bytes, exp_bytes, mod_bytes).build_transaction(
             self.compose_build_transaction_args(kp_caller)
         )
         receipt = self.send_and_check_tx(tx, kp_caller)
-        
+
         # Get result
         result = contract.functions.testModExp(base_bytes, exp_bytes, mod_bytes).call()
         modexp_output = result[0]
         modexp_success = result[1]
-        
+
         # Convert result to integer for verification
         result_int = int.from_bytes(modexp_output, byteorder='big')
-        
+
         # Verify against expected result
         expected_result = vector["expected"]
         result_correct = result_int == expected_result
-        
+
         return {
             "transaction_success": receipt["status"] == 1,
             "precompile_success": modexp_success,
@@ -222,17 +222,17 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
         """Test elliptic curve precompiles (ecAdd, ecMul)"""
         contract = self._get_contract()
         results = {}
-        
+
         # Test ecAdd with generator point + generator point
         # BN254 generator point
         g_x = 1
         g_y = 2
-        
+
         # Test G + G = 2G
         ecadd_result = contract.functions.testEcAdd(g_x, g_y, g_x, g_y).call()
         ecadd_point = ecadd_result[0]
         ecadd_success = ecadd_result[1]
-        
+
         results["ecadd"] = {
             "precompile_success": ecadd_success,
             "input_point1": [g_x, g_y],
@@ -240,15 +240,15 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "result_point": [ecadd_point[0], ecadd_point[1]],
             "test_success": ecadd_success,
         }
-        
+
         # Test ecMul with generator point * 2
         ecmul_result = contract.functions.testEcMul(g_x, g_y, 2).call()
         ecmul_point = ecmul_result[0]
         ecmul_success = ecmul_result[1]
-        
+
         # Verify ecAdd result matches ecMul result (G + G should equal G * 2)
         points_match = (ecadd_point[0] == ecmul_point[0] and ecadd_point[1] == ecmul_point[1])
-        
+
         results["ecmul"] = {
             "precompile_success": ecmul_success,
             "input_point": [g_x, g_y],
@@ -257,34 +257,34 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "matches_ecadd": points_match,
             "test_success": ecmul_success and points_match,
         }
-        
+
         return results
 
     @log_func
     def comprehensive_tests(self):
         """Run comprehensive precompile tests with known vectors"""
         contract = self._get_contract()
-        
+
         # Run comprehensive test function
         comprehensive_result = contract.functions.runComprehensiveTests().call()
-        
+
         # Get all test results
         all_results = contract.functions.getAllTestResults().call()
-        
+
         # Get individual test success status
         test_statuses = {}
         test_names = ["ecrecover", "sha256", "ripemd160", "identity", "modexp"]
-        
+
         for test_name in test_names:
             test_statuses[test_name] = contract.functions.getTestSuccess(test_name).call()
-        
+
         return {
             "comprehensive_test_passed": comprehensive_result,
             "all_precompiles_success": all_results[5],
             "individual_test_results": {
                 "ecrecover_result": Web3.to_hex(all_results[0]) if all_results[0] else "0x",
                 "sha256_result": Web3.to_hex(all_results[1]) if all_results[1] else "0x",
-                "ripemd160_result": Web3.to_hex(all_results[2]) if all_results[2] else "0x", 
+                "ripemd160_result": Web3.to_hex(all_results[2]) if all_results[2] else "0x",
                 "identity_result": Web3.to_hex(all_results[3]) if all_results[3] else "0x",
                 "modexp_result": Web3.to_hex(all_results[4]) if all_results[4] else "0x",
             },
@@ -292,28 +292,27 @@ class PrecompileTestSCBehavior(SmartContractBehavior):
             "all_tests_consistent": comprehensive_result and all_results[5],
         }
 
-
     def migration_same_behavior(self, args):
         """Execute all precompile test scenarios"""
         results = {}
-        
+
         # Execute ecrecover tests
         if args["ecrecover_tests"]:
             results["ecrecover_tests"] = self.ecrecover_tests(*args["ecrecover_tests"])
-        
+
         # Execute hash precompile tests
         if args["hash_precompile_tests"]:
             results["hash_precompile_tests"] = self.hash_precompile_tests(*args["hash_precompile_tests"])
-        
+
         # Execute modexp tests
         if args["modexp_tests"]:
             results["modexp_tests"] = self.modexp_tests(*args["modexp_tests"])
-        
+
         # Execute elliptic curve tests
         if args["elliptic_curve_tests"]:
             results["elliptic_curve_tests"] = self.elliptic_curve_tests(*args["elliptic_curve_tests"])
-        
+
         # Execute comprehensive tests (no args needed)
         results["comprehensive_tests"] = self.comprehensive_tests()
-        
+
         return results
