@@ -1,7 +1,6 @@
 from tests.evm_sc.base import SmartContractBehavior, log_func
 from tools.peaq_eth_utils import get_eth_info
 from web3 import Web3
-import time
 
 
 class StorageTestSCBehavior(SmartContractBehavior):
@@ -55,8 +54,8 @@ class StorageTestSCBehavior(SmartContractBehavior):
         return [self._kp_deployer["substrate"]] + [
             kp["substrate"]
             for action_type in ["pre", "after"]
-            for test_type in ["basic_storage_tests", "assembly_storage_tests", "complex_storage_tests", 
-                            "mapping_storage_tests", "packed_storage_tests"]
+            for test_type in ["basic_storage_tests", "assembly_storage_tests", "complex_storage_tests",
+                              "mapping_storage_tests", "packed_storage_tests"]
             for kp in self._args[action_type][test_type]
         ]
 
@@ -308,7 +307,7 @@ class StorageTestSCBehavior(SmartContractBehavior):
             try:
                 element = contract.functions.dynamicArray(i).call()
                 array_elements.append(element)
-            except:
+            except Exception:
                 break  # Stop if we can't read more elements
 
         # Get detailed snapshot
@@ -337,7 +336,6 @@ class StorageTestSCBehavior(SmartContractBehavior):
                 len(storage_state[3]) > 0   # string not empty
             ),
         }
-
 
     def migration_same_behavior(self, args):
         """Execute all storage test scenarios"""
