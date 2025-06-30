@@ -236,12 +236,12 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 
     upgrade(wasm_path)
     try:
-        wait_for_n_blocks(substrate, 15)
+        wait_for_n_blocks(substrate, 15, timeout=15*12)
     except Exception as e:
         print(f'Error: {e}')
         if not collator_dict['enable_collator_binary']:
             raise e
-        if 'runtime requires function imports' not in str(e) and 'Timeout for waiting blocks' not in str(e):
+        if 'runtime requires function imports' not in str(e) and 'Timeout waiting for blocks' not in str(e):
             raise e
 
     if collator_dict['enable_collator_binary']:

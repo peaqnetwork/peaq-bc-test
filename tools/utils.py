@@ -28,6 +28,9 @@ from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
+from tools.monkey.monkey_wait_for_blocks import monkey_patch_wait_for_blocks
+monkey_patch_wait_for_blocks()
+
 PARACHAIN_STAKING_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
 
 
