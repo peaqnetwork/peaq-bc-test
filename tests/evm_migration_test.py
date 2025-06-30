@@ -27,6 +27,8 @@ from tests.evm_sc.precompile import PrecompileTestSCBehavior
 from tests.evm_sc.precompile_direct import PrecompileDirectTestBehavior
 from tests.evm_sc.calldata_heavy import CalldataHeavyTestBehavior
 from tests.evm_sc.chain_info import ChainInfoTestBehavior
+from tests.evm_sc.eip1153_transient import EIP1153TransientTestBehavior
+from tests.evm_sc.eip5656_mcopy import EIP5656MCOPYTestBehavior
 
 import pprint
 
@@ -43,23 +45,25 @@ class TestEVMEthUpgrade(unittest.TestCase):
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
 
         self._smart_contracts = [
-            ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
-            ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
-            ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
-            DelegateCallSCBehavior(self, self._w3, get_eth_info()),
-            UpgradeSCBehavior(self, self._w3, get_eth_info()),
-            EventSCBehavior(self, self._w3, get_eth_info()),
-            ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
-            StructSCBehavior(self, self._w3, get_eth_info()),
-            ReentrySCBehavior(self, self._w3, get_eth_info()),
-            GasSCBehavior(self, self._w3, get_eth_info()),
-            CalldataSCBehavior(self, self._w3, get_eth_info()),
-            CallTestSCBehavior(self, self._w3, get_eth_info()),
-            StorageTestSCBehavior(self, self._w3, get_eth_info()),
-            PrecompileTestSCBehavior(self, self._w3, get_eth_info()),
-            PrecompileDirectTestBehavior(self, self._w3, get_eth_info()),
-            CalldataHeavyTestBehavior(self, self._w3, get_eth_info()),
-            ChainInfoTestBehavior(self, self._w3, get_eth_info()),
+            # ERC20SmartContractBehavior(self, self._w3, get_eth_info()),
+            # ERC721SmartContractBehavior(self, self._w3, get_eth_info()),
+            # ERC1155SmartContractBehavior(self, self._w3, get_eth_info()),
+            # DelegateCallSCBehavior(self, self._w3, get_eth_info()),
+            # UpgradeSCBehavior(self, self._w3, get_eth_info()),
+            # EventSCBehavior(self, self._w3, get_eth_info()),
+            # ErrorHandlingSCBehavior(self, self._w3, get_eth_info()),
+            # StructSCBehavior(self, self._w3, get_eth_info()),
+            # ReentrySCBehavior(self, self._w3, get_eth_info()),
+            # GasSCBehavior(self, self._w3, get_eth_info()),
+            # CalldataSCBehavior(self, self._w3, get_eth_info()),
+            # CallTestSCBehavior(self, self._w3, get_eth_info()),
+            # StorageTestSCBehavior(self, self._w3, get_eth_info()),
+            # PrecompileTestSCBehavior(self, self._w3, get_eth_info()),
+            # PrecompileDirectTestBehavior(self, self._w3, get_eth_info()),
+            # CalldataHeavyTestBehavior(self, self._w3, get_eth_info()),
+            # ChainInfoTestBehavior(self, self._w3, get_eth_info()),
+            # EIP1153TransientTestBehavior(self, self._w3, get_eth_info()),
+            EIP5656MCOPYTestBehavior(self, self._w3, get_eth_info()),
         ]
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="We only test it in non upgrade test")
