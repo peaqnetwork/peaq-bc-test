@@ -23,6 +23,10 @@ from tests.evm_sc.gas import GasSCBehavior
 from tests.evm_sc.calldata import CalldataSCBehavior
 from tests.evm_sc.calltest import CallTestSCBehavior
 from tests.evm_sc.storage import StorageTestSCBehavior
+from tests.evm_sc.precompile import PrecompileTestSCBehavior
+from tests.evm_sc.precompile_direct import PrecompileDirectTestBehavior
+from tests.evm_sc.calldata_heavy import CalldataHeavyTestBehavior
+from tests.evm_sc.chain_info import ChainInfoTestBehavior
 
 import pprint
 
@@ -33,7 +37,7 @@ pp = pprint.PrettyPrinter(indent=4)
 @pytest.mark.detail_upgrade_check
 class TestEVMEthUpgrade(unittest.TestCase):
     def setUp(self):
-        restart_with_setup()
+        # restart_with_setup()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 3)
         self._substrate = SubstrateInterface(url=WS_URL)
         self._w3 = Web3(Web3.HTTPProvider(ETH_URL))
@@ -52,6 +56,10 @@ class TestEVMEthUpgrade(unittest.TestCase):
             CalldataSCBehavior(self, self._w3, get_eth_info()),
             CallTestSCBehavior(self, self._w3, get_eth_info()),
             StorageTestSCBehavior(self, self._w3, get_eth_info()),
+            PrecompileTestSCBehavior(self, self._w3, get_eth_info()),
+            PrecompileDirectTestBehavior(self, self._w3, get_eth_info()),
+            CalldataHeavyTestBehavior(self, self._w3, get_eth_info()),
+            ChainInfoTestBehavior(self, self._w3, get_eth_info()),
         ]
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="We only test it in non upgrade test")
