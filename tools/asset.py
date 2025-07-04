@@ -242,6 +242,8 @@ def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, bl
     now_block = substrate.get_block_number(None)
     for i in range(block_num, now_block + 1):
         block_hash = substrate.get_block_hash(i)
+        print(f"Checking block {i} for account {addr} asset {asset_id}")
+        print(f"hash {block_hash}")
         now_token = func(substrate, addr, asset_id, block_hash)
         if now_token != prev_token:
             print(f"Account {addr} balance {prev_token} changed to {now_token} on peaq at block {i}")
@@ -253,6 +255,7 @@ def wait_for_account_asset_change_wrap(substrate, addr, asset_id, prev_token, bl
     while func(substrate, addr, asset_id) == prev_token and count < 10:
         time.sleep(BLOCK_GENERATE_TIME)
         now_block = substrate.get_block_number(None)
+        print(f"Waiting for account {addr} asset {asset_id} balance change, current block {now_block}")
         count += 1
     now_token = func(substrate, addr, asset_id)
     if now_token == prev_token:

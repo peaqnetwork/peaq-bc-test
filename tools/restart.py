@@ -8,9 +8,10 @@ sys.path.append('.')
 import time
 from python_on_whales import docker, DockerClient
 from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL
+from tools.constants import WS_URL, PARACHAIN_WS_URL, ACA_WS_URL
 from tools.constants import BLOCK_GENERATE_TIME
 from websocket import WebSocketConnectionClosedException
+from tools.coretime_utils import get_parachain_id, setup_coretime
 
 
 def restart_parachain_launch():
@@ -33,6 +34,33 @@ def restart_parachain_launch():
             )
             # Let us wait longer
             time.sleep(BLOCK_GENERATE_TIME * 3)
+            
+            # Setup coretime for both parachains
+            # First parachain at port 10044
+            parachain_id_1 = get_parachain_id(PARACHAIN_WS_URL)
+            cores_assigned_1 = 0
+            if parachain_id_1:
+                print(f"Setting up coretime for parachain {parachain_id_1} (port 10044)")
+                cores_assigned_1 = setup_coretime(parachain_id_1, start_core=0)
+            else:
+                print("Warning: Failed to get parachain ID for port 10044")
+            
+            # Second parachain at port 10144 - start after first parachain's cores
+            parachain_id_2 = get_parachain_id(ACA_WS_URL)
+            if parachain_id_2:
+                # Determine how many cores the first parachain should have
+                from tools.constants import PARACHAIN_CORE_MAP, CORETIME_CORES
+                expected_cores_1 = PARACHAIN_CORE_MAP.get(parachain_id_1, CORETIME_CORES) if parachain_id_1 else 0
+                start_core_2 = expected_cores_1  # Start where first parachain's allocation ends
+                
+                print(f"Setting up coretime for parachain {parachain_id_2} (port 10144) starting at core {start_core_2}")
+                setup_coretime(parachain_id_2, start_core=start_core_2)
+            else:
+                print("Warning: Failed to get parachain ID for port 10144")
+            
+            if not parachain_id_1 and not parachain_id_2:
+                raise IOError("Failed to get any parachain IDs - cannot proceed without coretime setup")
+            
             return
         except (ConnectionResetError, WebSocketConnectionClosedException) as e:
             print(f'Cannot connect to {WS_URL}, {e}')

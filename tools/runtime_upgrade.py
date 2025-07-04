@@ -150,7 +150,7 @@ def update_xcm_default_version(substrate):
         'PolkadotXcm',
         'force_default_xcm_version',
         {
-            'maybe_xcm_version': 4,
+            'maybe_xcm_version': 5,
         }
     )
     batch.execute()
