@@ -150,6 +150,24 @@ def send_xtoken_transfer(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_
     return sign_and_submit_evm_transaction(tx, w3, kp_sign)
 
 
+def send_xtoken_transfer_with_fee(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token, fee):
+    contract = get_contract(w3, XTOKENS_ADDRESS, ABI_FILE)
+    nonce = w3.eth.get_transaction_count(kp_sign.ss58_address)
+
+    tx = contract.functions.transferWithFee(
+        calculate_asset_to_evm_address(asset_id),
+        token,
+        fee,
+        [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
+        10 ** 12).build_transaction({
+            'from': kp_sign.ss58_address,
+            'nonce': nonce,
+            'chainId': eth_chain_id
+        })
+
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
+
+
 def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token):
     contract = get_contract(w3, XTOKENS_ADDRESS, ABI_FILE)
     nonce = w3.eth.get_transaction_count(kp_sign.ss58_address)
@@ -157,6 +175,24 @@ def send_xtoken_transfer_multi_asset(w3, eth_chain_id, kp_sign, kp_dst, parachai
     tx = contract.functions.transferMultiasset(
         [0, []],
         token,
+        [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
+        10 ** 12).build_transaction({
+            'from': kp_sign.ss58_address,
+            'nonce': nonce,
+            'chainId': eth_chain_id
+        })
+
+    return sign_and_submit_evm_transaction(tx, w3, kp_sign)
+
+
+def send_xtoken_transfer_multi_asset_with_fee(w3, eth_chain_id, kp_sign, kp_dst, parachain_id, asset_id, token, fee):
+    contract = get_contract(w3, XTOKENS_ADDRESS, ABI_FILE)
+    nonce = w3.eth.get_transaction_count(kp_sign.ss58_address)
+
+    tx = contract.functions.transferMultiassetWithFee(
+        [0, []],
+        token,
+        fee,
         [1, ['0x00'+f'00000{hex(parachain_id)[2:]}', f'0x01{kp_dst.public_key.hex()}00']],
         10 ** 12).build_transaction({
             'from': kp_sign.ss58_address,
@@ -308,6 +344,26 @@ class TestBridgeXTokens(unittest.TestCase):
         self.assertNotEqual(got_token, 0)
 
     @pytest.mark.xcm
+    def test_native_from_peaq_to_aca_with_fee(self):
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
+
+        kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_dst, INIT_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
+
+        aca_block_num = self.si_aca.get_block_number(None)
+        evm_receipt = send_xtoken_transfer_with_fee(
+            self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_dst,
+            ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM, TEST_TOKEN_NUM)
+        self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
+
+        # Extract...
+        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
+        self.assertNotEqual(got_token, 0)
+
+    @pytest.mark.xcm
     def test_asset_from_peaq_to_aca_with_sufficient(self):
         # From Alice transfer to kp_para_src (other chain)
         asset_id = TEST_SUFF_ASSET_ID['peaq']
@@ -350,6 +406,25 @@ class TestBridgeXTokens(unittest.TestCase):
         evm_receipt = send_xtoken_transfer_multi_asset(
             self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_dst,
             ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM)
+        self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
+
+        got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)
+        self.assertNotEqual(got_token, 0)
+
+    @pytest.mark.xcm
+    def test_bridge_xtoken_single_transfer_multi_asset_with_fee(self):
+        receipt = setup_aca_asset_if_not_exist(
+            self.si_aca, KP_GLOBAL_SUDO, PEAQ_ASSET_ID['para'], PEAQ_ASSET_LOCATION['para'], PEAQ_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to register foreign asset: {receipt.error_message}')
+
+        kp_para_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        receipt = aca_fund(self.si_aca, KP_GLOBAL_SUDO, kp_para_dst, INIT_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to fund tokens to aca: {receipt.error_message}')
+
+        aca_block_num = self.si_aca.get_block_number(None)
+        evm_receipt = send_xtoken_transfer_multi_asset_with_fee(
+            self._w3, self.eth_chain_id, self.kp_eth['kp'], kp_para_dst,
+            ACA_PD_CHAIN_ID, PEAQ_ASSET_ID['peaq'], TEST_TOKEN_NUM, TEST_TOKEN_NUM)
         self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
 
         got_token = self.wait_for_aca_account_token_change(kp_para_dst.ss58_address, PEAQ_ASSET_ID['para'], aca_block_num)

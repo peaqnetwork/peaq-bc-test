@@ -45,7 +45,7 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
         except SubstrateRequestException as e:
             if 'invalid' in str(e):
                 print(f'Error: {e}, {short_print(batch)}')
-                for i in range(4):
+                for j in range(4):
                     print('Wait for next 4 block')
                     wait_for_n_blocks(substrate, 4)
                     tx_identifer = _backtrace_blocks_by_extrinsic(
