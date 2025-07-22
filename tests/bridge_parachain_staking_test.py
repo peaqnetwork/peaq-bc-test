@@ -141,6 +141,16 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
 
+    def evm_delegate_another_candidate(self, contract, eth_kp_src, sub_collator_addr, stake):
+        w3 = self._w3
+        nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
+        tx = contract.functions.delegateAnotherCandidate(sub_collator_addr, stake).build_transaction({
+            'from': eth_kp_src.ss58_address,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id})
+
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
+
     def get_stake_number(self, sub_addr):
         data = self._substrate.query('ParachainStaking', 'DelegatorState', [sub_addr])
         # {'delegations':
@@ -471,3 +481,143 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
         evm_receipt = self.evm_delegator_leave_delegators(contract, self._kp_moon['kp'])
         self.assertEqual(evm_receipt['status'], 1, f'leave fails, evm_receipt: {evm_receipt}')
+
+    def force_new_round(self):
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'ParachainStaking',
+            'force_new_round',
+            {}
+        )
+        return batch.execute()
+
+    def get_balance_locks(self, account_addr):
+        locks = self._substrate.query('Balances', 'Locks', [account_addr])
+        return locks.value
+
+    def ensure_two_collators(self, contract):
+        """Ensure there are at least 2 collators in the system"""
+        out = contract.functions.getCollatorList().call()
+        out = sorted(out, key=lambda x: x[1], reverse=True)
+
+        if len(out) < 2:
+            # Fund the new collator
+            collator_stake = out[0][1]  # Use same stake as existing collator
+            receipt = self._fund_users(collator_stake * 2)
+            self.assertEqual(receipt.is_success, True, f'fund new collator fails, receipt: {receipt}')
+
+            # Join as new collator
+            batch = ExtrinsicBatch(self._substrate, self._kp_new_collator)
+            batch.compose_call(
+                'ParachainStaking',
+                'join_candidates',
+                {
+                    'stake': collator_stake,
+                }
+            )
+            receipt = batch.execute()
+            self.assertEqual(receipt.is_success, True, f'join_collator fails, receipt: {receipt}')
+
+            # Set commission rate for new collator
+            receipt = self.set_commission_rate(10, self._kp_new_collator)
+            self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
+
+            # Refresh and return updated collator list
+            out = contract.functions.getCollatorList().call()
+            out = sorted(out, key=lambda x: x[1], reverse=True)
+
+        return out
+
+    def test_delegator_multi_collator_lock_verification(self):
+        contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
+
+        # Ensure we have at least 2 collators
+        out = self.ensure_two_collators(contract)
+
+        # Get two different collators
+        collator1_eth_addr = out[0][0]
+        collator1_stake = out[0][1]
+        collator2_eth_addr = out[1][0]
+        collator2_stake = out[1][1]
+
+        # Define staking amounts
+        high_amount = collator1_stake  # High amount for collator 1
+        low_amount = collator1_stake // 2  # Low amount for collator 2
+        more_amount = collator1_stake // 4  # Additional amount for collator 2
+
+        # Fund the delegator with enough tokens
+        total_needed = high_amount + low_amount + more_amount + (10 * 10 ** 18)  # Extra for fees
+        receipt = self._fund_users(total_needed)
+        self.assertEqual(receipt.is_success, True, f'fund_users fails, receipt: {receipt}')
+
+        # Step 1: Delegator stakes high amount on collator 1
+        evm_receipt = self.evm_join_delegators(contract, self._kp_moon['kp'], collator1_eth_addr, high_amount)
+        self.assertEqual(evm_receipt['status'], 1, f'join collator1 fails, evm_receipt: {evm_receipt}')
+        bl_hash = get_block_hash(self._substrate, evm_receipt['blockNumber'])
+        event = self.get_event(bl_hash, 'ParachainStaking', 'Delegation')
+        self.assertIsNotNone(event, 'Delegation event not found for collator 1')
+
+        # Verify delegator state after first delegation
+        delegator_state = self.get_stake_number(self._kp_moon['substrate'])
+        self.assertEqual(delegator_state['total'], high_amount,
+                        f'Delegator total stake mismatch after collator1 delegation: {delegator_state}')
+
+        # Check lock after first delegation
+        locks = self.get_balance_locks(self._kp_moon['substrate'])
+        staking_locks = [lock for lock in locks if lock.get('id') in ['peaqstak', '0x706561717374616b']]
+        self.assertEqual(len(staking_locks), 1, f'Expected exactly one peaqstak lock after first delegation. Locks: {locks}')
+        self.assertEqual(staking_locks[0]['amount'], high_amount,
+                       f'Locked amount ({staking_locks[0]["amount"]}) does not match first delegation amount ({high_amount})')
+
+        # Step 2: Force new round
+        receipt = self.force_new_round()
+        self.assertEqual(receipt.is_success, True, f'force_new_round fails, receipt: {receipt}')
+
+        # Step 3: Delegator stakes low amount on collator 2 (using delegateAnotherCandidate since already delegating)
+        evm_receipt = self.evm_delegate_another_candidate(contract, self._kp_moon['kp'], collator2_eth_addr, low_amount)
+        self.assertEqual(evm_receipt['status'], 1, f'delegate another candidate fails, evm_receipt: {evm_receipt}')
+        bl_hash = get_block_hash(self._substrate, evm_receipt['blockNumber'])
+        event = self.get_event(bl_hash, 'ParachainStaking', 'Delegation')
+        self.assertIsNotNone(event, 'Delegation event not found for collator 2')
+
+        # Verify delegator state after second delegation
+        delegator_state = self.get_stake_number(self._kp_moon['substrate'])
+        expected_total = high_amount + low_amount
+        self.assertEqual(delegator_state['total'], expected_total,
+                        f'Delegator total stake mismatch after collator2 delegation: {delegator_state}')
+
+        # Check lock after second delegation (delegate another candidate)
+        locks = self.get_balance_locks(self._kp_moon['substrate'])
+        staking_locks = [lock for lock in locks if lock.get('id') in ['peaqstak', '0x706561717374616b']]
+        self.assertEqual(len(staking_locks), 1, f'Expected exactly one peaqstak lock after second delegation. Locks: {locks}')
+        self.assertEqual(staking_locks[0]['amount'], expected_total,
+                       f'Locked amount ({staking_locks[0]["amount"]}) does not match total after second delegation ({expected_total})')
+
+        # Step 4: Force new round again
+        receipt = self.force_new_round()
+        self.assertEqual(receipt.is_success, True, f'force_new_round fails, receipt: {receipt}')
+
+        # Step 5: Delegator stakes more on collator 2
+        evm_receipt = self.evm_delegator_stake_more(contract, self._kp_moon['kp'], collator2_eth_addr, more_amount)
+        self.assertEqual(evm_receipt['status'], 1, f'stake more on collator2 fails, evm_receipt: {evm_receipt}')
+
+        # Verify final delegator state
+        delegator_state = self.get_stake_number(self._kp_moon['substrate'])
+        final_total = high_amount + low_amount + more_amount
+        self.assertEqual(delegator_state['total'], final_total,
+                        f'Delegator total stake mismatch after staking more: {delegator_state}')
+
+        # Verify the total on collator 2 is still less than high amount on collator 1
+        collator2_total_from_delegator = low_amount + more_amount
+        self.assertLess(collator2_total_from_delegator, high_amount,
+                       f'Total on collator2 ({collator2_total_from_delegator}) should be less than high amount on collator1 ({high_amount})')
+
+        # Step 6: Check locked tokens equal total staking amount
+        locks = self.get_balance_locks(self._kp_moon['substrate'])
+
+        # Find peaqstak lock (id can be 'peaqstak' or hex '0x706561717374616b')
+        staking_locks = [lock for lock in locks if lock.get('id') in ['peaqstak', '0x706561717374616b']]
+
+        self.assertEqual(len(staking_locks), 1, f'Expected exactly one peaqstak lock, found {len(staking_locks)}. Locks: {locks}')
+        self.assertEqual(staking_locks[0]['amount'], final_total,
+                       f'Locked amount ({staking_locks[0]["amount"]}) does not match total staked amount ({final_total})')
