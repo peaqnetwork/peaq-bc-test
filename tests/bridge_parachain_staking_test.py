@@ -569,37 +569,44 @@ class bridge_parachain_staking_test(unittest.TestCase):
 
     def ensure_two_collators(self, contract):
         """Ensure there are at least 2 collators in the system"""
-        out = contract.functions.getCollatorList().call()
-        out = sorted(out, key=lambda x: x[1], reverse=True)
+        out = self.check_collator_count(contract)
 
         if len(out) < 2:
-            # Fund the new collator
             collator_stake = out[0][1]  # Use same stake as existing collator
-            receipt = self._fund_users(collator_stake * 2)
-            self.assertEqual(receipt.is_success, True, f'fund new collator fails, receipt: {receipt}')
-
-            # Join as new collator
-            batch = ExtrinsicBatch(self._substrate, self._kp_new_collator)
-            batch.compose_call(
-                'ParachainStaking',
-                'join_candidates',
-                {
-                    'stake': collator_stake,
-                }
-            )
-            receipt = batch.execute()
-            self.assertEqual(receipt.is_success, True, f'join_collator fails, receipt: {receipt}')
-
-            # Set commission rate for new collator
-            receipt = self.set_commission_rate(10, self._kp_new_collator)
-            self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
-
-            # Refresh and return updated collator list
-            out = contract.functions.getCollatorList().call()
-            out = sorted(out, key=lambda x: x[1], reverse=True)
+            self.fund_new_collator(collator_stake)
+            self.join_as_collator(collator_stake)
+            self.set_collator_commission(10)
+            out = self.check_collator_count(contract)  # Refresh collator list
 
         return out
 
+    def check_collator_count(self, contract):
+        """Check and return the sorted list of collators"""
+        out = contract.functions.getCollatorList().call()
+        return sorted(out, key=lambda x: x[1], reverse=True)
+
+    def fund_new_collator(self, collator_stake):
+        """Fund the new collator with the required stake"""
+        receipt = self._fund_users(collator_stake * 2)
+        self.assertEqual(receipt.is_success, True, f'fund new collator fails, receipt: {receipt}')
+
+    def join_as_collator(self, collator_stake):
+        """Join the system as a new collator"""
+        batch = ExtrinsicBatch(self._substrate, self._kp_new_collator)
+        batch.compose_call(
+            'ParachainStaking',
+            'join_candidates',
+            {
+                'stake': collator_stake,
+            }
+        )
+        receipt = batch.execute()
+        self.assertEqual(receipt.is_success, True, f'join_collator fails, receipt: {receipt}')
+
+    def set_collator_commission(self, commission_rate):
+        """Set the commission rate for the new collator"""
+        receipt = self.set_commission_rate(commission_rate, self._kp_new_collator)
+        self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
     def test_delegator_multi_collator_lock_verification(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
 
