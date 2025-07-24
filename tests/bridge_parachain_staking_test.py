@@ -60,7 +60,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         self._initialize_connections_and_keypairs()
         self._fund_users()
 
-    # Will re generate the moon/mars
+    # Will regenerate the moon/mars
     def _fund_users(self, num=100 * 10 ** 18):
         self._kp_moon = get_eth_info()
         self._kp_mars = get_eth_info()
