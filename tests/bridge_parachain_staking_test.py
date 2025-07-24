@@ -493,7 +493,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         # Verify lock after revoke_delegation (should have 0 delegation but unstaking amount)
         self.verify_delegation_lock(self._kp_moon['substrate'], 0, "after revoke_delegation")
 
-        # Note: The unlock unstaked didn't success because we have to wait about 20+ blocks;
+        # Note: The unlock unstaked didn't succeed because we have to wait about 20+ blocks;
         # therefore, we don't test here. Can just test maunally
 
     def claim_collator_if_not_claimed(self, eth_kp):
