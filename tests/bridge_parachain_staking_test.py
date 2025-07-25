@@ -607,6 +607,7 @@ class bridge_parachain_staking_test(unittest.TestCase):
         """Set the commission rate for the new collator"""
         receipt = self.set_commission_rate(commission_rate, self._kp_new_collator)
         self.assertEqual(receipt.is_success, True, f'set_commission fails, receipt: {receipt}')
+
     def test_delegator_multi_collator_lock_verification(self):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
 
