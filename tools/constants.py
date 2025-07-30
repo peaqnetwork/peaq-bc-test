@@ -76,3 +76,15 @@ DEFAULT_COLLATOR_DICT = {
     'enable_collator_binary': False,
     'docker_compose_folder': None,
 }
+
+# Coretime configuration
+CORETIME_CORES = 4  # Default number of cores to assign
+CORETIME_DURATION = 57600  # Duration for coretime assignment
+
+# Parachain-specific core assignments
+PARACHAIN_CORE_MAP = {
+    2000: 4,  # 4 cores for parachain 2000
+    2241: 4,  # 4 cores for parachain 2241
+    3338: 4,  # 4 cores for parachain 3338
+    3000: 1,  # 1 core for parachain 3000
+}

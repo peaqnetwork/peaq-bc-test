@@ -9,6 +9,7 @@ from tools.runtime_upgrade import fetch_runtime_upgrade_path_from_env
 from tools.runtime_upgrade import fetch_collator_dict_from_env
 from tools.collator_binary_utils import cleanup_collator
 from tools.runtime_upgrade import do_runtime_upgrade
+from tools.runtime_upgrade import update_xcm_default_version
 from substrateinterface import SubstrateInterface
 from tools.xcm_setup import setup_hrmp_channel
 from peaq.utils import get_account_balance
@@ -29,6 +30,8 @@ def restart_with_setup():
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
     if get_account_balance(SubstrateInterface(url=WS_URL), KP_GLOBAL_SUDO.ss58_address) < 0.5 * 10 ** 18:
         fund_account()
+    substrate = SubstrateInterface(url=WS_URL)
+    update_xcm_default_version(substrate)
 
 
 def start_runtime_upgrade_only():
