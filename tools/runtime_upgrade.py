@@ -289,7 +289,7 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     # Reconnect to the new collator
     substrate = SubstrateInterface(url=WS_URL)
     substrate.connect_websocket()
-    wait_for_n_blocks(substrate, 3, timeout=3*DEFAULT_BLOCK_TIME*2)
+    wait_for_n_blocks(substrate, 3, 3*DEFAULT_BLOCK_TIME*2)
     return substrate
 
 
@@ -328,7 +328,7 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 
     # Wait for upgrade completion with error handling
     try:
-        wait_for_n_blocks(substrate, UPGRADE_WAIT_BLOCKS, timeout=UPGRADE_TIMEOUT)
+        wait_for_n_blocks(substrate, UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT)
     except Exception as e:
         print(f'Error: {e}')
         if not should_handle_upgrade_error(e, collator_dict):
@@ -387,7 +387,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Upgrade the runtime, env: RUNTIME_UPGRADE_PATH')
     parser.add_argument('--runtime-upgrade-path', type=str, help='Your runtime poisiton')
-    parser.add_argument('-d', '--docker-restart', type=bool, default=False, help='Restart the docker container')
+    parser.add_argument('-d', '--docker-restart', action="store_true", default=False, help='Restart the docker container')
 
     # Three options for the collator binary
     #    1. Enable the collator binary: enable-collator-binary

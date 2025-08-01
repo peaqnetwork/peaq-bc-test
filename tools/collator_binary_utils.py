@@ -211,7 +211,7 @@ def start_collator_process(binary_path, args, log_path):
         {binary_path} \
         {' '.join(args)}
     """
-
+    print(f'Starting collator with command: {command}')
     with open(log_path, 'w') as logfile:
         subprocess.Popen(
             command,
@@ -245,6 +245,7 @@ def wakeup_latest_collator(collator_dict, docker_info):
     log_path = f'{collator_chain_data_folder}/collator.log'
     start_collator_process(peaq_binary_path, run_args, log_path)
 
+    print(f'Collator output is being redirected to: {log_path}')
     print('Wait for the collator to start...')
     time.sleep(COLLATOR_START_WAIT_TIME)
 
