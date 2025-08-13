@@ -197,10 +197,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def _create_extended_contract(self):
         """Create contract instance with extended ABI including getDelegatorState"""
-        return self._w3.eth.contract(
-            address=PARACHAIN_STAKING_ADDR,
-            abi=EXTENDED_ABI
-        )
+        # Now using the actual ABI file which has been updated with getDelegatorState
+        return get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
 
     def _get_collator_list(self):
         """Get sorted collator list"""
@@ -258,7 +256,7 @@ class TestGetDelegatorState(unittest.TestCase):
             kp = get_eth_info()
             self.delegator_keypairs.append(kp)
 
-        # Fund all 11 delegators
+        # Fund all 11 delegators with more tokens
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
         for kp in self.delegator_keypairs:
             batch.compose_sudo_call(
@@ -266,7 +264,7 @@ class TestGetDelegatorState(unittest.TestCase):
                 'force_set_balance',
                 {
                     'who': kp['substrate'],
-                    'new_free': collator_list[0][1] * 3,
+                    'new_free': collator_list[0][1] * 10,  # Increased funding
                 }
             )
         receipt = batch.execute()
@@ -280,7 +278,8 @@ class TestGetDelegatorState(unittest.TestCase):
         # First 7 delegators → Collator 1 (indices 0-6)
         for i in range(7):
             kp = self.delegator_keypairs[i]
-            stake_amount = collator_list[0][1] // (10 + i)  # Varying amounts
+            # Ensure stake is above minimum (typically 5 * 10^18 for PEAQ)
+            stake_amount = max(collator_list[0][1] // (10 + i), 10 * 10**18)  # Varying amounts with minimum
             
             evm_receipt = self._join_delegators(contract, kp['kp'], collator1_addr, stake_amount)
             self.assertEqual(evm_receipt['status'], 1, f'Delegator {i} failed to join collator1')
@@ -288,20 +287,23 @@ class TestGetDelegatorState(unittest.TestCase):
         # Next 4 delegators → Collator 2 (indices 7-10)  
         for i in range(7, 11):
             kp = self.delegator_keypairs[i]
-            stake_amount = collator_list[1][1] // (15 + i)  # Different varying amounts
+            # Ensure stake is above minimum
+            stake_amount = max(collator_list[1][1] // (15 + i), 10 * 10**18)  # Different varying amounts with minimum
             
             evm_receipt = self._join_delegators(contract, kp['kp'], collator2_addr, stake_amount)
             self.assertEqual(evm_receipt['status'], 1, f'Delegator {i} failed to join collator2')
 
         # Make 2 delegators have multiple delegations:
         # Multi-delegator 1: Delegator 1 (Mars) - already delegated to collator1, now add collator2
+        stake_amount = max(collator_list[1][1] // 20, 10 * 10**18)
         evm_receipt = self._delegate_another_candidate(contract, self.delegator_keypairs[1]['kp'], 
-                                                     collator2_addr, collator_list[1][1] // 20)
+                                                     collator2_addr, stake_amount)
         self.assertEqual(evm_receipt['status'], 1, 'Multi-delegator 1 failed to delegate to collator2')
 
         # Multi-delegator 2: Delegator 8 - already delegated to collator2, now add collator1  
+        stake_amount = max(collator_list[0][1] // 25, 10 * 10**18)
         evm_receipt = self._delegate_another_candidate(contract, self.delegator_keypairs[8]['kp'], 
-                                                     collator1_addr, collator_list[0][1] // 25)
+                                                     collator1_addr, stake_amount)
         self.assertEqual(evm_receipt['status'], 1, 'Multi-delegator 2 failed to delegate to collator1')
 
         return collator_list
@@ -349,8 +351,8 @@ class TestGetDelegatorState(unittest.TestCase):
         # Use a random address that has never delegated
         fake_delegator = bytes(32)  # All zeros
         
-        # Get delegator state via EVM
-        delegator_states = extended_contract.functions.getDelegatorState(fake_delegator).call()
+        # Get delegator state via EVM with pagination parameters
+        delegator_states = extended_contract.functions.getDelegatorState(fake_delegator, 0, 10).call()
         
         # Should return empty array
         self.assertEqual(len(delegator_states), 0, "Should return empty array for non-existent delegator")
@@ -523,10 +525,10 @@ class TestGetDelegatorState(unittest.TestCase):
         extended_contract = self._create_extended_contract()
         
         # Test single delegator query gas
-        mars_delegator_bytes = bytes.fromhex(self._substrate.ss58_decode(self._kp_mars['substrate']))
+        mars_delegator_bytes = bytes.fromhex(self._substrate.ss58_decode(self.delegator_keypairs[1]['substrate']))
         
         gas_estimate_single = extended_contract.functions.getDelegatorState(
-            mars_delegator_bytes
+            mars_delegator_bytes, 0, 10
         ).estimate_gas()
         
         print(f"Gas estimate for single delegator query: {gas_estimate_single}")
@@ -546,12 +548,12 @@ class TestGetDelegatorState(unittest.TestCase):
         collator_list = self._setup_multiple_delegators_and_collators()
         extended_contract = self._create_extended_contract()
         
-        # Test each individual delegator
-        for kp in [self._kp_moon, self._kp_mars, self._kp_venus]:
+        # Test first 3 delegators
+        for kp in self.delegator_keypairs[:3]:
             delegator_bytes = bytes.fromhex(self._substrate.ss58_decode(kp['substrate']))
             
             # Get EVM result
-            evm_states = extended_contract.functions.getDelegatorState(delegator_bytes).call()
+            evm_states = extended_contract.functions.getDelegatorState(delegator_bytes, 0, 10).call()
             
             # Get Substrate result
             substrate_state = self._get_substrate_delegator_state(kp['substrate'])
