@@ -321,8 +321,8 @@ class TestGetDelegatorState(unittest.TestCase):
         contract = get_contract(self._w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
         moon_delegator_bytes = bytes.fromhex(self._substrate.ss58_decode(self._kp_moon['substrate']))
 
-        # Get delegator state via EVM
-        delegator_states = contract.functions.getDelegatorState(moon_delegator_bytes).call()
+        # Get delegator state via EVM (use pagination parameters since 1-param version was removed)
+        delegator_states = contract.functions.getDelegatorState(moon_delegator_bytes, 0, 10).call()
 
         # Verify results
         self.assertEqual(len(delegator_states), 1, "Should return exactly one delegator state")
