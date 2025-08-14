@@ -35,8 +35,8 @@ class TestGetDelegatorState(unittest.TestCase):
         cls._setup_class_delegators()
 
     @classmethod
-    def _setup_class_delegators(cls):
-        """Setup 11 delegators with 2 collators once for all tests"""
+    def _setup_infrastructure(cls):
+        """Get connections, constants, and ensure 4 collators exist"""
         # Initialize connections for class setup
         substrate = SubstrateInterface(url=WS_URL)
         w3 = Web3(Web3.HTTPProvider(ETH_URL))
@@ -44,14 +44,10 @@ class TestGetDelegatorState(unittest.TestCase):
         kp_new_collator = Keypair.create_from_uri('//NewMoon01')
         
         # Get minimum delegation amount
-        try:
-            min_delegation_obj = substrate.get_constant('ParachainStaking', 'MinDelegation')
-            if min_delegation_obj:
-                min_delegation = min_delegation_obj.value
-            else:
-                raise Exception("MinDelegation constant returned None")
-        except Exception as e:
-            raise Exception(f"Failed to get MinDelegation constant from chain: {e}")
+        min_delegation_obj = substrate.get_constant('ParachainStaking', 'MinDelegation')
+        if not min_delegation_obj:
+            raise Exception("MinDelegation constant returned None")
+        min_delegation = min_delegation_obj.value
         
         # Get collator list and ensure we have 2 collators
         contract = get_contract(w3, PARACHAIN_STAKING_ADDR, PARACHAIN_STAKING_ABI_FILE)
@@ -84,6 +80,100 @@ class TestGetDelegatorState(unittest.TestCase):
             out = contract.functions.getCollatorList().call()
             collator_list = sorted(out, key=lambda x: x[1], reverse=True)
         
+        return substrate, w3, eth_chain_id, contract, min_delegation, collator_list
+
+    @classmethod
+    def _process_delegations_async(cls, w3, contract, delegation_requests, eth_chain_id, wait_blocks=3):
+        """Common pattern: send delegations async, wait, check results, retry failures"""
+        from tools.peaq_eth_utils import send_raw_tx
+        from tools.constants import BLOCK_GENERATE_TIME
+        from tests.evm_utils import sign_and_submit_evm_transaction
+        import time
+        
+        # Send all transactions async
+        pending = []
+        for request in delegation_requests:
+            delegator_idx, action_type, collator_addr, delegator_kp, stake_amount = request
+            try:
+                # Build transaction based on action type
+                nonce = w3.eth.get_transaction_count(delegator_kp['kp'].ss58_address)
+                if action_type == 'join':
+                    tx = contract.functions.joinDelegators(collator_addr, stake_amount).build_transaction({
+                        'from': delegator_kp['kp'].ss58_address,
+                        'nonce': nonce,
+                        'chainId': eth_chain_id
+                    })
+                else:  # 'delegate'
+                    tx = contract.functions.delegateAnotherCandidate(collator_addr, stake_amount).build_transaction({
+                        'from': delegator_kp['kp'].ss58_address,
+                        'nonce': nonce,
+                        'chainId': eth_chain_id
+                    })
+                
+                # Send transaction async
+                signed_txn = w3.eth.account.sign_transaction(tx, private_key=delegator_kp['kp'].private_key)
+                tx_hash = send_raw_tx(w3, signed_txn)
+                pending.append((delegator_idx, action_type, collator_addr, delegator_kp, tx_hash))
+                
+                if action_type == 'delegate':  # Extra logging for multi-delegations
+                    print(f'Delegator {delegator_idx} multi-delegation sent: {tx_hash.hex()}')
+                    
+            except Exception as e:
+                print(f'Error preparing {action_type} for delegator {delegator_idx}: {e}')
+                raise
+        
+        print(f'Sent {len(pending)} {pending[0][1] if pending else "unknown"} delegations, waiting for confirmation...')
+        
+        # Wait for transactions to be included
+        time.sleep(BLOCK_GENERATE_TIME * wait_blocks)
+        
+        # Check results
+        failed = []
+        for delegator_info in pending:
+            delegator_idx, action_type, collator_addr, delegator_kp, tx_hash = delegator_info
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt['status'] != 1:
+                    failed.append(delegator_info)
+                    print(f'Delegator {delegator_idx} {action_type} failed (status=0)')
+            except Exception as e:
+                failed.append(delegator_info)
+                print(f'Delegator {delegator_idx} {action_type} failed: {e}')
+        
+        # Retry failed transactions synchronously
+        for delegator_info in failed:
+            delegator_idx, action_type, collator_addr, delegator_kp, _ = delegator_info
+            stake_amount = delegation_requests[0][4]  # Get stake amount from original request
+            nonce = w3.eth.get_transaction_count(delegator_kp['kp'].ss58_address)
+            
+            if action_type == 'join':
+                tx = contract.functions.joinDelegators(collator_addr, stake_amount).build_transaction({
+                    'from': delegator_kp['kp'].ss58_address,
+                    'nonce': nonce,
+                    'chainId': eth_chain_id
+                })
+            else:  # 'delegate'
+                tx = contract.functions.delegateAnotherCandidate(collator_addr, stake_amount).build_transaction({
+                    'from': delegator_kp['kp'].ss58_address,
+                    'nonce': nonce,
+                    'chainId': eth_chain_id
+                })
+            
+            evm_receipt = sign_and_submit_evm_transaction(tx, w3, delegator_kp['kp'])
+            if evm_receipt['status'] != 1:
+                raise Exception(f'Delegator {delegator_idx} {action_type} retry failed')
+            print(f'Delegator {delegator_idx} {action_type} retry succeeded')
+        
+        success_count = len(pending)
+        retry_count = len(failed)
+        print(f'{pending[0][1].capitalize() if pending else "Unknown"} delegation setup complete: {success_count} sent, {retry_count} retried')
+        
+        return success_count, retry_count
+
+    @classmethod
+    def _setup_main_delegators(cls, substrate, w3, contract, collator_list, min_delegation, eth_chain_id):
+        """Create 11 delegators and setup their delegations"""
+        
         # Create 11 unique delegators
         cls.delegator_keypairs = []
         for i in range(11):
@@ -110,77 +200,20 @@ class TestGetDelegatorState(unittest.TestCase):
         # Setup delegations
         collator1_addr = collator_list[0][0]
         collator2_addr = collator_list[1][0]
+        stake_amount = min_delegation * 3
         
-        # Send all join delegations quickly without waiting
-        from tools.peaq_eth_utils import send_raw_tx
-        from tools.constants import BLOCK_GENERATE_TIME
-        import time
-        pending_joins = []
-        
+        # Prepare join delegation requests
+        join_requests = []
         # First 7 delegators → Collator 1 (indices 0-6)
         for i in range(7):
-            kp = cls.delegator_keypairs[i]
-            stake_amount = min_delegation * 3
-            nonce = w3.eth.get_transaction_count(kp['kp'].ss58_address)
-            tx = contract.functions.joinDelegators(collator1_addr, stake_amount).build_transaction({
-                'from': kp['kp'].ss58_address,
-                'nonce': nonce,
-                'chainId': eth_chain_id
-            })
-            signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp['kp'].private_key)
-            tx_hash = send_raw_tx(w3, signed_txn)
-            pending_joins.append((i, 'join', collator1_addr, kp, tx_hash))
+            join_requests.append((i, 'join', collator1_addr, cls.delegator_keypairs[i], stake_amount))
         
         # Next 4 delegators → Collator 2 (indices 7-10)
         for i in range(7, 11):
-            kp = cls.delegator_keypairs[i]
-            stake_amount = min_delegation * 3
-            nonce = w3.eth.get_transaction_count(kp['kp'].ss58_address)
-            tx = contract.functions.joinDelegators(collator2_addr, stake_amount).build_transaction({
-                'from': kp['kp'].ss58_address,
-                'nonce': nonce,
-                'chainId': eth_chain_id
-            })
-            signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp['kp'].private_key)
-            tx_hash = send_raw_tx(w3, signed_txn)
-            pending_joins.append((i, 'join', collator2_addr, kp, tx_hash))
+            join_requests.append((i, 'join', collator2_addr, cls.delegator_keypairs[i], stake_amount))
         
-        print(f'Sent {len(pending_joins)} join delegations, waiting for confirmation...')
-        
-        # Wait for join transactions to be included and check results
-        time.sleep(BLOCK_GENERATE_TIME * 3)  # Wait for 3 blocks
-        
-        failed_joins = []
-        for delegator_info in pending_joins:
-            delegator_idx, action, collator_addr, kp, tx_hash = delegator_info
-            try:
-                receipt = w3.eth.get_transaction_receipt(tx_hash)
-                if receipt['status'] != 1:
-                    failed_joins.append(delegator_info)
-                    print(f'Delegator {delegator_idx} {action} failed (status=0)')
-            except Exception as e:
-                failed_joins.append(delegator_info)
-                print(f'Delegator {delegator_idx} {action} failed: {e}')
-        
-        # Retry failed join delegations synchronously
-        from tests.evm_utils import sign_and_submit_evm_transaction
-        for delegator_info in failed_joins:
-            delegator_idx, action, collator_addr, kp, _ = delegator_info
-            stake_amount = min_delegation * 3
-            nonce = w3.eth.get_transaction_count(kp['kp'].ss58_address)
-            
-            tx = contract.functions.joinDelegators(collator_addr, stake_amount).build_transaction({
-                'from': kp['kp'].ss58_address,
-                'nonce': nonce,
-                'chainId': eth_chain_id
-            })
-            
-            evm_receipt = sign_and_submit_evm_transaction(tx, w3, kp['kp'])
-            if evm_receipt['status'] != 1:
-                raise Exception(f'Delegator {delegator_idx} {action} retry failed')
-            print(f'Delegator {delegator_idx} {action} retry succeeded')
-        
-        print(f'Join delegation setup complete: {len(pending_joins)} sent, {len(failed_joins)} retried')
+        # Process join delegations using async pattern
+        cls._process_delegations_async(w3, contract, join_requests, eth_chain_id, wait_blocks=3)
         
         # Force a new round to avoid DelegationsPerRoundExceeded error for multi-delegations
         batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
@@ -191,72 +224,27 @@ class TestGetDelegatorState(unittest.TestCase):
         print('Forced new round for multi-delegations')
         
         # Wait a bit more to ensure all join transactions are fully confirmed
+        from tools.constants import BLOCK_GENERATE_TIME
+        import time
         time.sleep(BLOCK_GENERATE_TIME)
         
-        # Now handle multi-delegations (delegators 1 and 2 delegate to collator2)
-        # These must be done after join delegations are confirmed
+        # Prepare multi-delegation requests (delegators 1 and 2 delegate to collator2)
         print('Starting multi-delegation phase...')
-        pending_multi = []
+        multi_requests = []
         for delegator_idx in [1, 2]:
-            try:
-                kp = cls.delegator_keypairs[delegator_idx]
-                stake_amount = min_delegation * 3
-                nonce = w3.eth.get_transaction_count(kp['kp'].ss58_address)
-                print(f'Delegator {delegator_idx}: nonce={nonce}, preparing multi-delegation')
-                tx = contract.functions.delegateAnotherCandidate(collator2_addr, stake_amount).build_transaction({
-                    'from': kp['kp'].ss58_address,
-                    'nonce': nonce,
-                    'chainId': eth_chain_id
-                })
-                signed_txn = w3.eth.account.sign_transaction(tx, private_key=kp['kp'].private_key)
-                tx_hash = send_raw_tx(w3, signed_txn)
-                pending_multi.append((delegator_idx, 'delegate', collator2_addr, kp, tx_hash))
-                print(f'Delegator {delegator_idx} multi-delegation sent: {tx_hash.hex()}')
-            except Exception as e:
-                print(f'Error preparing multi-delegation for delegator {delegator_idx}: {e}')
-                raise
+            print(f'Delegator {delegator_idx}: preparing multi-delegation')
+            multi_requests.append((delegator_idx, 'delegate', collator2_addr, cls.delegator_keypairs[delegator_idx], stake_amount))
         
-        print(f'Sent {len(pending_multi)} multi-delegations, waiting for confirmation...')
+        # Process multi-delegations using async pattern
+        cls._process_delegations_async(w3, contract, multi_requests, eth_chain_id, wait_blocks=2)
         
-        # Wait for multi-delegation transactions
-        time.sleep(BLOCK_GENERATE_TIME * 2)
+        print(f'Main delegation setup complete')
         
-        failed_multi = []
-        for delegator_info in pending_multi:
-            delegator_idx, action, collator_addr, kp, tx_hash = delegator_info
-            try:
-                receipt = w3.eth.get_transaction_receipt(tx_hash)
-                if receipt['status'] != 1:
-                    failed_multi.append(delegator_info)
-                    print(f'Delegator {delegator_idx} {action} failed (status=0)')
-            except Exception as e:
-                failed_multi.append(delegator_info)
-                print(f'Delegator {delegator_idx} {action} failed: {e}')
-        
-        # Retry failed multi-delegations synchronously
-        for delegator_info in failed_multi:
-            delegator_idx, action, collator_addr, kp, _ = delegator_info
-            stake_amount = min_delegation * 3
-            nonce = w3.eth.get_transaction_count(kp['kp'].ss58_address)
-            
-            tx = contract.functions.delegateAnotherCandidate(collator_addr, stake_amount).build_transaction({
-                'from': kp['kp'].ss58_address,
-                'nonce': nonce,
-                'chainId': eth_chain_id
-            })
-            
-            evm_receipt = sign_and_submit_evm_transaction(tx, w3, kp['kp'])
-            if evm_receipt['status'] != 1:
-                raise Exception(f'Delegator {delegator_idx} {action} retry failed')
-            print(f'Delegator {delegator_idx} {action} retry succeeded')
-        
-        total_delegations = len(pending_joins) + len(pending_multi)
-        total_retries = len(failed_joins) + len(failed_multi)
-        print(f'Main delegation setup complete: {total_delegations} sent, {total_retries} retried')
-        
-        # Store collator list for tests
-        cls.collator_list = collator_list
-        
+        return cls.delegator_keypairs
+
+    @classmethod
+    def _setup_pagination_delegator(cls, substrate, w3, contract, collator_list, min_delegation, eth_chain_id):
+        """Create test delegator with 4 delegations"""
         # Create a dedicated test delegator with 4 delegations for pagination tests
         cls.test_delegator = get_eth_info()
         
@@ -304,6 +292,23 @@ class TestGetDelegatorState(unittest.TestCase):
             evm_receipt = sign_and_submit_evm_transaction(tx, w3, cls.test_delegator['kp'])
             if evm_receipt['status'] != 1:
                 raise Exception(f'Test delegator failed to delegate to collator {i}')
+        
+        return cls.test_delegator
+
+    @classmethod
+    def _setup_class_delegators(cls):
+        """Setup 11 delegators with 2 collators once for all tests"""
+        # Setup infrastructure
+        substrate, w3, eth_chain_id, contract, min_delegation, collator_list = cls._setup_infrastructure()
+        
+        # Setup main delegators  
+        cls.delegator_keypairs = cls._setup_main_delegators(substrate, w3, contract, collator_list, min_delegation, eth_chain_id)
+        
+        # Setup test delegator
+        cls.test_delegator = cls._setup_pagination_delegator(substrate, w3, contract, collator_list, min_delegation, eth_chain_id)
+        
+        # Store collator list
+        cls.collator_list = collator_list
 
     def _initialize_connections_and_keypairs(self):
         """Initialize connections and keypairs"""
