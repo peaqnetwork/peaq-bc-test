@@ -142,54 +142,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "delegator",
-				"type": "bytes32"
-			}
-		],
-		"name": "getDelegatorState",
-		"outputs": [
-			{
-				"components": [
-					{
-						"internalType": "bytes32",
-						"name": "delegator",
-						"type": "bytes32"
-					},
-					{
-						"components": [
-							{
-								"internalType": "bytes32",
-								"name": "collator",
-								"type": "bytes32"
-							},
-							{
-								"internalType": "uint256",
-								"name": "amount",
-								"type": "uint256"
-							}
-						],
-						"internalType": "struct ParachainStaking.DelegationInfo[]",
-						"name": "collators",
-						"type": "tuple[]"
-					},
-					{
-						"internalType": "uint256",
-						"name": "total",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct ParachainStaking.CollatorDelegatorState[]",
-				"name": "",
-				"type": "tuple[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "getWaitList",
 		"outputs": [
