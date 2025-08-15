@@ -72,15 +72,13 @@ class TestGetDelegatorState(unittest.TestCase):
                 'new_free': funding_amount,
             })
             receipt = batch.execute()
-            if not receipt.is_success:
-                raise Exception(f"Failed to fund new collator: {receipt.error_message}")
+            self.assertTrue(receipt.is_success, f"Failed to fund new collator: {receipt.error_message}")
             
             # Join as collator
             batch = ExtrinsicBatch(substrate, kp_new_collator)
             batch.compose_call('ParachainStaking', 'join_candidates', {'stake': collator_list[0][1]})
             receipt = batch.execute()
-            if not receipt.is_success:
-                raise Exception(f"Failed to add new collator: {receipt.error_message}")
+            self.assertTrue(receipt.is_success, f"Failed to add new collator: {receipt.error_message}")
             
             # Update collator list
             out = contract.functions.getCollatorList().call()
@@ -130,38 +128,47 @@ class TestGetDelegatorState(unittest.TestCase):
         
         print(f'Sent {len(pending)} {pending[0][1] if pending else "unknown"} delegations, waiting for confirmation...')
         
-        # Wait longer for transactions to be included (more time for 11 transactions)
-        initial_wait = BLOCK_GENERATE_TIME * wait_blocks
-        time.sleep(initial_wait)
+        # Use shorter initial wait - just 1 block instead of wait_blocks
+        time.sleep(BLOCK_GENERATE_TIME)
         
-        # Check results with retry logic for receipt lookup
+        # Check results with optimized parallel receipt checking
         failed = []
         succeeded = []
         
+        # First pass - quick check for already confirmed transactions
+        remaining = []
         for delegator_info in pending:
             delegator_idx, action_type, collator_addr, delegator_kp, tx_hash = delegator_info
-            
-            # Try multiple times to get the receipt (transactions might still be pending)
-            receipt = None
-            for attempt in range(3):
-                try:
-                    receipt = w3.eth.get_transaction_receipt(tx_hash)
-                    break
-                except Exception as e:
-                    if attempt < 2:  # Not the last attempt
-                        time.sleep(BLOCK_GENERATE_TIME)  # Wait one more block
-                    else:
-                        print(f'Delegator {delegator_idx} {action_type} receipt not found after 3 attempts: {e}')
-            
-            if receipt:
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
                 if receipt['status'] == 1:
                     succeeded.append(delegator_info)
-                    print(f'Delegator {delegator_idx} {action_type} succeeded')
+                    print(f'Delegator {delegator_idx} {action_type} succeeded (immediate)')
                 else:
                     failed.append(delegator_info)
                     print(f'Delegator {delegator_idx} {action_type} failed (status=0)')
-            else:
-                failed.append(delegator_info)
+            except Exception:
+                # Transaction not yet confirmed, add to remaining for retry
+                remaining.append(delegator_info)
+        
+        # Second pass - wait and retry only unconfirmed transactions
+        if remaining:
+            print(f'Waiting for {len(remaining)} remaining transactions...')
+            time.sleep(BLOCK_GENERATE_TIME)  # Wait one more block
+            
+            for delegator_info in remaining:
+                delegator_idx, action_type, collator_addr, delegator_kp, tx_hash = delegator_info
+                try:
+                    receipt = w3.eth.get_transaction_receipt(tx_hash)
+                    if receipt['status'] == 1:
+                        succeeded.append(delegator_info)
+                        print(f'Delegator {delegator_idx} {action_type} succeeded (retry)')
+                    else:
+                        failed.append(delegator_info)
+                        print(f'Delegator {delegator_idx} {action_type} failed (status=0)')
+                except Exception as e:
+                    failed.append(delegator_info)
+                    print(f'Delegator {delegator_idx} {action_type} receipt not found: {e}')
         
         # Only retry transactions that actually failed (not those that were just slow)
         actually_failed = []
@@ -212,8 +219,7 @@ class TestGetDelegatorState(unittest.TestCase):
             
             try:
                 evm_receipt = sign_and_submit_evm_transaction(tx, w3, delegator_kp['kp'])
-                if evm_receipt['status'] != 1:
-                    raise Exception(f'Delegator {delegator_idx} {action_type} retry failed with status {evm_receipt["status"]}')
+                cls.assertEqual(evm_receipt['status'], 1, f'Delegator {delegator_idx} {action_type} retry failed with status {evm_receipt["status"]}')
                 print(f'Delegator {delegator_idx} {action_type} retry succeeded')
             except Exception as e:
                 if "already known" in str(e).lower():
@@ -256,8 +262,7 @@ class TestGetDelegatorState(unittest.TestCase):
                 'new_free': funding_amount,
             })
         receipt = batch.execute()
-        if not receipt.is_success:
-            raise Exception(f"Failed to fund delegators: {receipt.error_message}")
+        cls.assertTrue(receipt.is_success, f"Failed to fund delegators: {receipt.error_message}")
         
         # Setup delegations
         collator1_addr = collator_list[0][0]
@@ -275,20 +280,14 @@ class TestGetDelegatorState(unittest.TestCase):
             join_requests.append((i, 'join', collator2_addr, cls.delegator_keypairs[i], stake_amount))
         
         # Process join delegations using async pattern
-        cls._process_delegations_async(w3, contract, join_requests, eth_chain_id, wait_blocks=3)
+        cls._process_delegations_async(w3, contract, join_requests, eth_chain_id, wait_blocks=1)
         
         # Force a new round to avoid DelegationsPerRoundExceeded error for multi-delegations
         batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
         batch.compose_sudo_call('ParachainStaking', 'force_new_round', {})
         receipt = batch.execute()
-        if not receipt.is_success:
-            raise Exception("Failed to force new round before multi-delegations")
+        cls.assertTrue(receipt.is_success, "Failed to force new round before multi-delegations")
         print('Forced new round for multi-delegations')
-        
-        # Wait a bit more to ensure all join transactions are fully confirmed
-        from tools.constants import BLOCK_GENERATE_TIME
-        import time
-        time.sleep(BLOCK_GENERATE_TIME)
         
         # Prepare multi-delegation requests (delegators 1 and 2 delegate to collator2)
         print('Starting multi-delegation phase...')
@@ -297,8 +296,8 @@ class TestGetDelegatorState(unittest.TestCase):
             print(f'Delegator {delegator_idx}: preparing multi-delegation')
             multi_requests.append((delegator_idx, 'delegate', collator2_addr, cls.delegator_keypairs[delegator_idx], stake_amount))
         
-        # Process multi-delegations using async pattern
-        cls._process_delegations_async(w3, contract, multi_requests, eth_chain_id, wait_blocks=2)
+        # Process multi-delegations using async pattern (no extra wait, optimized)
+        cls._process_delegations_async(w3, contract, multi_requests, eth_chain_id, wait_blocks=1)
         
         print(f'Main delegation setup complete')
         
@@ -319,8 +318,7 @@ class TestGetDelegatorState(unittest.TestCase):
             'new_free': funding_amount,
         })
         receipt = batch.execute()
-        if not receipt.is_success:
-            raise Exception(f"Failed to fund test delegator: {receipt.error_message}")
+        cls.assertTrue(receipt.is_success, f"Failed to fund test delegator: {receipt.error_message}")
         
         # Delegate to first collator (join) - use same minimum delegation as other delegators
         stake_amount = min_delegation * 3
@@ -331,8 +329,7 @@ class TestGetDelegatorState(unittest.TestCase):
             'chainId': eth_chain_id
         })
         evm_receipt = sign_and_submit_evm_transaction(tx, w3, cls.test_delegator['kp'])
-        if evm_receipt['status'] != 1:
-            raise Exception('Test delegator failed to join first collator')
+        cls.assertEqual(evm_receipt['status'], 1, 'Test delegator failed to join first collator')
         
         # Delegate to additional collators (3 more = 4 total) with force new round between each
         for i in range(1, 4):
@@ -340,8 +337,7 @@ class TestGetDelegatorState(unittest.TestCase):
             batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
             batch.compose_sudo_call('ParachainStaking', 'force_new_round', {})
             receipt = batch.execute()
-            if not receipt.is_success:
-                raise Exception("Failed to force new round for test delegator setup")
+            cls.assertTrue(receipt.is_success, "Failed to force new round for test delegator setup")
             
             # Use minimum delegation amount for all delegations to ensure they're valid
             stake_amount = min_delegation * 3
@@ -352,8 +348,7 @@ class TestGetDelegatorState(unittest.TestCase):
                 'chainId': eth_chain_id
             })
             evm_receipt = sign_and_submit_evm_transaction(tx, w3, cls.test_delegator['kp'])
-            if evm_receipt['status'] != 1:
-                raise Exception(f'Test delegator failed to delegate to collator {i}')
+            cls.assertEqual(evm_receipt['status'], 1, f'Test delegator failed to delegate to collator {i}')
         
         return cls.test_delegator
 
@@ -477,31 +472,28 @@ class TestGetDelegatorState(unittest.TestCase):
                 break
         
         if delegator_index is not None:
-            # We know EXACTLY what this delegator should have
-            is_multi = delegator_index in self.MULTI_DELEGATOR_INDICES
-            
-            if is_multi:
-                # Multi-delegator: exactly 2 delegations
-                self.assertEqual(len(delegator_state[1]), 2, 
-                    f"Delegator {delegator_index} should have exactly 2 delegations")
-                # Each delegation is exactly SINGLE_DELEGATION_AMOUNT
-                for j, delegation in enumerate(delegator_state[1]):
-                    self.assertEqual(delegation[1], self.SINGLE_DELEGATION_AMOUNT,
-                        f"Delegation {j} should be exactly {self.SINGLE_DELEGATION_AMOUNT}")
-                # Total is exactly 2 * SINGLE_DELEGATION_AMOUNT
-                expected_total = self.SINGLE_DELEGATION_AMOUNT * 2
-                self.assertEqual(delegator_state[2], expected_total,
-                    f"Multi-delegator total should be {expected_total}")
-            else:
-                # Single delegator: exactly 1 delegation
-                self.assertEqual(len(delegator_state[1]), 1,
-                    f"Delegator {delegator_index} should have exactly 1 delegation")
-                # Amount is exactly SINGLE_DELEGATION_AMOUNT
-                self.assertEqual(delegator_state[1][0][1], self.SINGLE_DELEGATION_AMOUNT,
-                    f"Delegation should be exactly {self.SINGLE_DELEGATION_AMOUNT}")
-                # Total equals the single delegation
-                self.assertEqual(delegator_state[2], self.SINGLE_DELEGATION_AMOUNT,
-                    f"Single delegator total should be {self.SINGLE_DELEGATION_AMOUNT}")
+            # We know EXACTLY what this delegator should have - validate based on delegator type
+            self._validate_exact_delegator_state(delegator_state, delegator_index)
+
+    def _validate_exact_delegator_state(self, delegator_state, delegator_index):
+        """Validate exact delegator state based on whether it's a multi-delegator or single delegator"""
+        is_multi = delegator_index in self.MULTI_DELEGATOR_INDICES
+        
+        # Multi-delegators have exactly 2 delegations, single delegators have exactly 1
+        expected_delegation_count = 2 if is_multi else 1
+        expected_total = self.SINGLE_DELEGATION_AMOUNT * expected_delegation_count
+        
+        self.assertEqual(len(delegator_state[1]), expected_delegation_count,
+            f"Delegator {delegator_index} should have exactly {expected_delegation_count} delegations")
+        
+        # Each delegation amount should be exactly SINGLE_DELEGATION_AMOUNT
+        for j, delegation in enumerate(delegator_state[1]):
+            self.assertEqual(delegation[1], self.SINGLE_DELEGATION_AMOUNT,
+                f"Delegation {j} should be exactly {self.SINGLE_DELEGATION_AMOUNT}")
+        
+        # Total should equal sum of delegations
+        self.assertEqual(delegator_state[2], expected_total,
+            f"Delegator {delegator_index} total should be {expected_total}")
 
     def test_convert_eth_to_substrate_account(self):
         """Test convertEthToSubstrateAccount precompile function"""
@@ -524,8 +516,7 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_with_direct_eth_address(self):
         """Test getDelegatorState can now accept ETH addresses directly"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         # Test with our multi-delegator (index 1)
         kp = self.delegator_keypairs[1]
@@ -595,9 +586,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_multiple_delegations(self):
         """Test getDelegatorState for delegator with multiple delegations"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[1])
 
         # Get delegator state via EVM
@@ -622,9 +612,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_all_delegators(self):
         """Test getDelegatorState with zero address to get all delegators"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         zero_address = '0x0000000000000000000000000000000000000000'  # All zeros ETH address for getting all delegators
         delegator_states = self.contract.functions.getDelegatorState(zero_address, 0, 20).call()
 
@@ -653,9 +642,9 @@ class TestGetDelegatorState(unittest.TestCase):
                 self._validate_known_delegator(delegator_state, substrate_bytes)
                 
                 # Track what we found
-                found_delegators[substrate_bytes] = len(delegator_state[1])
-                if len(delegator_state[1]) == 2:
-                    multi_delegator_count += 1
+                delegation_count = len(delegator_state[1])
+                found_delegators[substrate_bytes] = delegation_count
+                multi_delegator_count += (1 if delegation_count == 2 else 0)
 
         # Verify we found ALL our test delegators
         self.assertEqual(len(found_delegators), self.TOTAL_TEST_DELEGATORS,
@@ -667,9 +656,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_with_pagination_basic(self):
         """Test getDelegatorState with pagination parameters - basic functionality"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         zero_address = '0x0000000000000000000000000000000000000000'  # Get all delegators  
         our_delegator_substrate_bytes = {bytes.fromhex(self._substrate.ss58_decode(kp['substrate'])) for kp in self.delegator_keypairs}
 
@@ -703,8 +691,8 @@ class TestGetDelegatorState(unittest.TestCase):
             self.assertEqual(delegator_state[2], delegation_sum, "Total must exactly equal sum of delegations")
             
             substrate_bytes = delegator_state[0]
-            if substrate_bytes in our_delegator_substrate_bytes:
-                self._validate_known_delegator(delegator_state, substrate_bytes)
+            # Validate known delegators - skip validation for unknown delegators (from other tests)
+            substrate_bytes in our_delegator_substrate_bytes and self._validate_known_delegator(delegator_state, substrate_bytes)
         
         # Verify no duplicates between pages
         first_substrate_addr = first_page[0][0]
@@ -713,9 +701,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_single_delegator_pagination(self):
         """Test getDelegatorState pagination for single delegator with multiple collators"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[1])
 
         # Get first collator delegation only
@@ -766,9 +753,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_gas_consumption(self):
         """Test gas consumption for getDelegatorState calls"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         # Test single delegator query gas
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[1])
 
@@ -790,9 +776,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_consistency_with_substrate(self):
         """Test that EVM getDelegatorState results match Substrate queries"""
-        if len(self.collator_list) < 2:
-            self.fail("Insufficient collators: test requires at least 2 collators")
-
+        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
+        
         # Test first 3 delegators
         for kp in self.delegator_keypairs[:3]:
             delegator_address = self._get_delegator_address(kp)
@@ -803,26 +788,31 @@ class TestGetDelegatorState(unittest.TestCase):
             # Get Substrate result
             substrate_state = self._get_substrate_delegator_state(kp['substrate'])
 
-            if substrate_state.value:  # If delegator exists
-                self.assertEqual(len(evm_states), 1)
-                evm_state = evm_states[0]
+            # All our test delegators MUST exist in substrate storage (they were just set up)
+            self.assertIsNotNone(substrate_state.value, 
+                f"Test delegator {kp['substrate']} not found in substrate storage - setup failed!")
+            
+            # Both EVM and Substrate should return the same delegator data
+            self.assertEqual(len(evm_states), 1, 
+                f"EVM should return exactly 1 delegator state for {kp['substrate']}")
+            evm_state = evm_states[0]
 
-                # Compare totals
-                self.assertEqual(evm_state[2], substrate_state.value['total'])
+            # Compare totals - must be exactly equal
+            self.assertEqual(evm_state[2], substrate_state.value['total'],
+                f"Total delegation amount mismatch for {kp['substrate']}: EVM={evm_state[2]}, Substrate={substrate_state.value['total']}")
 
-                # Compare number of delegations
-                self.assertEqual(len(evm_state[1]), len(substrate_state.value['delegations']))
+            # Compare number of delegations - must be exactly equal
+            self.assertEqual(len(evm_state[1]), len(substrate_state.value['delegations']),
+                f"Delegation count mismatch for {kp['substrate']}: EVM={len(evm_state[1])}, Substrate={len(substrate_state.value['delegations'])}")
 
-                # Compare individual delegation amounts
-                evm_delegations = sorted(evm_state[1], key=lambda x: x[1], reverse=True)
-                substrate_delegations = sorted(substrate_state.value['delegations'],
-                                             key=lambda x: x['amount'], reverse=True)
+            # Compare individual delegation amounts - sort both for consistent comparison
+            evm_delegations = sorted(evm_state[1], key=lambda x: x[1], reverse=True)
+            substrate_delegations = sorted(substrate_state.value['delegations'],
+                                         key=lambda x: x['amount'], reverse=True)
 
-                for i, (evm_del, sub_del) in enumerate(zip(evm_delegations, substrate_delegations)):
-                    self.assertEqual(evm_del[1], sub_del['amount'],
-                                   f"Delegation amount mismatch at index {i}")
-            else:
-                self.assertEqual(len(evm_states), 0, "EVM should return empty for non-delegator")
+            for i, (evm_del, sub_del) in enumerate(zip(evm_delegations, substrate_delegations)):
+                self.assertEqual(evm_del[1], sub_del['amount'],
+                               f"Delegation amount mismatch at index {i} for {kp['substrate']}: EVM={evm_del[1]}, Substrate={sub_del['amount']}")
 
     def test_get_delegator_state_after_operations(self):
         """Test getDelegatorState results after various staking operations"""
