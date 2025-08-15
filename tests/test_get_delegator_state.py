@@ -81,13 +81,13 @@ class TestGetDelegatorState(unittest.TestCase):
                 'new_free': funding_amount,
             })
             receipt = batch.execute()
-            self.assertTrue(receipt.is_success, f"Failed to fund new collator: {receipt.error_message}")
+            cls.assertTrue(receipt.is_success, f"Failed to fund new collator: {receipt.error_message}")
             
             # Join as collator
             batch = ExtrinsicBatch(substrate, kp_new_collator)
             batch.compose_call('ParachainStaking', 'join_candidates', {'stake': collator_list[0][1]})
             receipt = batch.execute()
-            self.assertTrue(receipt.is_success, f"Failed to add new collator: {receipt.error_message}")
+            cls.assertTrue(receipt.is_success, f"Failed to add new collator: {receipt.error_message}")
             
             # Update collator list cache
             out = contract.functions.getCollatorList().call()
