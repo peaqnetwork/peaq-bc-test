@@ -229,7 +229,7 @@ class TestGetDelegatorState(unittest.TestCase):
             
             try:
                 evm_receipt = sign_and_submit_evm_transaction(tx, w3, delegator_kp['kp'])
-                cls.assertEqual(evm_receipt['status'], 1, f'Delegator {delegator_idx} {action_type} retry failed with status {evm_receipt["status"]}')
+                assert evm_receipt['status'] == 1, f'Delegator {delegator_idx} {action_type} retry failed with status {evm_receipt["status"]}'
                 print(f'Delegator {delegator_idx} {action_type} retry succeeded')
             except Exception as e:
                 if "already known" in str(e).lower():
@@ -339,7 +339,7 @@ class TestGetDelegatorState(unittest.TestCase):
             'chainId': eth_chain_id
         })
         evm_receipt = sign_and_submit_evm_transaction(tx, w3, cls.test_delegator['kp'])
-        cls.assertEqual(evm_receipt['status'], 1, 'Test delegator failed to join first collator')
+        assert evm_receipt['status'] == 1, 'Test delegator failed to join first collator'
         
         # Delegate to second collator (2 total delegations) with force new round
         for i in range(1, 2):
@@ -358,7 +358,7 @@ class TestGetDelegatorState(unittest.TestCase):
                 'chainId': eth_chain_id
             })
             evm_receipt = sign_and_submit_evm_transaction(tx, w3, cls.test_delegator['kp'])
-            cls.assertEqual(evm_receipt['status'], 1, f'Test delegator failed to delegate to collator {i}')
+            assert evm_receipt['status'] == 1, f'Test delegator failed to delegate to collator {i}'
         
         return cls.test_delegator
 
