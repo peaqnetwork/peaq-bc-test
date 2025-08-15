@@ -415,9 +415,8 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def _fund_users(self, num=100 * 10 ** 18):
         """Fund test users with PEAQ tokens"""
-        self._kp_moon = get_eth_info()
-        self._kp_mars = get_eth_info()
-        self._kp_venus = get_eth_info()
+        # Always use the keypairs from setUp for consistency
+        # These are already initialized in _initialize_connections_and_keypairs
 
         if num < 100 * 10 ** 18:
             num = 100 * 10 ** 18
@@ -453,9 +452,9 @@ class TestGetDelegatorState(unittest.TestCase):
 
 
     def _get_collator_list(self):
-        """Get sorted collator list"""
-        out = self.contract.functions.getCollatorList().call()
-        return sorted(out, key=lambda x: x[1], reverse=True)
+        """Get sorted collator list from class setup"""
+        # Always use the collator list from class setup for consistency
+        return self.__class__.collator_list
 
     def _join_delegators(self, contract, eth_kp, collator_addr, stake):
         """Helper function to join as delegator"""
