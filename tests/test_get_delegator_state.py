@@ -59,7 +59,7 @@ class TestGetDelegatorState(unittest.TestCase):
         # Get minimum delegation amount
         min_delegation_obj = substrate.get_constant('ParachainStaking', 'MinDelegation')
         if not min_delegation_obj:
-            raise Exception("MinDelegation constant returned None")
+            raise RuntimeError("Failed to get MinDelegation constant from ParachainStaking pallet - check runtime configuration")
         min_delegation = min_delegation_obj.value
         
         # Use cached contract and get/cache collator list
@@ -208,7 +208,7 @@ class TestGetDelegatorState(unittest.TestCase):
                     break
             
             if stake_amount is None:
-                raise Exception(f'Could not find stake amount for delegator {delegator_idx}')
+                raise ValueError(f'Could not find stake amount for delegator {delegator_idx} - internal test setup error')
             
             print(f'Retrying {action_type} for delegator {delegator_idx} with amount {stake_amount}')
             
@@ -550,12 +550,14 @@ class TestGetDelegatorState(unittest.TestCase):
         """Test getDelegatorState for a single delegator with one delegation"""
         collator_list = self._get_collator_list()
         receipt = self._fund_users(collator_list[0][1] * 2)
-        self.assertEqual(receipt.is_success, True)
+        self.assertEqual(receipt.is_success, True, 
+            "Failed to fund test users for single delegator test")
 
         # Join as delegator
         evm_receipt = self._join_delegators(self.contract, self._kp_moon['kp'],
                                           collator_list[0][0], collator_list[0][1])
-        self.assertEqual(evm_receipt['status'], 1)
+        self.assertEqual(evm_receipt['status'], 1,
+            f"Moon delegator failed to join collator {collator_list[0][0]}")
 
         # Test getDelegatorState
         moon_delegator_address = self._get_delegator_address(self._kp_moon)
@@ -828,12 +830,14 @@ class TestGetDelegatorState(unittest.TestCase):
         """Test getDelegatorState results after various staking operations"""
         collator_list = self._get_collator_list()
         receipt = self._fund_users(collator_list[0][1] * 4)
-        self.assertEqual(receipt.is_success, True)
+        self.assertTrue(receipt.is_success, 
+            "Failed to fund test users for delegation operations test")
 
         # Initial delegation
         evm_receipt = self._join_delegators(self.contract, self._kp_moon['kp'],
                                           collator_list[0][0], collator_list[0][1])
-        self.assertEqual(evm_receipt['status'], 1)
+        self.assertEqual(evm_receipt['status'], 1,
+            "Failed to create initial delegation for operations test")
 
         # Check initial state
         moon_address = self._get_delegator_address(self._kp_moon)
