@@ -2,6 +2,25 @@
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "ethAddress",
+				"type": "address"
+			}
+		],
+		"name": "convertEthToSubstrateAccount",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "bytes32",
 				"name": "collator",
 				"type": "bytes32"
@@ -86,9 +105,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "address",
 				"name": "delegator",
-				"type": "bytes32"
+				"type": "address"
 			},
 			{
 				"internalType": "uint256",
