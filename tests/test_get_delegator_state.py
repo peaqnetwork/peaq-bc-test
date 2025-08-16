@@ -1,5 +1,6 @@
 import pytest
 import unittest
+from functools import wraps
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from substrateinterface import SubstrateInterface, Keypair
@@ -20,10 +21,30 @@ PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 
 
+def requires_collators(count=2):
+    """Decorator to ensure test has required number of collators available"""
+    def decorator(test_func):
+        @wraps(test_func)
+        def wrapper(self):
+            assert len(self.collator_list) >= count, f"Test requires at least {count} collators"
+            return test_func(self)
+        return wrapper
+    return decorator
+
+
 @pytest.mark.relaunch
 @pytest.mark.eth
 class TestGetDelegatorState(unittest.TestCase):
-    """Test suite for getDelegatorState functionality in parachain staking precompile"""
+    """
+    Test suite for getDelegatorState precompile functionality.
+    
+    Setup: Creates 11 delegators with specific delegation patterns:
+    - Delegators 0-6: Single delegation to Collator 1
+    - Delegators 7-10: Single delegation to Collator 2  
+    - Delegators 1,2: Additional delegation to Collator 2 (multi-delegators)
+    
+    Performance: ~12 minutes for full suite, individual tests ~30-60 seconds
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -594,6 +615,8 @@ class TestGetDelegatorState(unittest.TestCase):
             print(f'{operation_context}: Unexpected error: {exception}')
             raise exception  # Re-raise for investigation
 
+    # ========== Basic Functionality Tests ==========
+    
     def test_convert_eth_to_substrate_account(self):
         """Test convertEthToSubstrateAccount precompile function"""
         # Test conversion for our test delegators
@@ -613,9 +636,9 @@ class TestGetDelegatorState(unittest.TestCase):
             
             print(f"✓ Delegator {i}: {eth_address} → {converted_substrate.hex()}")
 
+    @requires_collators(2)
     def test_get_delegator_state_with_direct_eth_address(self):
         """Test getDelegatorState can now accept ETH addresses directly"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         # Test with our primary multi-delegator
         kp = self.delegator_keypairs[self.PRIMARY_MULTI_DELEGATOR_IDX]
@@ -685,9 +708,9 @@ class TestGetDelegatorState(unittest.TestCase):
         # Should return empty array
         self.assertEqual(len(delegator_states), 0, "Should return empty array for non-existent delegator")
 
+    @requires_collators(2)
     def test_get_delegator_state_multiple_delegations(self):
         """Test getDelegatorState for delegator with multiple delegations"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[self.PRIMARY_MULTI_DELEGATOR_IDX])
 
@@ -711,9 +734,11 @@ class TestGetDelegatorState(unittest.TestCase):
         substrate_state = self._get_substrate_delegator_state(self.delegator_keypairs[1]['substrate'])
         self.assertEqual(delegator_state[2], substrate_state.value['total'])
 
+    # ========== Comprehensive Query Tests ==========
+    
+    @requires_collators(2)
     def test_get_delegator_state_all_delegators(self):
         """Test getDelegatorState with zero address to get all delegators"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         zero_address = '0x0000000000000000000000000000000000000000'  # All zeros ETH address for getting all delegators
         delegator_states = self.contract.functions.getDelegatorState(zero_address, 0, 20).call()
@@ -755,9 +780,11 @@ class TestGetDelegatorState(unittest.TestCase):
         self.assertEqual(multi_delegator_count, len(self.MULTI_DELEGATOR_INDICES),
             f"Should have exactly {len(self.MULTI_DELEGATOR_INDICES)} multi-delegators")
 
+    # ========== Pagination Tests ==========
+    
+    @requires_collators(2)
     def test_get_delegator_state_with_pagination_basic(self):
         """Test getDelegatorState with pagination parameters - basic functionality"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         zero_address = '0x0000000000000000000000000000000000000000'  # Get all delegators  
         our_delegator_substrate_bytes = {bytes.fromhex(self._substrate.ss58_decode(kp['substrate'])) for kp in self.delegator_keypairs}
@@ -790,9 +817,9 @@ class TestGetDelegatorState(unittest.TestCase):
         second_substrate_addrs = [d[0] for d in second_page]
         self.assertNotIn(first_substrate_addr, second_substrate_addrs, "Pages should not have duplicate delegators")
 
+    @requires_collators(2)
     def test_get_delegator_state_single_delegator_pagination(self):
         """Test getDelegatorState pagination for single delegator with multiple collators"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[1])
 
@@ -842,9 +869,11 @@ class TestGetDelegatorState(unittest.TestCase):
             self.contract.functions.getDelegatorState(zero_address, 0, 513).call()
         self.assertIn("maximum allowed is 512", str(context.exception).lower())
 
+    # ========== Performance and Gas Tests ==========
+    
+    @requires_collators(2)
     def test_get_delegator_state_gas_consumption(self):
         """Test gas consumption for getDelegatorState calls"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         # Test single delegator query gas
         mars_delegator_address = self._get_delegator_address(self.delegator_keypairs[1])
@@ -865,9 +894,11 @@ class TestGetDelegatorState(unittest.TestCase):
         print(f"Gas estimate for all delegators query (limit 10): {gas_estimate_all}")
         self.assertLess(gas_estimate_all, 500000, "All delegators query should be reasonable")
 
+    # ========== Consistency and Integration Tests ==========
+    
+    @requires_collators(2)
     def test_get_delegator_state_consistency_with_substrate(self):
         """Test that EVM getDelegatorState results match Substrate queries"""
-        self.assertGreaterEqual(len(self.collator_list), 2, "Test setup must guarantee at least 2 collators")
         
         # Test first 3 delegators
         for kp in self.delegator_keypairs[:3]:
