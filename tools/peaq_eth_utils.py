@@ -172,3 +172,42 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
             print(f'Cannot find tx {tx_hash.hex()}')
             tx['data'] = tx['data'] + '00'
     raise IOError('Cannot send transaction')
+
+
+def fund_test_accounts(substrate, accounts, amount=100 * 10 ** 18, method='force_set_balance'):
+    """
+    Fund multiple test accounts with PEAQ tokens using batch transaction
+
+    Args:
+        substrate: Substrate interface instance
+        accounts: List of account addresses (substrate format) to fund
+        amount: Amount to fund each account (default: 100 PEAQ)
+        method: 'force_set_balance' or 'transfer_keep_alive'
+
+    Returns:
+        ExtrinsicBatch receipt
+    """
+    from peaq.utils import ExtrinsicBatch
+    from tools.constants import KP_GLOBAL_SUDO
+
+    # Ensure minimum funding amount
+    if amount < 100 * 10 ** 18:
+        amount = 100 * 10 ** 18
+
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+
+    for account in accounts:
+        if method == 'force_set_balance':
+            batch.compose_sudo_call('Balances', 'force_set_balance', {
+                'who': account,
+                'new_free': amount,
+            })
+        elif method == 'transfer_keep_alive':
+            batch.compose_call('Balances', 'transfer_keep_alive', {
+                'dest': account,
+                'value': amount,
+            })
+        else:
+            raise ValueError(f"Unsupported funding method: {method}")
+
+    return batch.execute()

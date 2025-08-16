@@ -40,35 +40,15 @@ class bridge_parachain_staking_collators_test(unittest.TestCase):
         self._kp_src = Keypair.create_from_uri('//Moon')
 
     def _fund_users(self, num=100 * 10 ** 18):
-        if num < 100 * 10 ** 18:
-            num = 100 * 10 ** 18
-        # Fund users
-        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
-        batch.compose_sudo_call(
-            'Balances',
-            'force_set_balance',
-            {
-                'who': self._kp_moon['substrate'],
-                'new_free': num,
-            }
-        )
-        batch.compose_sudo_call(
-            'Balances',
-            'force_set_balance',
-            {
-                'who': self._kp_mars['substrate'],
-                'new_free': num,
-            }
-        )
-        batch.compose_sudo_call(
-            'Balances',
-            'force_set_balance',
-            {
-                'who': self._kp_src.ss58_address,
-                'new_free': num,
-            }
-        )
-        return batch.execute()
+        from tools.peaq_eth_utils import fund_test_accounts
+
+        accounts_to_fund = [
+            self._kp_moon['substrate'],
+            self._kp_mars['substrate'],
+            self._kp_src.ss58_address
+        ]
+
+        return fund_test_accounts(self._substrate, accounts_to_fund, num)
 
     def evm_join_delegators(self, contract, eth_kp_src, sub_collator_addr, stake):
         w3 = self._w3

@@ -527,40 +527,20 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def _fund_users(self, num=100 * 10 ** 18):
         """Fund test users with PEAQ tokens"""
+        from tools.peaq_eth_utils import fund_test_accounts
+
         # Always use the keypairs from setUp for consistency
         # These are already initialized in _initialize_connections_and_keypairs
 
-        if num < 100 * 10 ** 18:
-            num = 100 * 10 ** 18
+        accounts_to_fund = [
+            self._kp_moon['substrate'],
+            self._kp_mars['substrate'],
+            self._kp_venus['substrate'],
+            self._kp_src.ss58_address,
+            self._kp_new_collator.ss58_address
+        ]
 
-        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
-        for kp in [self._kp_moon, self._kp_mars, self._kp_venus]:
-            batch.compose_sudo_call(
-                'Balances',
-                'force_set_balance',
-                {
-                    'who': kp['substrate'],
-                    'new_free': num,
-                }
-            )
-
-        batch.compose_sudo_call(
-            'Balances',
-            'force_set_balance',
-            {
-                'who': self._kp_src.ss58_address,
-                'new_free': num,
-            }
-        )
-        batch.compose_sudo_call(
-            'Balances',
-            'force_set_balance',
-            {
-                'who': self._kp_new_collator.ss58_address,
-                'new_free': num,
-            }
-        )
-        return batch.execute()
+        return fund_test_accounts(self._substrate, accounts_to_fund, num)
 
     def _get_collator_list(self):
         """Get sorted collator list from class setup"""
