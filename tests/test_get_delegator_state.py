@@ -18,6 +18,7 @@ from web3 import Web3
 
 PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
+ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'  # Used to query all delegators
 
 
 def requires_collators(count=2):
@@ -777,8 +778,7 @@ class TestGetDelegatorState(unittest.TestCase):
     def test_get_delegator_state_all_delegators(self):
         """Test getDelegatorState with zero address to get all delegators"""
 
-        zero_address = '0x0000000000000000000000000000000000000000'  # All zeros ETH address for getting all delegators
-        delegator_states = self.contract.functions.getDelegatorState(zero_address, 0, 20).call()
+        delegator_states = self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, 20).call()
 
         # Should return at least our test delegators
         self.assertGreaterEqual(len(delegator_states), self.TOTAL_TEST_DELEGATORS,
@@ -824,12 +824,11 @@ class TestGetDelegatorState(unittest.TestCase):
     def test_get_delegator_state_with_pagination_basic(self):
         """Test getDelegatorState with pagination parameters - basic functionality"""
 
-        zero_address = '0x0000000000000000000000000000000000000000'  # Get all delegators
         our_delegator_substrate_bytes = {bytes.fromhex(
             self._substrate.ss58_decode(kp['substrate'])) for kp in self.delegator_keypairs}
 
         # Get first delegator
-        first_page = self.contract.functions.getDelegatorState(zero_address, 0, 1).call()
+        first_page = self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, 1).call()
         self.assertEqual(len(first_page), 1, "First page with limit=1 should return exactly 1 delegator")
 
         # Validate first delegator structure
@@ -842,7 +841,7 @@ class TestGetDelegatorState(unittest.TestCase):
             self._validate_known_delegator(first_delegator, first_substrate_bytes)
 
         # Get next 2 delegators and validate pagination
-        second_page = self.contract.functions.getDelegatorState(zero_address, 1, 2).call()
+        second_page = self.contract.functions.getDelegatorState(ZERO_ADDRESS, 1, 2).call()
         self._assert_pagination_results(second_page, 2, "Second page")
 
         # Validate known delegators in second page
@@ -880,23 +879,22 @@ class TestGetDelegatorState(unittest.TestCase):
 
     def test_get_delegator_state_pagination_edge_cases(self):
         """Test getDelegatorState pagination edge cases and error conditions"""
-        zero_address = '0x0000000000000000000000000000000000000000'
 
         # Test with limit = 0 (should fail)
         with self.assertRaises(Exception) as context:
-            self.contract.functions.getDelegatorState(zero_address, 0, 0).call()
+            self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, 0).call()
         self.assertIn("must be greater than 0", str(context.exception).lower())
 
         # Test with very large offset (should return empty)
         delegator_states = self.contract.functions.getDelegatorState(
-            zero_address, 1000, 10
+            ZERO_ADDRESS, 1000, 10
         ).call()
         self.assertEqual(len(delegator_states), 0, "Large offset should return empty results")
 
         # Test maximum limit (512)
         try:
             delegator_states = self.contract.functions.getDelegatorState(
-                zero_address, 0, 512
+                ZERO_ADDRESS, 0, 512
             ).call()
             # Should not throw exception
             self.assertIsInstance(delegator_states, list)
@@ -905,7 +903,7 @@ class TestGetDelegatorState(unittest.TestCase):
 
         # Test exceeding maximum limit (should fail)
         with self.assertRaises(Exception) as context:
-            self.contract.functions.getDelegatorState(zero_address, 0, 513).call()
+            self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, 513).call()
         self.assertIn("maximum allowed is 512", str(context.exception).lower())
 
     # ========== Performance and Gas Tests ==========
@@ -925,9 +923,8 @@ class TestGetDelegatorState(unittest.TestCase):
         self.assertLess(gas_estimate_single, 100000, "Single delegator query should be efficient")
 
         # Test all delegators query gas
-        zero_address = '0x0000000000000000000000000000000000000000'
         gas_estimate_all = self.contract.functions.getDelegatorState(
-            zero_address, 0, 10
+            ZERO_ADDRESS, 0, 10
         ).estimate_gas()
 
         print(f"Gas estimate for all delegators query (limit 10): {gas_estimate_all}")
