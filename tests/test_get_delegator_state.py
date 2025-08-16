@@ -19,6 +19,7 @@ from web3 import Web3
 PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'  # Used to query all delegators
+NUM_DELEGATORS = 11
 
 
 def requires_collators(count=2):
@@ -333,9 +334,9 @@ class TestGetDelegatorState(unittest.TestCase):
 
     @classmethod
     def _create_delegator_keypairs(cls):
-        """Create 11 unique delegator keypairs"""
+        """Create delegator keypairs for testing"""
         cls.delegator_keypairs = []
-        for i in range(11):
+        for i in range(NUM_DELEGATORS):
             kp = get_eth_info()
             cls.delegator_keypairs.append(kp)
         return cls.delegator_keypairs
