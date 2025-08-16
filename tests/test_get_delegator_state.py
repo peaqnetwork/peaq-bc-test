@@ -94,32 +94,45 @@ class TestGetDelegatorState(unittest.TestCase):
         """Ensure we have at least the required number of collators"""
         collator_list = cls._get_or_create_collator_list()
 
-        while len(collator_list) < required_count:
-            # Create new collator
-            kp_new_collator = Keypair.create_from_uri(f'//TestCollator{len(collator_list)}')
+        if len(collator_list) >= required_count:
+            return collator_list
 
-            # Fund new collator
-            funding_amount = (max(collator_list[0][1] * 10, 60000 * TOKEN_NUM_BASE_DEV)
-                              if collator_list else 60000 * TOKEN_NUM_BASE_DEV)
-            batch = ExtrinsicBatch(cls._substrate, KP_GLOBAL_SUDO)
+        # Calculate how many new collators we need
+        needed_count = required_count - len(collator_list)
+
+        # Create all needed collator keypairs first
+        new_collators = []
+        for i in range(needed_count):
+            kp_new_collator = Keypair.create_from_uri(f'//TestCollator{len(collator_list) + i}')
+            new_collators.append(kp_new_collator)
+
+        # Batch fund all new collators in a single transaction
+        funding_amount = (max(collator_list[0][1] * 10, 60000 * TOKEN_NUM_BASE_DEV)
+                          if collator_list else 60000 * TOKEN_NUM_BASE_DEV)
+
+        batch = ExtrinsicBatch(cls._substrate, KP_GLOBAL_SUDO)
+        for kp_new_collator in new_collators:
             batch.compose_sudo_call('Balances', 'force_set_balance', {
                 'who': kp_new_collator.ss58_address,
                 'new_free': funding_amount,
             })
-            receipt = batch.execute()
-            cls.assertTrue(receipt.is_success, f"Failed to fund new collator: {receipt.error_message}")
 
-            # Join as collator
-            stake_amount = collator_list[0][1] if collator_list else 10000 * TOKEN_NUM_BASE_DEV
+        # Execute single funding transaction for all collators
+        receipt = batch.execute()
+        cls.assertTrue(receipt.is_success, f"Failed to fund new collators: {receipt.error_message}")
+
+        # Join each collator individually (must be separate transactions)
+        stake_amount = collator_list[0][1] if collator_list else 10000 * TOKEN_NUM_BASE_DEV
+        for i, kp_new_collator in enumerate(new_collators):
             batch = ExtrinsicBatch(cls._substrate, kp_new_collator)
             batch.compose_call('ParachainStaking', 'join_candidates', {'stake': stake_amount})
             receipt = batch.execute()
-            cls.assertTrue(receipt.is_success, f"Failed to add new collator: {receipt.error_message}")
+            cls.assertTrue(receipt.is_success, f"Failed to add new collator {i}: {receipt.error_message}")
 
-            # Update cache
-            out = cls._contract.functions.getCollatorList().call()
-            collator_list = sorted(out, key=lambda x: x[1], reverse=True)
-            cls._collator_list_cache = collator_list
+        # Update cache once at the end
+        out = cls._contract.functions.getCollatorList().call()
+        collator_list = sorted(out, key=lambda x: x[1], reverse=True)
+        cls._collator_list_cache = collator_list
 
         return collator_list
 
