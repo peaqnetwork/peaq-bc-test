@@ -20,6 +20,9 @@ PARACHAIN_STAKING_ABI_FILE = 'ETH/parachain-staking/abi'
 PARACHAIN_STAKING_ADDR = '0x0000000000000000000000000000000000000807'
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'  # Used to query all delegators
 NUM_DELEGATORS = 11
+MAX_PAGINATION_LIMIT = 512
+DELEGATOR_FUNDING_AMOUNT = 1000
+DEFAULT_COLLATOR_FUNDING_AMOUNT = 60000
 
 
 def requires_collators(count=2):
@@ -108,8 +111,8 @@ class TestGetDelegatorState(unittest.TestCase):
             new_collators.append(kp_new_collator)
 
         # Batch fund all new collators in a single transaction
-        funding_amount = (max(collator_list[0][1] * 10, 60000 * TOKEN_NUM_BASE_DEV)
-                          if collator_list else 60000 * TOKEN_NUM_BASE_DEV)
+        funding_amount = (max(collator_list[0][1] * 10, DEFAULT_COLLATOR_FUNDING_AMOUNT * TOKEN_NUM_BASE_DEV)
+                          if collator_list else DEFAULT_COLLATOR_FUNDING_AMOUNT * TOKEN_NUM_BASE_DEV)
 
         batch = ExtrinsicBatch(cls._substrate, KP_GLOBAL_SUDO)
         for kp_new_collator in new_collators:
@@ -344,7 +347,7 @@ class TestGetDelegatorState(unittest.TestCase):
     @classmethod
     def _fund_all_delegators(cls, substrate, min_delegation):
         """Fund all delegator accounts with sufficient balance"""
-        funding_amount = 1000 * TOKEN_NUM_BASE_DEV
+        funding_amount = DELEGATOR_FUNDING_AMOUNT * TOKEN_NUM_BASE_DEV
         min_required = min_delegation + (1 * TOKEN_NUM_BASE_DEV)
         if funding_amount <= min_required:
             raise Exception(f"Funding amount {funding_amount / TOKEN_NUM_BASE_DEV:.2f} PEAQ is not sufficient. "
@@ -888,17 +891,17 @@ class TestGetDelegatorState(unittest.TestCase):
         # Test maximum limit (512)
         try:
             delegator_states = self.contract.functions.getDelegatorState(
-                ZERO_ADDRESS, 0, 512
+                ZERO_ADDRESS, 0, MAX_PAGINATION_LIMIT
             ).call()
             # Should not throw exception
             self.assertIsInstance(delegator_states, list)
         except Exception as e:
-            self.fail(f"Maximum limit (512) should not fail: {e}")
+            self.fail(f"Maximum limit ({MAX_PAGINATION_LIMIT}) should not fail: {e}")
 
         # Test exceeding maximum limit (should fail)
         with self.assertRaises(Exception) as context:
-            self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, 513).call()
-        self.assertIn("maximum allowed is 512", str(context.exception).lower())
+            self.contract.functions.getDelegatorState(ZERO_ADDRESS, 0, MAX_PAGINATION_LIMIT + 1).call()
+        self.assertIn(f"maximum allowed is {MAX_PAGINATION_LIMIT}", str(context.exception).lower())
 
     # ========== Performance and Gas Tests ==========
 
