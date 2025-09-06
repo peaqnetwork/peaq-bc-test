@@ -19,7 +19,6 @@ from substrateinterface.utils.hasher import blake2_256
 from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
-from tools.constants import BLOCK_GENERATE_TIME
 from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
 from tools.constants import DEFAULT_DOCKER_COMPOSE_FOLDER
 from tools.constants import DEFAULT_COLLATOR_DICT
@@ -30,7 +29,7 @@ from tools.collator_binary_utils import get_docker_info
 from tools.collator_binary_utils import stop_peaq_docker_container
 from tools.collator_binary_utils import stop_collator_binary
 from tools.collator_binary_utils import get_docker_volume_path
-from tools.utils import show_title, has_sufficient_balance
+from tools.utils import show_title
 import argparse
 
 import pprint
@@ -280,9 +279,9 @@ def should_handle_upgrade_error(error, collator_dict):
 
 def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     """Handles the transition from docker to binary collator."""
+    stop_collator_binary()
     copy_all_chain_data(collator_dict, docker_volume_path)
     print(f'docker info: {docker_info}')
-    stop_collator_binary()
     stop_peaq_docker_container()
     wakeup_latest_collator(collator_dict, docker_info)
 
