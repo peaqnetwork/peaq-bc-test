@@ -1,11 +1,21 @@
 import sys
 sys.path.append('./')
+
+# Apply ALL monkey patches FIRST before any other imports
+from tools.monkey.monkey_wait_for_blocks import monkey_patch_wait_for_blocks
+monkey_patch_wait_for_blocks()
+
 import os
 
 from peaq.utils import ExtrinsicBatch
+from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
+ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
+
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface import SubstrateInterface
-from peaq.utils import wait_for_n_blocks
+from tools.monkey.monkey_3rd_substrate_interface import monkey_submit_extrinsic
+SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
+import peaq.utils
 from tools.runtime_upgrade import send_upgrade_call
 from tools.runtime_upgrade import wait_relay_upgrade_block
 from tools.constants import KP_GLOBAL_SUDO
@@ -34,7 +44,8 @@ ACA_TOKEN_ASSET_ID = 2
 def wait_until_block_height(substrate, block_height):
     current_block = get_block_height(substrate)
     block_num = block_height - current_block + 1
-    wait_for_n_blocks(substrate, block_num)
+    import peaq.utils
+    peaq.utils.wait_for_n_blocks(substrate, block_num)
 
 
 def parachain_behaviour(wasm_path):
@@ -53,7 +64,8 @@ def parachain_behaviour(wasm_path):
 
 
 def upgrade(substrate, runtime_path):
-    wait_for_n_blocks(substrate, 1)
+    import peaq.utils
+    peaq.utils.wait_for_n_blocks(substrate, 1)
 
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
@@ -69,7 +81,8 @@ def do_runtime_upgrade(substrate, wasm_path):
     wait_until_block_height(SubstrateInterface(url=PEAQ_WS_URL), 1)
 
     upgrade(substrate, wasm_path)
-    wait_for_n_blocks(substrate, 10)
+    import peaq.utils
+    peaq.utils.wait_for_n_blocks(substrate, 10, 60 * 60)
 
 
 def setup_slot(substrate):

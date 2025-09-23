@@ -7,7 +7,7 @@ import time
 import socket
 
 
-from peaq.utils import wait_for_n_blocks
+import peaq.utils
 
 
 def _wait_finalization(substrate, included_block):
@@ -16,7 +16,9 @@ def _wait_finalization(substrate, included_block):
         print(f'Checking finalized block {finalized_block} and included block {included_block}')
         if finalized_block >= included_block:
             break
-        wait_for_n_blocks(substrate, 1)
+    # Use dynamic lookup to get the current version (patched or not)
+    import peaq.utils
+    peaq.utils.wait_for_n_blocks(substrate, 1)
 
 
 def monkey_patch():
@@ -49,7 +51,9 @@ def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusio
     if not wait_for_inclusion and not wait_for_finalization:
         return result
 
-    wait_for_n_blocks(self, 4)
+    # Use dynamic lookup to get the current version (patched or not)
+    import peaq.utils
+    peaq.utils.wait_for_n_blocks(self, 4, 60 * 60)
     now_block_num = self.get_block_number(None)
     included_block = None
     tx_identifier = None

@@ -1,7 +1,10 @@
+# Apply ALL monkey patches FIRST before any other imports
+from tools.monkey.monkey_wait_for_blocks import monkey_patch_wait_for_blocks
+monkey_patch_wait_for_blocks()
+
 from peaq.utils import ExtrinsicBatch
 from substrateinterface.exceptions import SubstrateRequestException
 from peaq.utils import show_extrinsic
-from peaq.utils import wait_for_n_blocks
 from substrateinterface.base import ExtrinsicReceipt
 
 
@@ -47,7 +50,9 @@ def monkey_execute_extrinsic_batch(self, substrate, kp_src, batch,
                 print(f'Error: {e}, {short_print(batch)}')
                 for j in range(4):
                     print('Wait for next 4 block')
-                    wait_for_n_blocks(substrate, 4)
+                    # Use the timeout version directly
+                    from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
+                    wait_for_n_blocks_with_timeout(substrate, 4, 60 * 60 * 60)
                     tx_identifer = _backtrace_blocks_by_extrinsic(
                         substrate, self.submit_extrinsic.extrinsic_hash.hex())
                     if tx_identifer:
