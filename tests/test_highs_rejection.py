@@ -74,7 +74,7 @@ class TestHighSRejection(unittest.TestCase):
         # Get gas price
         try:
             gas_price = int(w3.eth.gas_price * 1.5)
-        except:
+        except Exception:
             gas_price = Web3.to_wei('50', 'gwei')
 
         # Create normal transaction
