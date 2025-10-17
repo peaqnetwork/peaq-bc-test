@@ -51,92 +51,68 @@ class TestEVMTokensMigration(unittest.TestCase):
         self._erc721.deploy()
         self._erc1155.deploy()
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_erc20_no_upgrade(self):
         """Test ERC20 functionality without runtime upgrade"""
-        print("\n=== Testing ERC20 Before Migration ===")
-        try:
-            self._erc20.before_migration_sc_behavior()
-            print("✅ ERC20 pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC20 pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ERC20 No Upgrade ===")
+        self._erc20.run_test_scenario()
+        print("✅ ERC20 no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_erc721_no_upgrade(self):
         """Test ERC721 functionality without runtime upgrade"""
-        print("\n=== Testing ERC721 Before Migration ===")
-        try:
-            self._erc721.before_migration_sc_behavior()
-            print("✅ ERC721 pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC721 pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ERC721 No Upgrade ===")
+        self._erc721.run_test_scenario()
+        print("✅ ERC721 no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_erc1155_no_upgrade(self):
         """Test ERC1155 functionality without runtime upgrade"""
-        print("\n=== Testing ERC1155 Before Migration ===")
-        try:
-            self._erc1155.before_migration_sc_behavior()
-            print("✅ ERC1155 pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC1155 pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ERC1155 No Upgrade ===")
+        self._erc1155.run_test_scenario()
+        print("✅ ERC1155 no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_erc20_with_upgrade(self):
         """Test ERC20 functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing ERC20 After Migration ===")
-        try:
-            # Run pre-migration behavior first
-            self._erc20.before_migration_sc_behavior()
+        print("\n=== Testing ERC20 With Upgrade ===")
+        # Run pre-migration behavior first
+        self._erc20.run_test_scenario()
 
-            # Perform runtime upgrade
-            start_runtime_upgrade_only()
+        # Perform runtime upgrade
+        start_runtime_upgrade_only()
 
-            # Test post-migration behavior
-            self._erc20.after_migration_sc_behavior()
-            self._erc20.check_migration_difference()
-            print("✅ ERC20 migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC20 migration test FAILED: {e}")
-            raise
+        # Test post-migration behavior
+        self._erc20.run_post_upgrade_scenario()
+        self._erc20.check_migration_difference()
+        print("✅ ERC20 with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_erc721_with_upgrade(self):
         """Test ERC721 functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing ERC721 After Migration ===")
-        try:
-            # Run pre-migration behavior first
-            self._erc721.before_migration_sc_behavior()
+        print("\n=== Testing ERC721 With Upgrade ===")
+        # Run pre-migration behavior first
+        self._erc721.run_test_scenario()
 
-            # Perform runtime upgrade
-            start_runtime_upgrade_only()
+        # Perform runtime upgrade
+        start_runtime_upgrade_only()
 
-            # Test post-migration behavior
-            self._erc721.after_migration_sc_behavior()
-            self._erc721.check_migration_difference()
-            print("✅ ERC721 migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC721 migration test FAILED: {e}")
-            raise
+        # Test post-migration behavior
+        self._erc721.run_post_upgrade_scenario()
+        self._erc721.check_migration_difference()
+        print("✅ ERC721 with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_erc1155_with_upgrade(self):
         """Test ERC1155 functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing ERC1155 After Migration ===")
-        try:
-            # Run pre-migration behavior first
-            self._erc1155.before_migration_sc_behavior()
+        print("\n=== Testing ERC1155 With Upgrade ===")
+        # Run pre-migration behavior first
+        self._erc1155.run_test_scenario()
 
-            # Perform runtime upgrade
-            start_runtime_upgrade_only()
+        # Perform runtime upgrade
+        start_runtime_upgrade_only()
 
-            # Test post-migration behavior
-            self._erc1155.after_migration_sc_behavior()
-            self._erc1155.check_migration_difference()
-            print("✅ ERC1155 migration test PASSED")
-        except Exception as e:
-            print(f"❌ ERC1155 migration test FAILED: {e}")
-            raise
+        # Test post-migration behavior
+        self._erc1155.run_post_upgrade_scenario()
+        self._erc1155.check_migration_difference()
+        print("✅ ERC1155 with-upgrade test PASSED")

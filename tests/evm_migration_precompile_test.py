@@ -51,77 +51,53 @@ class TestEVMPrecompileMigration(unittest.TestCase):
         self._precompile_direct.deploy()
         self._chain_info.deploy()
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_precompile_no_upgrade(self):
         """Test precompile functionality without runtime upgrade"""
-        print("\n=== Testing Precompile Before Migration ===")
-        try:
-            self._precompile.before_migration_sc_behavior()
-            print("✅ Precompile pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Precompile pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Precompile No Upgrade ===")
+        self._precompile.run_test_scenario()
+        print("✅ Precompile no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_precompile_direct_no_upgrade(self):
         """Test direct precompile functionality without runtime upgrade"""
-        print("\n=== Testing PrecompileDirect Before Migration ===")
-        try:
-            self._precompile_direct.before_migration_sc_behavior()
-            print("✅ PrecompileDirect pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ PrecompileDirect pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing PrecompileDirect No Upgrade ===")
+        self._precompile_direct.run_test_scenario()
+        print("✅ PrecompileDirect no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_chain_info_no_upgrade(self):
         """Test chain info functionality without runtime upgrade"""
-        print("\n=== Testing ChainInfo Before Migration ===")
-        try:
-            self._chain_info.before_migration_sc_behavior()
-            print("✅ ChainInfo pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ ChainInfo pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ChainInfo No Upgrade ===")
+        self._chain_info.run_test_scenario()
+        print("✅ ChainInfo no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_precompile_with_upgrade(self):
         """Test precompile functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Precompile After Migration ===")
-        try:
-            self._precompile.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._precompile.after_migration_sc_behavior()
-            self._precompile.check_migration_difference()
-            print("✅ Precompile migration test PASSED")
-        except Exception as e:
-            print(f"❌ Precompile migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Precompile With Upgrade ===")
+        self._precompile.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._precompile.run_post_upgrade_scenario()
+        self._precompile.check_migration_difference()
+        print("✅ Precompile with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_precompile_direct_with_upgrade(self):
         """Test direct precompile functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing PrecompileDirect After Migration ===")
-        try:
-            self._precompile_direct.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._precompile_direct.after_migration_sc_behavior()
-            self._precompile_direct.check_migration_difference()
-            print("✅ PrecompileDirect migration test PASSED")
-        except Exception as e:
-            print(f"❌ PrecompileDirect migration test FAILED: {e}")
-            raise
+        print("\n=== Testing PrecompileDirect With Upgrade ===")
+        self._precompile_direct.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._precompile_direct.run_post_upgrade_scenario()
+        self._precompile_direct.check_migration_difference()
+        print("✅ PrecompileDirect with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_chain_info_with_upgrade(self):
         """Test chain info functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing ChainInfo After Migration ===")
-        try:
-            self._chain_info.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._chain_info.after_migration_sc_behavior()
-            self._chain_info.check_migration_difference()
-            print("✅ ChainInfo migration test PASSED")
-        except Exception as e:
-            print(f"❌ ChainInfo migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ChainInfo With Upgrade ===")
+        self._chain_info.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._chain_info.run_post_upgrade_scenario()
+        self._chain_info.check_migration_difference()
+        print("✅ ChainInfo with-upgrade test PASSED")

@@ -61,127 +61,87 @@ class TestEVMAdvancedMigration(unittest.TestCase):
         self._eip1153.deploy()
         self._eip5656.deploy()
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_event_no_upgrade(self):
         """Test event functionality without runtime upgrade"""
-        print("\n=== Testing Event Before Migration ===")
-        try:
-            self._event.before_migration_sc_behavior()
-            print("✅ Event pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Event pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Event No Upgrade ===")
+        self._event.run_test_scenario()
+        print("✅ Event no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_error_handling_no_upgrade(self):
         """Test error handling functionality without runtime upgrade"""
-        print("\n=== Testing ErrorHandling Before Migration ===")
-        try:
-            self._error_handling.before_migration_sc_behavior()
-            print("✅ ErrorHandling pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ ErrorHandling pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ErrorHandling No Upgrade ===")
+        self._error_handling.run_test_scenario()
+        print("✅ ErrorHandling no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_gas_no_upgrade(self):
         """Test gas functionality without runtime upgrade"""
-        print("\n=== Testing Gas Before Migration ===")
-        try:
-            self._gas.before_migration_sc_behavior()
-            print("✅ Gas pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Gas pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Gas No Upgrade ===")
+        self._gas.run_test_scenario()
+        print("✅ Gas no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_eip1153_no_upgrade(self):
         """Test EIP-1153 transient storage without runtime upgrade"""
-        print("\n=== Testing EIP1153 Before Migration ===")
-        try:
-            self._eip1153.before_migration_sc_behavior()
-            print("✅ EIP1153 pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ EIP1153 pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing EIP1153 No Upgrade ===")
+        self._eip1153.run_test_scenario()
+        print("✅ EIP1153 no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_eip5656_no_upgrade(self):
         """Test EIP-5656 MCOPY opcode without runtime upgrade"""
-        print("\n=== Testing EIP5656 Before Migration ===")
-        try:
-            self._eip5656.before_migration_sc_behavior()
-            print("✅ EIP5656 pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ EIP5656 pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing EIP5656 No Upgrade ===")
+        self._eip5656.run_test_scenario()
+        print("✅ EIP5656 no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_event_with_upgrade(self):
         """Test event functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Event After Migration ===")
-        try:
-            self._event.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._event.after_migration_sc_behavior()
-            self._event.check_migration_difference()
-            print("✅ Event migration test PASSED")
-        except Exception as e:
-            print(f"❌ Event migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Event With Upgrade ===")
+        self._event.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._event.run_post_upgrade_scenario()
+        self._event.check_migration_difference()
+        print("✅ Event with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_error_handling_with_upgrade(self):
         """Test error handling functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing ErrorHandling After Migration ===")
-        try:
-            self._error_handling.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._error_handling.after_migration_sc_behavior()
-            self._error_handling.check_migration_difference()
-            print("✅ ErrorHandling migration test PASSED")
-        except Exception as e:
-            print(f"❌ ErrorHandling migration test FAILED: {e}")
-            raise
+        print("\n=== Testing ErrorHandling With Upgrade ===")
+        self._error_handling.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._error_handling.run_post_upgrade_scenario()
+        self._error_handling.check_migration_difference()
+        print("✅ ErrorHandling with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_gas_with_upgrade(self):
         """Test gas functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Gas After Migration ===")
-        try:
-            self._gas.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._gas.after_migration_sc_behavior()
-            self._gas.check_migration_difference()
-            print("✅ Gas migration test PASSED")
-        except Exception as e:
-            print(f"❌ Gas migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Gas With Upgrade ===")
+        self._gas.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._gas.run_post_upgrade_scenario()
+        self._gas.check_migration_difference()
+        print("✅ Gas with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_eip1153_with_upgrade(self):
         """Test EIP-1153 transient storage with runtime upgrade and verify consistency"""
-        print("\n=== Testing EIP1153 After Migration ===")
-        try:
-            self._eip1153.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._eip1153.after_migration_sc_behavior()
-            self._eip1153.check_migration_difference()
-            print("✅ EIP1153 migration test PASSED")
-        except Exception as e:
-            print(f"❌ EIP1153 migration test FAILED: {e}")
-            raise
+        print("\n=== Testing EIP1153 With Upgrade ===")
+        self._eip1153.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._eip1153.run_post_upgrade_scenario()
+        self._eip1153.check_migration_difference()
+        print("✅ EIP1153 with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_eip5656_with_upgrade(self):
         """Test EIP-5656 MCOPY opcode with runtime upgrade and verify consistency"""
-        print("\n=== Testing EIP5656 After Migration ===")
-        try:
-            self._eip5656.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._eip5656.after_migration_sc_behavior()
-            self._eip5656.check_migration_difference()
-            print("✅ EIP5656 migration test PASSED")
-        except Exception as e:
-            print(f"❌ EIP5656 migration test FAILED: {e}")
-            raise
+        print("\n=== Testing EIP5656 With Upgrade ===")
+        self._eip5656.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._eip5656.run_post_upgrade_scenario()
+        self._eip5656.check_migration_difference()
+        print("✅ EIP5656 with-upgrade test PASSED")
