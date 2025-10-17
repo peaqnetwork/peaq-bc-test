@@ -94,12 +94,12 @@ class SmartContractBehavior:
 
         return get_contract(self._w3, self._address, self._abi)
 
-    def before_migration_sc_behavior(self):
+    def run_test_scenario(self):
         if self._args is None:
             raise IOError("You should call compose_all_args() before this method!")
         self._before_act_result = self.migration_same_behavior(self._args["pre"])
 
-    def after_migration_sc_behavior(self):
+    def run_post_upgrade_scenario(self):
         if self._args is None:
             raise IOError("You should call compose_all_args() before this method!")
         self._after_act_result = self.migration_same_behavior(self._args["after"])
@@ -110,7 +110,7 @@ class SmartContractBehavior:
             check.equal(
                 self._before_act_result.keys(),
                 self._after_act_result.keys(),
-                "The keys of the before and after migration are not the same: "
+                "Key structure mismatch: "
                 f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
             )
 
@@ -124,7 +124,7 @@ class SmartContractBehavior:
                     check.equal(
                         self._before_act_result[key],
                         self._after_act_result[key],
-                        f"The value of {key} is not the same before and after migration: "
+                        f"Migration mismatch for {key}: "
                         f"{self._before_act_result[key]} != {self._after_act_result[key]}",
                     )
 
@@ -150,7 +150,7 @@ class SmartContractBehavior:
             check.equal(
                 before_filtered,
                 after_filtered,
-                f"The non-gas values of {key} differ after migration: "
+                f"Non-gas values differ for {key}: "
                 f"{before_filtered} != {after_filtered}"
             )
 
@@ -169,7 +169,7 @@ class SmartContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"The value of {key} differs: {before_result} != {after_result}")
+                f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related fields from comparison"""
@@ -245,7 +245,7 @@ class SmartContractBehavior:
             check.equal(
                 before_filtered,
                 after_filtered,
-                f"The non-gas values of {key} differ after migration: "
+                f"Non-gas values differ for {key}: "
                 f"{before_filtered} != {after_filtered}"
             )
 
@@ -264,7 +264,7 @@ class SmartContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"The value of {key} differs: {before_result} != {after_result}")
+                f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related fields from comparison"""
@@ -355,12 +355,12 @@ class SmartMultipleContractBehavior:
         )
         return tx_receipt
 
-    def before_migration_sc_behavior(self):
+    def run_test_scenario(self):
         if self._args is None:
             raise IOError("You should call compose_all_args() before this method!")
         self._before_act_result = self.migration_same_behavior(self._args["pre"])
 
-    def after_migration_sc_behavior(self):
+    def run_post_upgrade_scenario(self):
         if self._args is None:
             raise IOError("You should call compose_all_args() before this method!")
         self._after_act_result = self.migration_same_behavior(self._args["after"])
@@ -371,7 +371,7 @@ class SmartMultipleContractBehavior:
             check.equal(
                 self._before_act_result.keys(),
                 self._after_act_result.keys(),
-                "The keys of the before and after migration are not the same: "
+                "Key structure mismatch: "
                 f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
             )
 
@@ -385,7 +385,7 @@ class SmartMultipleContractBehavior:
                     check.equal(
                         self._before_act_result[key],
                         self._after_act_result[key],
-                        f"The value of {key} is not the same before and after migration: "
+                        f"Migration mismatch for {key}: "
                         f"{self._before_act_result[key]} != {self._after_act_result[key]}",
                     )
 
@@ -411,7 +411,7 @@ class SmartMultipleContractBehavior:
             check.equal(
                 before_filtered,
                 after_filtered,
-                f"The non-gas values of {key} differ after migration: "
+                f"Non-gas values differ for {key}: "
                 f"{before_filtered} != {after_filtered}"
             )
 
@@ -430,7 +430,7 @@ class SmartMultipleContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"The value of {key} differs: {before_result} != {after_result}")
+                f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related fields from comparison"""
@@ -506,7 +506,7 @@ class SmartMultipleContractBehavior:
             check.equal(
                 before_filtered,
                 after_filtered,
-                f"The non-gas values of {key} differ after migration: "
+                f"Non-gas values differ for {key}: "
                 f"{before_filtered} != {after_filtered}"
             )
 
@@ -525,7 +525,7 @@ class SmartMultipleContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"The value of {key} differs: {before_result} != {after_result}")
+                f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related fields from comparison"""

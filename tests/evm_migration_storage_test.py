@@ -51,77 +51,53 @@ class TestEVMStorageMigration(unittest.TestCase):
         self._upgrade.deploy()
         self._struct.deploy()
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_storage_no_upgrade(self):
         """Test storage functionality without runtime upgrade"""
-        print("\n=== Testing Storage Before Migration ===")
-        try:
-            self._storage.before_migration_sc_behavior()
-            print("✅ Storage pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Storage pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Storage No Upgrade ===")
+        self._storage.run_test_scenario()
+        print("✅ Storage no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_upgrade_no_upgrade(self):
         """Test upgrade functionality without runtime upgrade"""
-        print("\n=== Testing Upgrade Before Migration ===")
-        try:
-            self._upgrade.before_migration_sc_behavior()
-            print("✅ Upgrade pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Upgrade pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Upgrade No Upgrade ===")
+        self._upgrade.run_test_scenario()
+        print("✅ Upgrade no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_struct_no_upgrade(self):
         """Test struct functionality without runtime upgrade"""
-        print("\n=== Testing Struct Before Migration ===")
-        try:
-            self._struct.before_migration_sc_behavior()
-            print("✅ Struct pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Struct pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Struct No Upgrade ===")
+        self._struct.run_test_scenario()
+        print("✅ Struct no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_storage_with_upgrade(self):
         """Test storage functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Storage After Migration ===")
-        try:
-            self._storage.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._storage.after_migration_sc_behavior()
-            self._storage.check_migration_difference()
-            print("✅ Storage migration test PASSED")
-        except Exception as e:
-            print(f"❌ Storage migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Storage With Upgrade ===")
+        self._storage.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._storage.run_post_upgrade_scenario()
+        self._storage.check_migration_difference()
+        print("✅ Storage with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_upgrade_with_upgrade(self):
         """Test upgrade functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Upgrade After Migration ===")
-        try:
-            self._upgrade.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._upgrade.after_migration_sc_behavior()
-            self._upgrade.check_migration_difference()
-            print("✅ Upgrade migration test PASSED")
-        except Exception as e:
-            print(f"❌ Upgrade migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Upgrade With Upgrade ===")
+        self._upgrade.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._upgrade.run_post_upgrade_scenario()
+        self._upgrade.check_migration_difference()
+        print("✅ Upgrade with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_struct_with_upgrade(self):
         """Test struct functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Struct After Migration ===")
-        try:
-            self._struct.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._struct.after_migration_sc_behavior()
-            self._struct.check_migration_difference()
-            print("✅ Struct migration test PASSED")
-        except Exception as e:
-            print(f"❌ Struct migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Struct With Upgrade ===")
+        self._struct.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._struct.run_post_upgrade_scenario()
+        self._struct.check_migration_difference()
+        print("✅ Struct with-upgrade test PASSED")
