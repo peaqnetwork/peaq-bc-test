@@ -3,8 +3,9 @@ from tools.peaq_eth_utils import get_contract
 from tests.evm_utils import sign_and_submit_evm_transaction
 from tools.peaq_eth_utils import TX_SUCCESS_STATUS
 
-
+import warnings
 from functools import wraps
+import pytest_check as check
 
 
 def log_func(func):
@@ -104,23 +105,28 @@ class SmartContractBehavior:
         self._after_act_result = self.migration_same_behavior(self._args["after"])
 
     def check_migration_difference(self):
-        self._unittest.assertEqual(
-            self._before_act_result.keys(),
-            self._after_act_result.keys(),
-            "The keys of the before and after migration are not the same: "
-            f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
-        )
+        # Check keys consistency using pytest-check context manager
+        with check.check:
+            check.equal(
+                self._before_act_result.keys(),
+                self._after_act_result.keys(),
+                "The keys of the before and after migration are not the same: "
+                f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
+            )
+
+        # Check each key's values using pytest-check context manager
         for key in self._before_act_result.keys():
-            # Special handling for gas-related comparisons
-            if self._should_ignore_gas_differences(key):
-                self._compare_with_gas_tolerance(key)
-            else:
-                self._unittest.assertEqual(
-                    self._before_act_result[key],
-                    self._after_act_result[key],
-                    f"The value of {key} is not the same before and after migration: "
-                    f"{self._before_act_result[key]} != {self._after_act_result[key]}",
-                )
+            with check.check:
+                # Special handling for gas-related comparisons
+                if self._should_ignore_gas_differences(key):
+                    self._compare_with_gas_tolerance(key)
+                else:
+                    check.equal(
+                        self._before_act_result[key],
+                        self._after_act_result[key],
+                        f"The value of {key} is not the same before and after migration: "
+                        f"{self._before_act_result[key]} != {self._after_act_result[key]}",
+                    )
 
     def _should_ignore_gas_differences(self, key):
         """Check if this test key should have gas differences ignored"""
@@ -141,7 +147,7 @@ class SmartContractBehavior:
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
-            self._unittest.assertEqual(
+            check.equal(
                 before_filtered,
                 after_filtered,
                 f"The non-gas values of {key} differ after migration: "
@@ -151,13 +157,18 @@ class SmartContractBehavior:
             # Log gas differences for information
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
-                print(f"\n✅ Gas changes detected in {key} (expected behavior):")
+                gas_changes = []
                 for field, (before_val, after_val) in gas_diffs.items():
                     change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    print(f"   {field}: {before_val} → {after_val} ({change:+.1f}%)")
+                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+
+                warnings.warn(
+                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
+                    UserWarning
+                )
         else:
             # For non-dict results, do normal comparison
-            self._unittest.assertEqual(before_result, after_result,
+            check.equal(before_result, after_result,
                 f"The value of {key} differs: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
@@ -231,7 +242,7 @@ class SmartContractBehavior:
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
-            self._unittest.assertEqual(
+            check.equal(
                 before_filtered,
                 after_filtered,
                 f"The non-gas values of {key} differ after migration: "
@@ -241,13 +252,18 @@ class SmartContractBehavior:
             # Log gas differences for information
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
-                print(f"\n✅ Gas changes detected in {key} (expected behavior):")
+                gas_changes = []
                 for field, (before_val, after_val) in gas_diffs.items():
                     change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    print(f"   {field}: {before_val} → {after_val} ({change:+.1f}%)")
+                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+
+                warnings.warn(
+                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
+                    UserWarning
+                )
         else:
             # For non-dict results, do normal comparison
-            self._unittest.assertEqual(before_result, after_result,
+            check.equal(before_result, after_result,
                 f"The value of {key} differs: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
@@ -350,23 +366,28 @@ class SmartMultipleContractBehavior:
         self._after_act_result = self.migration_same_behavior(self._args["after"])
 
     def check_migration_difference(self):
-        self._unittest.assertEqual(
-            self._before_act_result.keys(),
-            self._after_act_result.keys(),
-            "The keys of the before and after migration are not the same: "
-            f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
-        )
+        # Check keys consistency using pytest-check context manager
+        with check.check:
+            check.equal(
+                self._before_act_result.keys(),
+                self._after_act_result.keys(),
+                "The keys of the before and after migration are not the same: "
+                f"{self._before_act_result.keys()} != {self._after_act_result.keys()}",
+            )
+
+        # Check each key's values using pytest-check context manager
         for key in self._before_act_result.keys():
-            # Special handling for gas-related comparisons
-            if self._should_ignore_gas_differences(key):
-                self._compare_with_gas_tolerance(key)
-            else:
-                self._unittest.assertEqual(
-                    self._before_act_result[key],
-                    self._after_act_result[key],
-                    f"The value of {key} is not the same before and after migration: "
-                    f"{self._before_act_result[key]} != {self._after_act_result[key]}",
-                )
+            with check.check:
+                # Special handling for gas-related comparisons
+                if self._should_ignore_gas_differences(key):
+                    self._compare_with_gas_tolerance(key)
+                else:
+                    check.equal(
+                        self._before_act_result[key],
+                        self._after_act_result[key],
+                        f"The value of {key} is not the same before and after migration: "
+                        f"{self._before_act_result[key]} != {self._after_act_result[key]}",
+                    )
 
     def _should_ignore_gas_differences(self, key):
         """Check if this test key should have gas differences ignored"""
@@ -387,7 +408,7 @@ class SmartMultipleContractBehavior:
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
-            self._unittest.assertEqual(
+            check.equal(
                 before_filtered,
                 after_filtered,
                 f"The non-gas values of {key} differ after migration: "
@@ -397,13 +418,18 @@ class SmartMultipleContractBehavior:
             # Log gas differences for information
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
-                print(f"\n✅ Gas changes detected in {key} (expected behavior):")
+                gas_changes = []
                 for field, (before_val, after_val) in gas_diffs.items():
                     change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    print(f"   {field}: {before_val} → {after_val} ({change:+.1f}%)")
+                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+
+                warnings.warn(
+                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
+                    UserWarning
+                )
         else:
             # For non-dict results, do normal comparison
-            self._unittest.assertEqual(before_result, after_result,
+            check.equal(before_result, after_result,
                 f"The value of {key} differs: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
@@ -477,7 +503,7 @@ class SmartMultipleContractBehavior:
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
-            self._unittest.assertEqual(
+            check.equal(
                 before_filtered,
                 after_filtered,
                 f"The non-gas values of {key} differ after migration: "
@@ -487,13 +513,18 @@ class SmartMultipleContractBehavior:
             # Log gas differences for information
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
-                print(f"\n✅ Gas changes detected in {key} (expected behavior):")
+                gas_changes = []
                 for field, (before_val, after_val) in gas_diffs.items():
                     change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    print(f"   {field}: {before_val} → {after_val} ({change:+.1f}%)")
+                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+
+                warnings.warn(
+                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
+                    UserWarning
+                )
         else:
             # For non-dict results, do normal comparison
-            self._unittest.assertEqual(before_result, after_result,
+            check.equal(before_result, after_result,
                 f"The value of {key} differs: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):

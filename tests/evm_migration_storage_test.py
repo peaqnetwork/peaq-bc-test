@@ -52,8 +52,8 @@ class TestEVMStorageMigration(unittest.TestCase):
         self._struct.deploy()
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_storage_before_migration(self):
-        """Test storage functionality before migration"""
+    def test_storage_no_upgrade(self):
+        """Test storage functionality without runtime upgrade"""
         print("\n=== Testing Storage Before Migration ===")
         try:
             self._storage.before_migration_sc_behavior()
@@ -63,8 +63,8 @@ class TestEVMStorageMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_upgrade_before_migration(self):
-        """Test upgrade functionality before migration"""
+    def test_upgrade_no_upgrade(self):
+        """Test upgrade functionality without runtime upgrade"""
         print("\n=== Testing Upgrade Before Migration ===")
         try:
             self._upgrade.before_migration_sc_behavior()
@@ -74,8 +74,8 @@ class TestEVMStorageMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_struct_before_migration(self):
-        """Test struct functionality before migration"""
+    def test_struct_no_upgrade(self):
+        """Test struct functionality without runtime upgrade"""
         print("\n=== Testing Struct Before Migration ===")
         try:
             self._struct.before_migration_sc_behavior()
@@ -85,8 +85,8 @@ class TestEVMStorageMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_storage_after_migration(self):
-        """Test storage functionality after migration and verify consistency"""
+    def test_storage_with_upgrade(self):
+        """Test storage functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Storage After Migration ===")
         try:
             self._storage.before_migration_sc_behavior()
@@ -99,8 +99,8 @@ class TestEVMStorageMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_upgrade_after_migration(self):
-        """Test upgrade functionality after migration and verify consistency"""
+    def test_upgrade_with_upgrade(self):
+        """Test upgrade functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Upgrade After Migration ===")
         try:
             self._upgrade.before_migration_sc_behavior()
@@ -113,8 +113,8 @@ class TestEVMStorageMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_struct_after_migration(self):
-        """Test struct functionality after migration and verify consistency"""
+    def test_struct_with_upgrade(self):
+        """Test struct functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Struct After Migration ===")
         try:
             self._struct.before_migration_sc_behavior()

@@ -52,8 +52,8 @@ class TestEVMTokensMigration(unittest.TestCase):
         self._erc1155.deploy()
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_erc20_before_migration(self):
-        """Test ERC20 functionality before migration"""
+    def test_erc20_no_upgrade(self):
+        """Test ERC20 functionality without runtime upgrade"""
         print("\n=== Testing ERC20 Before Migration ===")
         try:
             self._erc20.before_migration_sc_behavior()
@@ -63,8 +63,8 @@ class TestEVMTokensMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_erc721_before_migration(self):
-        """Test ERC721 functionality before migration"""
+    def test_erc721_no_upgrade(self):
+        """Test ERC721 functionality without runtime upgrade"""
         print("\n=== Testing ERC721 Before Migration ===")
         try:
             self._erc721.before_migration_sc_behavior()
@@ -74,8 +74,8 @@ class TestEVMTokensMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_erc1155_before_migration(self):
-        """Test ERC1155 functionality before migration"""
+    def test_erc1155_no_upgrade(self):
+        """Test ERC1155 functionality without runtime upgrade"""
         print("\n=== Testing ERC1155 Before Migration ===")
         try:
             self._erc1155.before_migration_sc_behavior()
@@ -85,8 +85,8 @@ class TestEVMTokensMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_erc20_after_migration(self):
-        """Test ERC20 functionality after migration and verify consistency"""
+    def test_erc20_with_upgrade(self):
+        """Test ERC20 functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing ERC20 After Migration ===")
         try:
             # Run pre-migration behavior first
@@ -104,8 +104,8 @@ class TestEVMTokensMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_erc721_after_migration(self):
-        """Test ERC721 functionality after migration and verify consistency"""
+    def test_erc721_with_upgrade(self):
+        """Test ERC721 functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing ERC721 After Migration ===")
         try:
             # Run pre-migration behavior first
@@ -123,8 +123,8 @@ class TestEVMTokensMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_erc1155_after_migration(self):
-        """Test ERC1155 functionality after migration and verify consistency"""
+    def test_erc1155_with_upgrade(self):
+        """Test ERC1155 functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing ERC1155 After Migration ===")
         try:
             # Run pre-migration behavior first

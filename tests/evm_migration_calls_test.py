@@ -62,8 +62,8 @@ class TestEVMCallsMigration(unittest.TestCase):
         self._calldata_heavy.deploy()
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_delegatecall_before_migration(self):
-        """Test delegate call functionality before migration"""
+    def test_delegatecall_no_upgrade(self):
+        """Test delegate call functionality without runtime upgrade"""
         print("\n=== Testing DelegateCall Before Migration ===")
         try:
             self._delegatecall.before_migration_sc_behavior()
@@ -73,8 +73,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_calltest_before_migration(self):
-        """Test call test functionality before migration"""
+    def test_calltest_no_upgrade(self):
+        """Test call test functionality without runtime upgrade"""
         print("\n=== Testing CallTest Before Migration ===")
         try:
             self._calltest.before_migration_sc_behavior()
@@ -84,8 +84,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_reentry_before_migration(self):
-        """Test reentrancy protection before migration"""
+    def test_reentry_no_upgrade(self):
+        """Test reentrancy protection without runtime upgrade"""
         print("\n=== Testing Reentry Before Migration ===")
         try:
             self._reentry.before_migration_sc_behavior()
@@ -95,8 +95,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_calldata_before_migration(self):
-        """Test calldata functionality before migration"""
+    def test_calldata_no_upgrade(self):
+        """Test calldata functionality without runtime upgrade"""
         print("\n=== Testing Calldata Before Migration ===")
         try:
             self._calldata.before_migration_sc_behavior()
@@ -106,8 +106,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_calldata_heavy_before_migration(self):
-        """Test heavy calldata functionality before migration"""
+    def test_calldata_heavy_no_upgrade(self):
+        """Test heavy calldata functionality without runtime upgrade"""
         print("\n=== Testing CalldataHeavy Before Migration ===")
         try:
             self._calldata_heavy.before_migration_sc_behavior()
@@ -117,8 +117,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_delegatecall_after_migration(self):
-        """Test delegate call functionality after migration and verify consistency"""
+    def test_delegatecall_with_upgrade(self):
+        """Test delegate call functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing DelegateCall After Migration ===")
         try:
             self._delegatecall.before_migration_sc_behavior()
@@ -131,8 +131,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_calltest_after_migration(self):
-        """Test call test functionality after migration and verify consistency"""
+    def test_calltest_with_upgrade(self):
+        """Test call test functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing CallTest After Migration ===")
         try:
             self._calltest.before_migration_sc_behavior()
@@ -145,8 +145,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_reentry_after_migration(self):
-        """Test reentrancy protection after migration and verify consistency"""
+    def test_reentry_with_upgrade(self):
+        """Test reentrancy protection with runtime upgrade and verify consistency"""
         print("\n=== Testing Reentry After Migration ===")
         try:
             self._reentry.before_migration_sc_behavior()
@@ -159,8 +159,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_calldata_after_migration(self):
-        """Test calldata functionality after migration and verify consistency"""
+    def test_calldata_with_upgrade(self):
+        """Test calldata functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Calldata After Migration ===")
         try:
             self._calldata.before_migration_sc_behavior()
@@ -173,8 +173,8 @@ class TestEVMCallsMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_calldata_heavy_after_migration(self):
-        """Test heavy calldata functionality after migration and verify consistency"""
+    def test_calldata_heavy_with_upgrade(self):
+        """Test heavy calldata functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing CalldataHeavy After Migration ===")
         try:
             self._calldata_heavy.before_migration_sc_behavior()
