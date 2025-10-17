@@ -61,127 +61,87 @@ class TestEVMCallsMigration(unittest.TestCase):
         self._calldata.deploy()
         self._calldata_heavy.deploy()
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_delegatecall_no_upgrade(self):
         """Test delegate call functionality without runtime upgrade"""
-        print("\n=== Testing DelegateCall Before Migration ===")
-        try:
-            self._delegatecall.before_migration_sc_behavior()
-            print("✅ DelegateCall pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ DelegateCall pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing DelegateCall No Upgrade ===")
+        self._delegatecall.run_test_scenario()
+        print("✅ DelegateCall no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_calltest_no_upgrade(self):
         """Test call test functionality without runtime upgrade"""
-        print("\n=== Testing CallTest Before Migration ===")
-        try:
-            self._calltest.before_migration_sc_behavior()
-            print("✅ CallTest pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ CallTest pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing CallTest No Upgrade ===")
+        self._calltest.run_test_scenario()
+        print("✅ CallTest no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_reentry_no_upgrade(self):
         """Test reentrancy protection without runtime upgrade"""
-        print("\n=== Testing Reentry Before Migration ===")
-        try:
-            self._reentry.before_migration_sc_behavior()
-            print("✅ Reentry pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Reentry pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Reentry No Upgrade ===")
+        self._reentry.run_test_scenario()
+        print("✅ Reentry no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_calldata_no_upgrade(self):
         """Test calldata functionality without runtime upgrade"""
-        print("\n=== Testing Calldata Before Migration ===")
-        try:
-            self._calldata.before_migration_sc_behavior()
-            print("✅ Calldata pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ Calldata pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Calldata No Upgrade ===")
+        self._calldata.run_test_scenario()
+        print("✅ Calldata no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="No-upgrade test")
     def test_calldata_heavy_no_upgrade(self):
         """Test heavy calldata functionality without runtime upgrade"""
-        print("\n=== Testing CalldataHeavy Before Migration ===")
-        try:
-            self._calldata_heavy.before_migration_sc_behavior()
-            print("✅ CalldataHeavy pre-migration test PASSED")
-        except Exception as e:
-            print(f"❌ CalldataHeavy pre-migration test FAILED: {e}")
-            raise
+        print("\n=== Testing CalldataHeavy No Upgrade ===")
+        self._calldata_heavy.run_test_scenario()
+        print("✅ CalldataHeavy no-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_delegatecall_with_upgrade(self):
         """Test delegate call functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing DelegateCall After Migration ===")
-        try:
-            self._delegatecall.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._delegatecall.after_migration_sc_behavior()
-            self._delegatecall.check_migration_difference()
-            print("✅ DelegateCall migration test PASSED")
-        except Exception as e:
-            print(f"❌ DelegateCall migration test FAILED: {e}")
-            raise
+        print("\n=== Testing DelegateCall With Upgrade ===")
+        self._delegatecall.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._delegatecall.run_post_upgrade_scenario()
+        self._delegatecall.check_migration_difference()
+        print("✅ DelegateCall with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_calltest_with_upgrade(self):
         """Test call test functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing CallTest After Migration ===")
-        try:
-            self._calltest.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._calltest.after_migration_sc_behavior()
-            self._calltest.check_migration_difference()
-            print("✅ CallTest migration test PASSED")
-        except Exception as e:
-            print(f"❌ CallTest migration test FAILED: {e}")
-            raise
+        print("\n=== Testing CallTest With Upgrade ===")
+        self._calltest.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._calltest.run_post_upgrade_scenario()
+        self._calltest.check_migration_difference()
+        print("✅ CallTest with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_reentry_with_upgrade(self):
         """Test reentrancy protection with runtime upgrade and verify consistency"""
-        print("\n=== Testing Reentry After Migration ===")
-        try:
-            self._reentry.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._reentry.after_migration_sc_behavior()
-            self._reentry.check_migration_difference()
-            print("✅ Reentry migration test PASSED")
-        except Exception as e:
-            print(f"❌ Reentry migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Reentry With Upgrade ===")
+        self._reentry.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._reentry.run_post_upgrade_scenario()
+        self._reentry.check_migration_difference()
+        print("✅ Reentry with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_calldata_with_upgrade(self):
         """Test calldata functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing Calldata After Migration ===")
-        try:
-            self._calldata.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._calldata.after_migration_sc_behavior()
-            self._calldata.check_migration_difference()
-            print("✅ Calldata migration test PASSED")
-        except Exception as e:
-            print(f"❌ Calldata migration test FAILED: {e}")
-            raise
+        print("\n=== Testing Calldata With Upgrade ===")
+        self._calldata.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._calldata.run_post_upgrade_scenario()
+        self._calldata.check_migration_difference()
+        print("✅ Calldata with-upgrade test PASSED")
 
-    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
+    @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Upgrade test")
     def test_calldata_heavy_with_upgrade(self):
         """Test heavy calldata functionality with runtime upgrade and verify consistency"""
-        print("\n=== Testing CalldataHeavy After Migration ===")
-        try:
-            self._calldata_heavy.before_migration_sc_behavior()
-            start_runtime_upgrade_only()
-            self._calldata_heavy.after_migration_sc_behavior()
-            self._calldata_heavy.check_migration_difference()
-            print("✅ CalldataHeavy migration test PASSED")
-        except Exception as e:
-            print(f"❌ CalldataHeavy migration test FAILED: {e}")
-            raise
+        print("\n=== Testing CalldataHeavy With Upgrade ===")
+        self._calldata_heavy.run_test_scenario()
+        start_runtime_upgrade_only()
+        self._calldata_heavy.run_post_upgrade_scenario()
+        self._calldata_heavy.check_migration_difference()
+        print("✅ CalldataHeavy with-upgrade test PASSED")
