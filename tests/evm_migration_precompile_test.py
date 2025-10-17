@@ -52,8 +52,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
         self._chain_info.deploy()
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_precompile_before_migration(self):
-        """Test precompile functionality before migration"""
+    def test_precompile_no_upgrade(self):
+        """Test precompile functionality without runtime upgrade"""
         print("\n=== Testing Precompile Before Migration ===")
         try:
             self._precompile.before_migration_sc_behavior()
@@ -63,8 +63,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_precompile_direct_before_migration(self):
-        """Test direct precompile functionality before migration"""
+    def test_precompile_direct_no_upgrade(self):
+        """Test direct precompile functionality without runtime upgrade"""
         print("\n=== Testing PrecompileDirect Before Migration ===")
         try:
             self._precompile_direct.before_migration_sc_behavior()
@@ -74,8 +74,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_chain_info_before_migration(self):
-        """Test chain info functionality before migration"""
+    def test_chain_info_no_upgrade(self):
+        """Test chain info functionality without runtime upgrade"""
         print("\n=== Testing ChainInfo Before Migration ===")
         try:
             self._chain_info.before_migration_sc_behavior()
@@ -85,8 +85,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_precompile_after_migration(self):
-        """Test precompile functionality after migration and verify consistency"""
+    def test_precompile_with_upgrade(self):
+        """Test precompile functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Precompile After Migration ===")
         try:
             self._precompile.before_migration_sc_behavior()
@@ -99,8 +99,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_precompile_direct_after_migration(self):
-        """Test direct precompile functionality after migration and verify consistency"""
+    def test_precompile_direct_with_upgrade(self):
+        """Test direct precompile functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing PrecompileDirect After Migration ===")
         try:
             self._precompile_direct.before_migration_sc_behavior()
@@ -113,8 +113,8 @@ class TestEVMPrecompileMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_chain_info_after_migration(self):
-        """Test chain info functionality after migration and verify consistency"""
+    def test_chain_info_with_upgrade(self):
+        """Test chain info functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing ChainInfo After Migration ===")
         try:
             self._chain_info.before_migration_sc_behavior()

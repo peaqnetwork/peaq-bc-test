@@ -62,8 +62,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
         self._eip5656.deploy()
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_event_before_migration(self):
-        """Test event functionality before migration"""
+    def test_event_no_upgrade(self):
+        """Test event functionality without runtime upgrade"""
         print("\n=== Testing Event Before Migration ===")
         try:
             self._event.before_migration_sc_behavior()
@@ -73,8 +73,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_error_handling_before_migration(self):
-        """Test error handling functionality before migration"""
+    def test_error_handling_no_upgrade(self):
+        """Test error handling functionality without runtime upgrade"""
         print("\n=== Testing ErrorHandling Before Migration ===")
         try:
             self._error_handling.before_migration_sc_behavior()
@@ -84,8 +84,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_gas_before_migration(self):
-        """Test gas functionality before migration"""
+    def test_gas_no_upgrade(self):
+        """Test gas functionality without runtime upgrade"""
         print("\n=== Testing Gas Before Migration ===")
         try:
             self._gas.before_migration_sc_behavior()
@@ -95,8 +95,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_eip1153_before_migration(self):
-        """Test EIP-1153 transient storage before migration"""
+    def test_eip1153_no_upgrade(self):
+        """Test EIP-1153 transient storage without runtime upgrade"""
         print("\n=== Testing EIP1153 Before Migration ===")
         try:
             self._eip1153.before_migration_sc_behavior()
@@ -106,8 +106,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is True, reason="Pre-migration test only")
-    def test_eip5656_before_migration(self):
-        """Test EIP-5656 MCOPY opcode before migration"""
+    def test_eip5656_no_upgrade(self):
+        """Test EIP-5656 MCOPY opcode without runtime upgrade"""
         print("\n=== Testing EIP5656 Before Migration ===")
         try:
             self._eip5656.before_migration_sc_behavior()
@@ -117,8 +117,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_event_after_migration(self):
-        """Test event functionality after migration and verify consistency"""
+    def test_event_with_upgrade(self):
+        """Test event functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Event After Migration ===")
         try:
             self._event.before_migration_sc_behavior()
@@ -131,8 +131,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_error_handling_after_migration(self):
-        """Test error handling functionality after migration and verify consistency"""
+    def test_error_handling_with_upgrade(self):
+        """Test error handling functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing ErrorHandling After Migration ===")
         try:
             self._error_handling.before_migration_sc_behavior()
@@ -145,8 +145,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_gas_after_migration(self):
-        """Test gas functionality after migration and verify consistency"""
+    def test_gas_with_upgrade(self):
+        """Test gas functionality with runtime upgrade and verify consistency"""
         print("\n=== Testing Gas After Migration ===")
         try:
             self._gas.before_migration_sc_behavior()
@@ -159,8 +159,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_eip1153_after_migration(self):
-        """Test EIP-1153 transient storage after migration and verify consistency"""
+    def test_eip1153_with_upgrade(self):
+        """Test EIP-1153 transient storage with runtime upgrade and verify consistency"""
         print("\n=== Testing EIP1153 After Migration ===")
         try:
             self._eip1153.before_migration_sc_behavior()
@@ -173,8 +173,8 @@ class TestEVMAdvancedMigration(unittest.TestCase):
             raise
 
     @pytest.mark.skipif(is_runtime_upgrade_test() is False, reason="Migration test only")
-    def test_eip5656_after_migration(self):
-        """Test EIP-5656 MCOPY opcode after migration and verify consistency"""
+    def test_eip5656_with_upgrade(self):
+        """Test EIP-5656 MCOPY opcode with runtime upgrade and verify consistency"""
         print("\n=== Testing EIP5656 After Migration ===")
         try:
             self._eip5656.before_migration_sc_behavior()
