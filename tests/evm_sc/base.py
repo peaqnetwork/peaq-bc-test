@@ -133,7 +133,9 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
+            'long_calldata_tests',      # Heavy calldata tests
         ]
         return key in gas_sensitive_tests
 
@@ -175,7 +177,8 @@ class SmartContractBehavior:
         """Remove gas-related fields from comparison"""
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings']
+                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
+                      'nested_gas_used']
 
         if isinstance(data, dict):
             filtered = {}
@@ -228,7 +231,9 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
+            'long_calldata_tests',      # Heavy calldata tests
         ]
         return key in gas_sensitive_tests
 
@@ -270,7 +275,8 @@ class SmartContractBehavior:
         """Remove gas-related fields from comparison"""
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings']
+                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
+                      'nested_gas_used']
 
         if isinstance(data, dict):
             filtered = {}
@@ -394,7 +400,9 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
+            'long_calldata_tests',      # Heavy calldata tests
         ]
         return key in gas_sensitive_tests
 
@@ -436,7 +444,8 @@ class SmartMultipleContractBehavior:
         """Remove gas-related fields from comparison"""
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings']
+                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
+                      'nested_gas_used']
 
         if isinstance(data, dict):
             filtered = {}
@@ -489,7 +498,9 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
+            'long_calldata_tests',      # Heavy calldata tests
         ]
         return key in gas_sensitive_tests
 
@@ -531,7 +542,8 @@ class SmartMultipleContractBehavior:
         """Remove gas-related fields from comparison"""
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings']
+                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
+                      'nested_gas_used']
 
         if isinstance(data, dict):
             filtered = {}
