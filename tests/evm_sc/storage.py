@@ -68,7 +68,7 @@ class StorageTestSCBehavior(SmartContractBehavior):
 
     @log_func
     def basic_storage_tests(self, kp_caller):
-        """Test basic storage slot read/write operations"""
+        """Test basic storage slot READ operations only (for migration comparison)"""
         contract = self._get_contract()
 
         # Test reading initial storage values
@@ -79,6 +79,16 @@ class StorageTestSCBehavior(SmartContractBehavior):
         for slot in range(10):
             value = contract.functions.readStorageSlot(slot).call()
             slot_values[slot] = value
+
+        return {
+            "initial_snapshot": [Web3.to_hex(val) for val in initial_snapshot],
+            "slot_values": {k: Web3.to_hex(v) for k, v in slot_values.items()},
+        }
+
+    @log_func
+    def basic_storage_write_tests(self, kp_caller):
+        """Test basic storage slot WRITE operations (post-migration only)"""
+        contract = self._get_contract()
 
         # Test writing to storage slots
         test_value = 0xFEEDBEEFCAFEBABEDEADBEEFBADC0DEFEEDFACE123456789ABCDEF0123456789
@@ -99,8 +109,6 @@ class StorageTestSCBehavior(SmartContractBehavior):
         self.send_and_check_tx(tx_restore, kp_caller)
 
         return {
-            "initial_snapshot": [Web3.to_hex(val) for val in initial_snapshot],
-            "slot_values": {k: Web3.to_hex(v) for k, v in slot_values.items()},
             "write_success": receipt["status"] == 1,
             "write_verification": Web3.to_hex(new_value),
             "expected_write_value": hex(test_value),
@@ -109,16 +117,30 @@ class StorageTestSCBehavior(SmartContractBehavior):
 
     @log_func
     def assembly_storage_tests(self, kp_caller):
-        """Test assembly-based storage operations"""
+        """Test assembly-based storage READ operations only (for migration comparison)"""
         contract = self._get_contract()
 
         # Test range reading
         range_values = contract.functions.readStorageRange(0, 5).call()
 
-        # Test packed value operations
+        # Test packed value reading
         packed_values = contract.functions.readPackedValues().call()
-        lower_before = packed_values[0]
-        upper_before = packed_values[1]
+        lower_value = packed_values[0]
+        upper_value = packed_values[1]
+
+        return {
+            "range_read_success": len(range_values) == 5,
+            "range_values": [Web3.to_hex(val) for val in range_values],
+            "packed_values": [Web3.to_hex(lower_value), Web3.to_hex(upper_value)],
+        }
+
+    @log_func
+    def assembly_storage_write_tests(self, kp_caller):
+        """Test assembly-based storage WRITE operations (post-migration only)"""
+        contract = self._get_contract()
+
+        # Read initial packed values
+        packed_before = contract.functions.readPackedValues().call()
 
         # Modify packed values
         new_lower = 0x11111111111111111111111111111111
@@ -140,9 +162,7 @@ class StorageTestSCBehavior(SmartContractBehavior):
         self.send_and_check_tx(tx_restore, kp_caller)
 
         return {
-            "range_read_success": len(range_values) == 5,
-            "range_values": [Web3.to_hex(val) for val in range_values],
-            "packed_before": [Web3.to_hex(lower_before), Web3.to_hex(upper_before)],
+            "packed_before": [Web3.to_hex(packed_before[0]), Web3.to_hex(packed_before[1])],
             "packed_after": [Web3.to_hex(packed_after[0]), Web3.to_hex(packed_after[1])],
             "packed_write_success": receipt_packed["status"] == 1,
             "packed_values_correct": (
