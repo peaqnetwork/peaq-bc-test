@@ -41,21 +41,28 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         pass
 
     def compose_all_args(self):
+        # Create deterministic accounts for consistent testing
+        ecrecover_account = get_eth_info("direct ecrecover test seed phrase")
+        hash_account = get_eth_info("direct hash test seed phrase")
+        modexp_account = get_eth_info("direct modexp test seed phrase")
+        identity_account = get_eth_info("direct identity test seed phrase")
+        curve_account = get_eth_info("direct elliptic curve test seed phrase")
+
         self._args = {
             "pre": {
-                "direct_ecrecover_test": [get_eth_info()],
-                "direct_hash_test": [get_eth_info()],
-                "direct_modexp_test": [get_eth_info()],
-                "direct_identity_test": [get_eth_info()],
-                "direct_elliptic_curve_test": [get_eth_info()],
+                "direct_ecrecover_test": [ecrecover_account],
+                "direct_hash_test": [hash_account],
+                "direct_modexp_test": [modexp_account],
+                "direct_identity_test": [identity_account],
+                "direct_elliptic_curve_test": [curve_account],
                 "comprehensive_direct_test": [],
             },
             "after": {
-                "direct_ecrecover_test": [get_eth_info()],
-                "direct_hash_test": [get_eth_info()],
-                "direct_modexp_test": [get_eth_info()],
-                "direct_identity_test": [get_eth_info()],
-                "direct_elliptic_curve_test": [get_eth_info()],
+                "direct_ecrecover_test": [ecrecover_account],
+                "direct_hash_test": [hash_account],
+                "direct_modexp_test": [modexp_account],
+                "direct_identity_test": [identity_account],
+                "direct_elliptic_curve_test": [curve_account],
                 "comprehensive_direct_test": [],
             },
         }
