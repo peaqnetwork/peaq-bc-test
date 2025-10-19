@@ -136,6 +136,7 @@ class SmartContractBehavior:
             'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
+            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
         ]
         return key in gas_sensitive_tests
 
@@ -178,7 +179,8 @@ class SmartContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used']
+                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
+                      'block_hash', 'base_fee']
 
         if isinstance(data, dict):
             filtered = {}
@@ -234,6 +236,7 @@ class SmartContractBehavior:
             'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
+            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
         ]
         return key in gas_sensitive_tests
 
@@ -276,7 +279,8 @@ class SmartContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used']
+                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
+                      'block_hash', 'base_fee']
 
         if isinstance(data, dict):
             filtered = {}
@@ -403,6 +407,7 @@ class SmartMultipleContractBehavior:
             'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
+            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
         ]
         return key in gas_sensitive_tests
 
@@ -445,7 +450,8 @@ class SmartMultipleContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used']
+                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
+                      'block_hash', 'base_fee']
 
         if isinstance(data, dict):
             filtered = {}
@@ -501,6 +507,7 @@ class SmartMultipleContractBehavior:
             'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
+            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
         ]
         return key in gas_sensitive_tests
 
@@ -543,7 +550,8 @@ class SmartMultipleContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used']
+                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
+                      'block_hash', 'base_fee']
 
         if isinstance(data, dict):
             filtered = {}

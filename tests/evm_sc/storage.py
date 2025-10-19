@@ -30,21 +30,28 @@ class StorageTestSCBehavior(SmartContractBehavior):
         super().deploy(deploy_args)
 
     def compose_all_args(self):
+        # Create deterministic accounts for consistent testing
+        basic_account = get_eth_info("basic storage test seed phrase")
+        assembly_account = get_eth_info("assembly storage test seed phrase")
+        complex_account = get_eth_info("complex storage test seed phrase")
+        mapping_account = get_eth_info("mapping storage test seed phrase")
+        packed_account = get_eth_info("packed storage test seed phrase")
+
         self._args = {
             "pre": {
-                "basic_storage_tests": [get_eth_info()],
-                "assembly_storage_tests": [get_eth_info()],
-                "complex_storage_tests": [get_eth_info()],
-                "mapping_storage_tests": [get_eth_info()],
-                "packed_storage_tests": [get_eth_info()],
+                "basic_storage_tests": [basic_account],
+                "assembly_storage_tests": [assembly_account],
+                "complex_storage_tests": [complex_account],
+                "mapping_storage_tests": [mapping_account],
+                "packed_storage_tests": [packed_account],
                 "integrity_tests": [],
             },
             "after": {
-                "basic_storage_tests": [get_eth_info()],
-                "assembly_storage_tests": [get_eth_info()],
-                "complex_storage_tests": [get_eth_info()],
-                "mapping_storage_tests": [get_eth_info()],
-                "packed_storage_tests": [get_eth_info()],
+                "basic_storage_tests": [basic_account],
+                "assembly_storage_tests": [assembly_account],
+                "complex_storage_tests": [complex_account],
+                "mapping_storage_tests": [mapping_account],
+                "packed_storage_tests": [packed_account],
                 "integrity_tests": [],
             },
         }
