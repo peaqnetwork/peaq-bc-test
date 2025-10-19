@@ -203,43 +203,28 @@ class StorageTestSCBehavior(SmartContractBehavior):
             9  # nestedMapping slot
         ).call()
 
-        # Test complex storage operations
-        tx_complex = contract.functions.complexStorageTest(3).build_transaction(
-            self.compose_build_transaction_args(kp_caller)
-        )
-        receipt_complex = self.send_and_check_tx(tx_complex, kp_caller)
-
         return {
             "array_slot_calculations": [Web3.to_hex(array_slot_0), Web3.to_hex(array_slot_1)],
             "array_elements": [Web3.to_hex(array_elem_0), Web3.to_hex(array_elem_1)],
             "mapping_slot": Web3.to_hex(mapping_slot),
             "mapping_value": Web3.to_hex(mapping_value),
             "nested_mapping_slot": Web3.to_hex(nested_slot),
-            "complex_operations_success": receipt_complex["status"] == 1,
             "slot_calculations_valid": array_slot_0 != array_slot_1,
         }
 
     @log_func
     def mapping_storage_tests(self, kp_caller):
-        """Test mapping storage operations"""
+        """Test mapping storage READ operations only (for migration comparison)"""
         contract = self._get_contract()
 
         results = {}
 
-        # Test mapping operations for multiple addresses
+        # Test mapping read operations for multiple addresses (read existing values only)
         for i, addr in enumerate(self._test_addresses[:3]):
-            test_value = 0x1000 + i * 0x1000
-
             # Convert string address to Web3 address format
             addr_checksum = Web3.to_checksum_address(addr)
 
-            # Write mapping value
-            tx_write = contract.functions.writeMappingValue(addr_checksum, test_value).build_transaction(
-                self.compose_build_transaction_args(kp_caller)
-            )
-            receipt_write = self.send_and_check_tx(tx_write, kp_caller)
-
-            # Read mapping value back
+            # Read existing mapping value
             read_value = contract.functions.readMappingValue(addr_checksum).call()
 
             # Also test via standard mapping access
@@ -247,73 +232,33 @@ class StorageTestSCBehavior(SmartContractBehavior):
 
             results[f"mapping_{i}"] = {
                 "address": addr,
-                "write_success": receipt_write["status"] == 1,
-                "test_value": Web3.to_hex(test_value),
                 "read_value": Web3.to_hex(read_value),
                 "standard_value": Web3.to_hex(standard_value),
-                "values_match": read_value == test_value == standard_value,
+                "values_match": read_value == standard_value,
             }
 
         return results
 
     @log_func
     def packed_storage_tests(self, kp_caller):
-        """Test packed storage layout integrity"""
+        """Test packed storage READ operations only (for migration comparison)"""
         contract = self._get_contract()
 
-        # Get initial packed values
-        initial_packed = contract.functions.readPackedValues().call()
+        # Get current packed values
+        current_packed = contract.functions.readPackedValues().call()
 
-        # Test various packed value combinations
-        test_cases = [
-            (0x12345678, 0x87654321),
-            (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, 0x0),
-            (0x0, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF),
-            (0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, 0x55555555555555555555555555555555),
-        ]
-
-        results = []
-        for i, (lower, upper) in enumerate(test_cases):
-            # Write packed values
-            tx_write = contract.functions.writePackedValues(lower, upper).build_transaction(
-                self.compose_build_transaction_args(kp_caller)
-            )
-            receipt_write = self.send_and_check_tx(tx_write, kp_caller)
-
-            # Read back
-            read_packed = contract.functions.readPackedValues().call()
-
-            # Verify via manual slot reading
-            slot4_raw = contract.functions.readStorageSlot(4).call()
-            slot4_int = int.from_bytes(slot4_raw, byteorder='big')
-            manual_lower = slot4_int & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-            manual_upper = (slot4_int >> 128) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-
-            results.append({
-                "test_case": i,
-                "input_lower": Web3.to_hex(lower),
-                "input_upper": Web3.to_hex(upper),
-                "read_lower": Web3.to_hex(read_packed[0]),
-                "read_upper": Web3.to_hex(read_packed[1]),
-                "manual_lower": Web3.to_hex(manual_lower),
-                "manual_upper": Web3.to_hex(manual_upper),
-                "write_success": receipt_write["status"] == 1,
-                "values_correct": (
-                    read_packed[0] == lower and read_packed[1] == upper and
-                    manual_lower == lower and manual_upper == upper
-                ),
-            })
-
-        # Restore original packed values
-        tx_restore = contract.functions.writePackedValues(
-            initial_packed[0], initial_packed[1]
-        ).build_transaction(self.compose_build_transaction_args(kp_caller))
-        self.send_and_check_tx(tx_restore, kp_caller)
+        # Verify via manual slot reading
+        slot4_raw = contract.functions.readStorageSlot(4).call()
+        slot4_int = int.from_bytes(slot4_raw, byteorder='big')
+        manual_lower = slot4_int & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        manual_upper = (slot4_int >> 128) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
         return {
-            "initial_packed": [Web3.to_hex(val) for val in initial_packed],
-            "test_results": results,
-            "all_tests_passed": all(result["values_correct"] for result in results),
+            "current_packed": [Web3.to_hex(val) for val in current_packed],
+            "manual_packed": [Web3.to_hex(manual_lower), Web3.to_hex(manual_upper)],
+            "packed_values_consistent": (
+                current_packed[0] == manual_lower and current_packed[1] == manual_upper
+            ),
         }
 
     @log_func
@@ -340,11 +285,7 @@ class StorageTestSCBehavior(SmartContractBehavior):
         # Get detailed snapshot
         storage_snapshot = contract.functions.getStorageSnapshot().call()
 
-        # Emit storage snapshot event for event log verification
-        tx_snapshot = contract.functions.emitStorageSnapshot().build_transaction(
-            self.compose_build_transaction_args(self._kp_deployer)
-        )
-        receipt_snapshot = self.send_and_check_tx(tx_snapshot, self._kp_deployer)
+        # Skip event emission for read-only migration comparison
 
         return {
             "integrity_check_passed": integrity_check,
@@ -356,7 +297,6 @@ class StorageTestSCBehavior(SmartContractBehavior):
                 "mapping_test_value": Web3.to_hex(storage_state[2]),
                 "string_value": storage_state[3],
             },
-            "snapshot_event_success": receipt_snapshot["status"] == 1,
             "comprehensive_state_valid": (
                 integrity_check and
                 storage_state[1] >= 0 and  # array length valid
