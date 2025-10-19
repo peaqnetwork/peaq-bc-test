@@ -56,15 +56,37 @@ class StorageTestSCBehavior(SmartContractBehavior):
             },
         }
 
+        # Prepare arguments for write tests (post-migration only)
+        self._write_test_args = {
+            "basic_storage_write_tests": [basic_account],
+            "assembly_storage_write_tests": [assembly_account],
+            "complex_storage_write_tests": [complex_account],
+            "mapping_storage_write_tests": [mapping_account],
+            "packed_storage_write_tests": [packed_account],
+        }
+
     def get_fund_ss58_keys(self):
         """Get the ss58 keys for funding"""
-        return [self._kp_deployer["substrate"]] + [
+        keys = [self._kp_deployer["substrate"]]
+
+        # Add keys from read-only migration tests
+        keys += [
             kp["substrate"]
             for action_type in ["pre", "after"]
             for test_type in ["basic_storage_tests", "assembly_storage_tests", "complex_storage_tests",
                               "mapping_storage_tests", "packed_storage_tests"]
             for kp in self._args[action_type][test_type]
         ]
+
+        # Add keys from write tests (if they exist)
+        if hasattr(self, '_write_test_args'):
+            keys += [
+                kp["substrate"]
+                for test_type in self._write_test_args
+                for kp in self._write_test_args[test_type]
+            ]
+
+        return keys
 
     @log_func
     def basic_storage_tests(self, kp_caller):
@@ -213,6 +235,21 @@ class StorageTestSCBehavior(SmartContractBehavior):
         }
 
     @log_func
+    def complex_storage_write_tests(self, kp_caller):
+        """Test complex storage WRITE operations (post-migration only)"""
+        contract = self._get_contract()
+
+        # Test complex storage operations
+        tx_complex = contract.functions.complexStorageTest(3).build_transaction(
+            self.compose_build_transaction_args(kp_caller)
+        )
+        receipt_complex = self.send_and_check_tx(tx_complex, kp_caller)
+
+        return {
+            "complex_operations_success": receipt_complex["status"] == 1,
+        }
+
+    @log_func
     def mapping_storage_tests(self, kp_caller):
         """Test mapping storage READ operations only (for migration comparison)"""
         contract = self._get_contract()
@@ -240,6 +277,43 @@ class StorageTestSCBehavior(SmartContractBehavior):
         return results
 
     @log_func
+    def mapping_storage_write_tests(self, kp_caller):
+        """Test mapping storage WRITE operations (post-migration only)"""
+        contract = self._get_contract()
+
+        results = {}
+
+        # Test mapping write operations for multiple addresses
+        for i, addr in enumerate(self._test_addresses[:3]):
+            test_value = 0x1000 + i * 0x1000
+
+            # Convert string address to Web3 address format
+            addr_checksum = Web3.to_checksum_address(addr)
+
+            # Write mapping value
+            tx_write = contract.functions.writeMappingValue(addr_checksum, test_value).build_transaction(
+                self.compose_build_transaction_args(kp_caller)
+            )
+            receipt_write = self.send_and_check_tx(tx_write, kp_caller)
+
+            # Read mapping value back
+            read_value = contract.functions.readMappingValue(addr_checksum).call()
+
+            # Also test via standard mapping access
+            standard_value = contract.functions.addressToValue(addr_checksum).call()
+
+            results[f"mapping_{i}"] = {
+                "address": addr,
+                "write_success": receipt_write["status"] == 1,
+                "test_value": Web3.to_hex(test_value),
+                "read_value": Web3.to_hex(read_value),
+                "standard_value": Web3.to_hex(standard_value),
+                "values_match": read_value == test_value == standard_value,
+            }
+
+        return results
+
+    @log_func
     def packed_storage_tests(self, kp_caller):
         """Test packed storage READ operations only (for migration comparison)"""
         contract = self._get_contract()
@@ -259,6 +333,66 @@ class StorageTestSCBehavior(SmartContractBehavior):
             "packed_values_consistent": (
                 current_packed[0] == manual_lower and current_packed[1] == manual_upper
             ),
+        }
+
+    @log_func
+    def packed_storage_write_tests(self, kp_caller):
+        """Test comprehensive packed storage WRITE operations (post-migration only)"""
+        contract = self._get_contract()
+
+        # Get initial packed values
+        initial_packed = contract.functions.readPackedValues().call()
+
+        # Test various packed value combinations
+        test_cases = [
+            (0x12345678, 0x87654321),
+            (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, 0x0),
+            (0x0, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF),
+            (0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, 0x55555555555555555555555555555555),
+        ]
+
+        results = []
+        for i, (lower, upper) in enumerate(test_cases):
+            # Write packed values
+            tx_write = contract.functions.writePackedValues(lower, upper).build_transaction(
+                self.compose_build_transaction_args(kp_caller)
+            )
+            receipt_write = self.send_and_check_tx(tx_write, kp_caller)
+
+            # Read back
+            read_packed = contract.functions.readPackedValues().call()
+
+            # Verify via manual slot reading
+            slot4_raw = contract.functions.readStorageSlot(4).call()
+            slot4_int = int.from_bytes(slot4_raw, byteorder='big')
+            manual_lower = slot4_int & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            manual_upper = (slot4_int >> 128) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+
+            results.append({
+                "test_case": i,
+                "input_lower": Web3.to_hex(lower),
+                "input_upper": Web3.to_hex(upper),
+                "read_lower": Web3.to_hex(read_packed[0]),
+                "read_upper": Web3.to_hex(read_packed[1]),
+                "manual_lower": Web3.to_hex(manual_lower),
+                "manual_upper": Web3.to_hex(manual_upper),
+                "write_success": receipt_write["status"] == 1,
+                "values_correct": (
+                    read_packed[0] == lower and read_packed[1] == upper and
+                    manual_lower == lower and manual_upper == upper
+                ),
+            })
+
+        # Restore original packed values
+        tx_restore = contract.functions.writePackedValues(
+            initial_packed[0], initial_packed[1]
+        ).build_transaction(self.compose_build_transaction_args(kp_caller))
+        self.send_and_check_tx(tx_restore, kp_caller)
+
+        return {
+            "initial_packed": [Web3.to_hex(val) for val in initial_packed],
+            "test_results": results,
+            "all_tests_passed": all(result["values_correct"] for result in results),
         }
 
     @log_func
@@ -304,6 +438,21 @@ class StorageTestSCBehavior(SmartContractBehavior):
             ),
         }
 
+    @log_func
+    def integrity_write_tests(self):
+        """Test storage integrity with WRITE operations (post-migration only)"""
+        contract = self._get_contract()
+
+        # Emit storage snapshot event for event log verification
+        tx_snapshot = contract.functions.emitStorageSnapshot().build_transaction(
+            self.compose_build_transaction_args(self._kp_deployer)
+        )
+        receipt_snapshot = self.send_and_check_tx(tx_snapshot, self._kp_deployer)
+
+        return {
+            "snapshot_event_success": receipt_snapshot["status"] == 1,
+        }
+
     def migration_same_behavior(self, args):
         """Execute all storage test scenarios"""
         results = {}
@@ -332,3 +481,35 @@ class StorageTestSCBehavior(SmartContractBehavior):
         results["integrity_tests"] = self.integrity_tests()
 
         return results
+
+    def migration_new_behavior(self, args):
+        """Execute write operations to test functionality after migration"""
+        results = {}
+
+        # Test write operations post-migration
+        if args["basic_storage_write_tests"]:
+            results["basic_storage_write_tests"] = self.basic_storage_write_tests(*args["basic_storage_write_tests"])
+
+        if args["assembly_storage_write_tests"]:
+            results["assembly_storage_write_tests"] = self.assembly_storage_write_tests(*args["assembly_storage_write_tests"])
+
+        if args["complex_storage_write_tests"]:
+            results["complex_storage_write_tests"] = self.complex_storage_write_tests(*args["complex_storage_write_tests"])
+
+        if args["mapping_storage_write_tests"]:
+            results["mapping_storage_write_tests"] = self.mapping_storage_write_tests(*args["mapping_storage_write_tests"])
+
+        if args["packed_storage_write_tests"]:
+            results["packed_storage_write_tests"] = self.packed_storage_write_tests(*args["packed_storage_write_tests"])
+
+        # Test integrity write operations (no args needed)
+        results["integrity_write_tests"] = self.integrity_write_tests()
+
+        return results
+
+    def run_write_tests(self):
+        """Helper method to run write tests post-migration"""
+        if hasattr(self, '_write_test_args'):
+            return self.migration_new_behavior(self._write_test_args)
+        else:
+            raise IOError("Write test arguments not prepared. Call compose_all_args() first.")
