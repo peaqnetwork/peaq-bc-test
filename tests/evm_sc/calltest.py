@@ -55,20 +55,26 @@ class CallTestSCBehavior(SmartMultipleContractBehavior):
         }
 
     def compose_all_args(self):
+        # Create deterministic accounts for consistent testing
+        call_account = get_eth_info("call test seed phrase for deterministic account generation")
+        delegatecall_account = get_eth_info("delegatecall test seed phrase for deterministic account")
+        context_account = get_eth_info("context test seed phrase for deterministic account")
+        fallback_account = get_eth_info("fallback test seed phrase for deterministic account")
+
         self._args = {
             "pre": {
-                "call_tests": [get_eth_info()],
-                "delegatecall_tests": [get_eth_info()],
+                "call_tests": [call_account],
+                "delegatecall_tests": [delegatecall_account],
                 "staticcall_tests": [],
-                "context_tests": [get_eth_info()],
-                "fallback_tests": [get_eth_info()],
+                "context_tests": [context_account],
+                "fallback_tests": [fallback_account],
             },
             "after": {
-                "call_tests": [get_eth_info()],
-                "delegatecall_tests": [get_eth_info()],
+                "call_tests": [call_account],
+                "delegatecall_tests": [delegatecall_account],
                 "staticcall_tests": [],
-                "context_tests": [get_eth_info()],
-                "fallback_tests": [get_eth_info()],
+                "context_tests": [context_account],
+                "fallback_tests": [fallback_account],
             },
         }
 
