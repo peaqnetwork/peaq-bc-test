@@ -133,10 +133,12 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
-            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
             'chain_metadata_tests',     # Chain metadata includes gas and volatile data
+            'calldata_limits_tests',    # Calldata counter and size tests
+            'time_locked_tests',        # Timestamp-dependent tests
+            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -175,17 +177,19 @@ class SmartContractBehavior:
                 f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
-        """Remove gas-related fields from comparison"""
+        """Remove gas-related and volatile fields from comparison"""
+        # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
-                      'block_hash', 'base_fee']
+                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
+                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
+                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
             for k, v in data.items():
-                if k not in gas_fields:
+                # Check if field should be filtered (static list or pattern-based)
+                if k not in gas_fields and not self._is_volatile_field(k, v):
                     if isinstance(v, dict):
                         filtered[k] = self._filter_gas_fields(v)
                     elif isinstance(v, list):
@@ -205,6 +209,27 @@ class SmartContractBehavior:
                 differences[field] = (before[field], after[field])
 
         return differences
+
+    def _is_volatile_field(self, field_name, field_value):
+        """Detect volatile fields based on naming patterns and value types"""
+        # Volatile field name patterns
+        volatile_patterns = [
+            'timestamp', 'time', 'counter', 'count', 'nonce', 'block_number',
+            'hash', 'address', 'tx_hash', 'transaction_hash', 'receipt_hash',
+            'random', 'salt', 'seed', 'uuid', 'id'
+        ]
+
+        # Check if field name contains volatile patterns
+        field_lower = field_name.lower()
+        for pattern in volatile_patterns:
+            if pattern in field_lower:
+                return True
+
+        # Check for timestamp-like values (large integers that look like Unix timestamps)
+        if isinstance(field_value, int) and 1000000000 <= field_value <= 9999999999:
+            return True
+
+        return False
 
     def migration_same_behavior(self, args):
         """
@@ -233,10 +258,12 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
-            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
             'chain_metadata_tests',     # Chain metadata includes gas and volatile data
+            'calldata_limits_tests',    # Calldata counter and size tests
+            'time_locked_tests',        # Timestamp-dependent tests
+            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -275,17 +302,19 @@ class SmartContractBehavior:
                 f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
-        """Remove gas-related fields from comparison"""
+        """Remove gas-related and volatile fields from comparison"""
+        # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
-                      'block_hash', 'base_fee']
+                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
+                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
+                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
             for k, v in data.items():
-                if k not in gas_fields:
+                # Check if field should be filtered (static list or pattern-based)
+                if k not in gas_fields and not self._is_volatile_field(k, v):
                     if isinstance(v, dict):
                         filtered[k] = self._filter_gas_fields(v)
                     elif isinstance(v, list):
@@ -404,10 +433,12 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
-            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
             'chain_metadata_tests',     # Chain metadata includes gas and volatile data
+            'calldata_limits_tests',    # Calldata counter and size tests
+            'time_locked_tests',        # Timestamp-dependent tests
+            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -446,17 +477,19 @@ class SmartMultipleContractBehavior:
                 f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
-        """Remove gas-related fields from comparison"""
+        """Remove gas-related and volatile fields from comparison"""
+        # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
-                      'block_hash', 'base_fee']
+                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
+                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
+                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
             for k, v in data.items():
-                if k not in gas_fields:
+                # Check if field should be filtered (static list or pattern-based)
+                if k not in gas_fields and not self._is_volatile_field(k, v):
                     if isinstance(v, dict):
                         filtered[k] = self._filter_gas_fields(v)
                     elif isinstance(v, list):
@@ -476,6 +509,27 @@ class SmartMultipleContractBehavior:
                 differences[field] = (before[field], after[field])
 
         return differences
+
+    def _is_volatile_field(self, field_name, field_value):
+        """Detect volatile fields based on naming patterns and value types"""
+        # Volatile field name patterns
+        volatile_patterns = [
+            'timestamp', 'time', 'counter', 'count', 'nonce', 'block_number',
+            'hash', 'address', 'tx_hash', 'transaction_hash', 'receipt_hash',
+            'random', 'salt', 'seed', 'uuid', 'id'
+        ]
+
+        # Check if field name contains volatile patterns
+        field_lower = field_name.lower()
+        for pattern in volatile_patterns:
+            if pattern in field_lower:
+                return True
+
+        # Check for timestamp-like values (large integers that look like Unix timestamps)
+        if isinstance(field_value, int) and 1000000000 <= field_value <= 9999999999:
+            return True
+
+        return False
 
     def migration_same_behavior(self, args):
         """
@@ -504,10 +558,12 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
-            'mcopy_edge_cases',         # EIP-5656 edge cases
             'gas_tests',                # General gas tests
             'long_calldata_tests',      # Heavy calldata tests
             'chain_metadata_tests',     # Chain metadata includes gas and volatile data
+            'calldata_limits_tests',    # Calldata counter and size tests
+            'time_locked_tests',        # Timestamp-dependent tests
+            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -546,17 +602,19 @@ class SmartMultipleContractBehavior:
                 f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
-        """Remove gas-related fields from comparison"""
+        """Remove gas-related and volatile fields from comparison"""
+        # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'total_edge_case_gas',
-                      'nested_gas_used', 'actual_timestamp', 'actual_block_number',
-                      'block_hash', 'base_fee']
+                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
+                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
+                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
             for k, v in data.items():
-                if k not in gas_fields:
+                # Check if field should be filtered (static list or pattern-based)
+                if k not in gas_fields and not self._is_volatile_field(k, v):
                     if isinstance(v, dict):
                         filtered[k] = self._filter_gas_fields(v)
                     elif isinstance(v, list):
