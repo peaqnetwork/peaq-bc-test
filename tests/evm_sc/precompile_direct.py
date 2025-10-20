@@ -1,5 +1,5 @@
 from tests.evm_sc.base import SmartContractBehavior, log_func
-from tools.peaq_eth_utils import get_eth_info
+from tools.peaq_eth_utils import get_eth_info, wait_w3_tx
 from web3 import Web3
 import hashlib
 
@@ -87,11 +87,11 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         except Exception:
             gas_price = self._w3.to_wei('20', 'gwei')  # Fallback to higher gas price
 
-        # Build transaction
+        # Build transaction with higher gas limit for complex precompiles
         tx_params = {
             'to': to_address,
             'value': value,
-            'gas': 100000,
+            'gas': 200000,  # Increased gas limit for complex precompile operations
             'gasPrice': gas_price,
             'nonce': self._w3.eth.get_transaction_count(kp_caller['eth']),
             'data': data,
@@ -101,7 +101,19 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         # Sign and send transaction
         signed_tx = self._w3.eth.account.sign_transaction(tx_params, kp_caller['kp'].private_key)
         tx_hash = self._w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
+
+        # Use proper timeout handling with increased timeout for precompiles
+        receipt = wait_w3_tx(self._w3, tx_hash, timeout=60)  # 60 second timeout for precompiles
+
+        if receipt is None:
+            # If timeout occurs, create a minimal receipt with failure status
+            print(f"Transaction timed out: {tx_hash.hex()}")
+            receipt = {
+                'status': 0,
+                'transactionHash': tx_hash,
+                'gasUsed': 0,
+                'blockNumber': 0
+            }
 
         return receipt
 
