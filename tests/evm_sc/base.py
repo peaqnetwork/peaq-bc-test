@@ -134,11 +134,7 @@ class SmartContractBehavior:
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
             'gas_tests',                # General gas tests
-            'long_calldata_tests',      # Heavy calldata tests
-            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
             'calldata_limits_tests',    # Calldata counter and size tests
-            'time_locked_tests',        # Timestamp-dependent tests
-            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -181,9 +177,9 @@ class SmartContractBehavior:
         # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
-                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
-                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
+                      'gas_savings', 'total_gas_savings', 'actual_timestamp',
+                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
+                      'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
@@ -259,11 +255,7 @@ class SmartContractBehavior:
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
             'gas_tests',                # General gas tests
-            'long_calldata_tests',      # Heavy calldata tests
-            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
             'calldata_limits_tests',    # Calldata counter and size tests
-            'time_locked_tests',        # Timestamp-dependent tests
-            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -306,9 +298,9 @@ class SmartContractBehavior:
         # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
-                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
-                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
+                      'gas_savings', 'total_gas_savings', 'actual_timestamp',
+                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
+                      'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
@@ -434,11 +426,7 @@ class SmartMultipleContractBehavior:
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
             'gas_tests',                # General gas tests
-            'long_calldata_tests',      # Heavy calldata tests
-            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
             'calldata_limits_tests',    # Calldata counter and size tests
-            'time_locked_tests',        # Timestamp-dependent tests
-            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -481,9 +469,9 @@ class SmartMultipleContractBehavior:
         # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
-                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
-                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
+                      'gas_savings', 'total_gas_savings', 'actual_timestamp',
+                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
+                      'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}
@@ -559,11 +547,7 @@ class SmartMultipleContractBehavior:
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
             'gas_tests',                # General gas tests
-            'long_calldata_tests',      # Heavy calldata tests
-            'chain_metadata_tests',     # Chain metadata includes gas and volatile data
             'calldata_limits_tests',    # Calldata counter and size tests
-            'time_locked_tests',        # Timestamp-dependent tests
-            'block_dependent_tests',    # Block number dependent tests
         ]
         return key in gas_sensitive_tests
 
@@ -606,9 +590,9 @@ class SmartMultipleContractBehavior:
         # Static gas and volatile fields
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used',
-                      'actual_timestamp', 'actual_block_number', 'block_hash', 'base_fee',
-                      'execution_time', 'calldata_counter', 'total_stored', 'current_block']
+                      'gas_savings', 'total_gas_savings', 'actual_timestamp',
+                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
+                      'calldata_counter', 'total_stored', 'current_block']
 
         if isinstance(data, dict):
             filtered = {}

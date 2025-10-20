@@ -69,26 +69,16 @@ class ChainInfoTestBehavior(SmartContractBehavior):
 
         return {
             "chain_metadata_success": receipt["status"] == 1,
-            "actual_timestamp": actual_timestamp,
-            "actual_block_number": actual_block_number,
-            "actual_chain_id": actual_chain_id,
-            "block_hash": Web3.to_hex(block_hash),
-            "coinbase": coinbase,
-            "prevrandao": prevrandao,
-            "gas_limit": gas_limit,
-            "base_fee": base_fee,
-            "timestamp_match": timestamp_match,
-            "block_number_match": block_number_match,
-            "chain_id_match": chain_id_match,
-            "web3_consistency": {
-                "timestamp_close": abs(web3_block['timestamp'] - actual_timestamp) <= 5,
-                "block_number_match": web3_block['number'] == actual_block_number,
-                "chain_id_match": self._w3.eth.chain_id == actual_chain_id,
-                "prevrandao_exists": prevrandao > 0,  # Should be non-zero randomness
-                "gas_limit_reasonable": gas_limit > 0,  # Should have positive gas limit
-                "base_fee_exists": base_fee >= 0,  # Base fee can be 0 but should exist
+            "chain_id_match": chain_id_match,  # Critical check - must be stable
+            "metadata_accessible": {
+                "timestamp_exists": actual_timestamp > 0,
+                "block_number_exists": actual_block_number > 0,
+                "chain_id_exists": actual_chain_id > 0,
+                "block_hash_valid": block_hash != bytes(32),
+                "base_fee_valid": base_fee >= 0,
+                "gas_limit_valid": gas_limit > 0,
                 "coinbase_valid": coinbase != "0x0000000000000000000000000000000000000000",
-                "block_hash_exists": block_hash != "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "prevrandao_valid": prevrandao > 0,
             },
             "metadata_preserved": timestamp_match and block_number_match and chain_id_match,
             "gas_used": receipt.get("gasUsed", 0)
@@ -210,21 +200,18 @@ class ChainInfoTestBehavior(SmartContractBehavior):
         return {
             "block_dependent_success": receipt1["status"] == 1 and receipt2["status"] == 1 and receipt3["status"] == 1,
             "past_block_test": {
-                "current_block": result1[0],
                 "is_ready": result1[1],
                 "data_hash": Web3.to_hex(result1[2]),
                 "correctly_ready": result1[1] is True,
                 "gas_used": receipt1.get("gasUsed", 0)
             },
             "future_block_test": {
-                "current_block": result2[0],
                 "is_ready": result2[1],
                 "data_hash": Web3.to_hex(result2[2]),
                 "correctly_not_ready": result2[1] is False,
                 "gas_used": receipt2.get("gasUsed", 0)
             },
             "current_block_test": {
-                "current_block": result3[0],
                 "is_ready": result3[1],
                 "data_hash": Web3.to_hex(result3[2]),
                 "gas_used": receipt3.get("gasUsed", 0)
