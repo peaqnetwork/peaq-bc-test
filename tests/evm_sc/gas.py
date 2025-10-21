@@ -37,13 +37,22 @@ class GasSCBehavior(SmartContractBehavior):
             tx_arg,
         )
         tx_receipt = self.send_and_check_tx(tx, self._kp_deployer)
-        block_idx = tx_receipt["blockNumber"]
-        # get event
-        event_filter = contract.events.Success.create_filter(
-            fromBlock=block_idx, toBlock=block_idx
-        )
+
+        # Check transaction status
+        if tx_receipt["status"] != 1:
+            raise Exception(f"Transaction failed with status: {tx_receipt['status']}")
+
+        # Check if events were emitted
+        if not tx_receipt.get('logs'):
+            raise Exception(f"No events emitted - transaction may have failed silently")
+
+        # Use create_filter with proper error handling
+        event_filter = contract.events.Success.create_filter(fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
+        success_logs = event_filter.get_all_entries()
+        if not success_logs:
+            raise Exception(f"Success event not found in {len(tx_receipt['logs'])} emitted events")
         self._unittest.assertNotEqual(
-            event_filter.get_all_entries()[0],
+            success_logs[0],
             None,
             "Event not found",
         )
@@ -54,13 +63,22 @@ class GasSCBehavior(SmartContractBehavior):
             tx_arg,
         )
         tx_receipt = self.send_and_check_tx(tx, self._kp_deployer)
-        block_idx = tx_receipt["blockNumber"]
-        # get event
-        event_filter = contract.events.Fail.create_filter(
-            fromBlock=block_idx, toBlock=block_idx
-        )
+
+        # Check transaction status
+        if tx_receipt["status"] != 1:
+            raise Exception(f"Transaction failed with status: {tx_receipt['status']}")
+
+        # Check if events were emitted
+        if not tx_receipt.get('logs'):
+            raise Exception(f"No events emitted - transaction may have failed silently")
+
+        # Use create_filter with proper error handling
+        event_filter = contract.events.Fail.create_filter(fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
+        fail_logs = event_filter.get_all_entries()
+        if not fail_logs:
+            raise Exception(f"Fail event not found in {len(tx_receipt['logs'])} emitted events")
         self._unittest.assertNotEqual(
-            event_filter.get_all_entries()[0],
+            fail_logs[0],
             None,
             "Event not found",
         )
