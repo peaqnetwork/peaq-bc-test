@@ -159,12 +159,7 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
     for i in range(3):
         signed_txn = w3.eth.account.sign_transaction(tx, private_key=signer.private_key)
         tx_hash = send_raw_tx(w3, signed_txn)
-        receipt = wait_w3_tx(w3, tx_hash)
-
-        # If wait_w3_tx returned a receipt, we're done
-        if receipt is not None:
-            print(f'evm receipt: {receipt.blockNumber}-{receipt.transactionIndex}')
-            return receipt
+        wait_w3_tx(w3, tx_hash)
 
         # If timeout occurred, try to get the receipt manually
         for j in range(3):
