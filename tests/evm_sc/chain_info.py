@@ -65,7 +65,7 @@ class ChainInfoTestBehavior(SmartContractBehavior):
          timestamp_match, block_number_match, chain_id_match) = result
 
         # Verify metadata consistency
-        web3_block = self._w3.eth.get_block(actual_block_number)
+        # web3_block = self._w3.eth.get_block(actual_block_number)  # Not used currently
 
         return {
             "chain_metadata_success": receipt["status"] == 1,

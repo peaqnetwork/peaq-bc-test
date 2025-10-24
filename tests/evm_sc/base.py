@@ -178,7 +178,7 @@ class SmartContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"Value mismatch for {key}: {before_result} != {after_result}")
+                        f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related and volatile fields from comparison"""
@@ -257,91 +257,6 @@ class SmartContractBehavior:
         """
         raise IOError("Not implemented yet!")
 
-    def _should_ignore_gas_differences(self, key):
-        """Check if this test key should have gas differences ignored"""
-        gas_sensitive_tests = [
-            'transient_storage_tests',  # EIP-1153
-            'mcopy_gas_tests',          # EIP-5656
-            'mcopy_basic_tests',        # EIP-5656 basic functionality
-            'mcopy_zero_length_test',   # EIP-5656 edge case
-            'mcopy_overlap_test',       # EIP-5656 edge case
-            'mcopy_boundary_test',      # EIP-5656 edge case
-            'mcopy_odd_size_test',      # EIP-5656 edge case
-            'gas_tests',                # General gas tests
-            'calldata_limits_tests',    # Calldata counter and size tests
-            'chain_metadata_tests',     # Has gas_used differences
-            'long_calldata_processing_test',  # Gas differences in migration
-            'nested_calldata_decoding_test',  # Gas differences in migration
-        ]
-        return key in gas_sensitive_tests
-
-    def _compare_with_gas_tolerance(self, key):
-        """Compare results while ignoring gas-related fields"""
-        before_result = self._before_act_result[key]
-        after_result = self._after_act_result[key]
-
-        # If it's a dict, compare non-gas fields
-        if isinstance(before_result, dict) and isinstance(after_result, dict):
-            before_filtered = self._filter_gas_fields(before_result)
-            after_filtered = self._filter_gas_fields(after_result)
-
-            check.equal(
-                before_filtered,
-                after_filtered,
-                f"Non-gas values differ for {key}: "
-                f"{before_filtered} != {after_filtered}"
-            )
-
-            # Log gas differences for information
-            gas_diffs = self._get_gas_differences(before_result, after_result)
-            if gas_diffs:
-                gas_changes = []
-                for field, (before_val, after_val) in gas_diffs.items():
-                    change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
-
-                warnings.warn(
-                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
-                    UserWarning
-                )
-        else:
-            # For non-dict results, do normal comparison
-            check.equal(before_result, after_result,
-                f"Value mismatch for {key}: {before_result} != {after_result}")
-
-    def _filter_gas_fields(self, data):
-        """Remove gas-related and volatile fields from comparison"""
-        # Static gas and volatile fields
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
-                      'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used', 'actual_timestamp',
-                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
-                      'calldata_counter', 'total_stored', 'current_block']
-
-        if isinstance(data, dict):
-            filtered = {}
-            for k, v in data.items():
-                # Check if field should be filtered (static list or pattern-based)
-                if k not in gas_fields and not self._is_volatile_field(k, v):
-                    if isinstance(v, dict):
-                        filtered[k] = self._filter_gas_fields(v)
-                    elif isinstance(v, list):
-                        filtered[k] = [self._filter_gas_fields(item) if isinstance(item, dict) else item for item in v]
-                    else:
-                        filtered[k] = v
-            return filtered
-        return data
-
-    def _get_gas_differences(self, before, after):
-        """Extract gas field differences for logging"""
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas']
-        differences = {}
-
-        for field in gas_fields:
-            if field in before and field in after and before[field] != after[field]:
-                differences[field] = (before[field], after[field])
-
-        return differences
 
 
 class SmartMultipleContractBehavior:
@@ -486,7 +401,7 @@ class SmartMultipleContractBehavior:
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
-                f"Value mismatch for {key}: {before_result} != {after_result}")
+                        f"Value mismatch for {key}: {before_result} != {after_result}")
 
     def _filter_gas_fields(self, data):
         """Remove gas-related and volatile fields from comparison"""
@@ -565,88 +480,3 @@ class SmartMultipleContractBehavior:
         """
         raise IOError("Not implemented yet!")
 
-    def _should_ignore_gas_differences(self, key):
-        """Check if this test key should have gas differences ignored"""
-        gas_sensitive_tests = [
-            'transient_storage_tests',  # EIP-1153
-            'mcopy_gas_tests',          # EIP-5656
-            'mcopy_basic_tests',        # EIP-5656 basic functionality
-            'mcopy_zero_length_test',   # EIP-5656 edge case
-            'mcopy_overlap_test',       # EIP-5656 edge case
-            'mcopy_boundary_test',      # EIP-5656 edge case
-            'mcopy_odd_size_test',      # EIP-5656 edge case
-            'gas_tests',                # General gas tests
-            'calldata_limits_tests',    # Calldata counter and size tests
-            'chain_metadata_tests',     # Has gas_used differences
-            'long_calldata_processing_test',  # Gas differences in migration
-            'nested_calldata_decoding_test',  # Gas differences in migration
-        ]
-        return key in gas_sensitive_tests
-
-    def _compare_with_gas_tolerance(self, key):
-        """Compare results while ignoring gas-related fields"""
-        before_result = self._before_act_result[key]
-        after_result = self._after_act_result[key]
-
-        # If it's a dict, compare non-gas fields
-        if isinstance(before_result, dict) and isinstance(after_result, dict):
-            before_filtered = self._filter_gas_fields(before_result)
-            after_filtered = self._filter_gas_fields(after_result)
-
-            check.equal(
-                before_filtered,
-                after_filtered,
-                f"Non-gas values differ for {key}: "
-                f"{before_filtered} != {after_filtered}"
-            )
-
-            # Log gas differences for information
-            gas_diffs = self._get_gas_differences(before_result, after_result)
-            if gas_diffs:
-                gas_changes = []
-                for field, (before_val, after_val) in gas_diffs.items():
-                    change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
-
-                warnings.warn(
-                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
-                    UserWarning
-                )
-        else:
-            # For non-dict results, do normal comparison
-            check.equal(before_result, after_result,
-                f"Value mismatch for {key}: {before_result} != {after_result}")
-
-    def _filter_gas_fields(self, data):
-        """Remove gas-related and volatile fields from comparison"""
-        # Static gas and volatile fields
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
-                      'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
-                      'gas_savings', 'total_gas_savings', 'nested_gas_used', 'actual_timestamp',
-                      'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
-                      'calldata_counter', 'total_stored', 'current_block']
-
-        if isinstance(data, dict):
-            filtered = {}
-            for k, v in data.items():
-                # Check if field should be filtered (static list or pattern-based)
-                if k not in gas_fields and not self._is_volatile_field(k, v):
-                    if isinstance(v, dict):
-                        filtered[k] = self._filter_gas_fields(v)
-                    elif isinstance(v, list):
-                        filtered[k] = [self._filter_gas_fields(item) if isinstance(item, dict) else item for item in v]
-                    else:
-                        filtered[k] = v
-            return filtered
-        return data
-
-    def _get_gas_differences(self, before, after):
-        """Extract gas field differences for logging"""
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas']
-        differences = {}
-
-        for field in gas_fields:
-            if field in before and field in after and before[field] != after[field]:
-                differences[field] = (before[field], after[field])
-
-        return differences

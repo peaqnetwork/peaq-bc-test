@@ -44,7 +44,7 @@ class GasSCBehavior(SmartContractBehavior):
 
         # Check if events were emitted
         if not tx_receipt.get('logs'):
-            raise Exception(f"No events emitted - transaction may have failed silently")
+            raise Exception("No events emitted - transaction may have failed silently")
 
         # Use create_filter with proper error handling
         event_filter = contract.events.Success.create_filter(
@@ -71,7 +71,7 @@ class GasSCBehavior(SmartContractBehavior):
 
         # Check if events were emitted
         if not tx_receipt.get('logs'):
-            raise Exception(f"No events emitted - transaction may have failed silently")
+            raise Exception("No events emitted - transaction may have failed silently")
 
         # Use create_filter with proper error handling
         event_filter = contract.events.Fail.create_filter(
