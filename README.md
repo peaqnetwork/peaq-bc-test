@@ -132,8 +132,6 @@ The framework includes **smart gas tolerance handling** for tests sensitive to g
 4. **Post-Migration**: Re-execute and compare with baseline
 5. **Validation**: Ensure functional consistency (with gas tolerance)
 
-For detailed information, see [EVM_MIGRATION_TESTS_README.md](tests/EVM_MIGRATION_TESTS_README.md).
-
 ## Trade-offs and Performance Considerations
 
 **Sequential Execution Required:**
