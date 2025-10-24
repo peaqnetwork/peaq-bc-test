@@ -578,12 +578,8 @@ def print_progress(message, level="info"):
         print(message)
 
 
-def display_comparison_summary(version_comparison_data, constants_comparison_data, current_runtime_version):
-    """Display the comparison summary at the end"""
-    if not version_comparison_data:
-        return
-
-    version_changes = version_comparison_data['changes']
+def _display_header(version_comparison_data, current_runtime_version):
+    """Display comparison summary header"""
     print(f"\n{'='*80}")
     print_progress("RUNTIME VERSION COMPARISON SUMMARY", "data")
     print(f"{'='*80}")
@@ -592,22 +588,31 @@ def display_comparison_summary(version_comparison_data, constants_comparison_dat
     print(f"Compared Version Block: {version_comparison_data['previous_runtime_block']}")
     print(f"{'='*80}")
 
-    # Module changes
+
+def _display_updated_modules(version_changes):
+    """Display updated modules section"""
+    if not version_changes['updated']:
+        return
+
+    print(f"\n✏️  Updated modules ({len(version_changes['updated'])} modules):")
+    for module in version_changes['updated']:
+        print(f"   📦 {module}:")
+        details = version_changes['details'][module]
+        if details['changes']:
+            for change in details['changes']:
+                print(f"      • {change}")
+        if details['capability_changes']:
+            print("      Capability changes:")
+            for change in details['capability_changes']:
+                print(f"      • {change}")
+
+
+def _display_module_changes(version_changes):
+    """Display module structure changes"""
     print("\n📦 MODULE STRUCTURE CHANGES:")
     print("-" * 40)
 
-    if version_changes['updated']:
-        print(f"\n✏️  Updated modules ({len(version_changes['updated'])} modules):")
-        for module in version_changes['updated']:
-            print(f"   📦 {module}:")
-            details = version_changes['details'][module]
-            if details['changes']:
-                for change in details['changes']:
-                    print(f"      • {change}")
-            if details['capability_changes']:
-                print("      Capability changes:")
-                for change in details['capability_changes']:
-                    print(f"      • {change}")
+    _display_updated_modules(version_changes)
 
     if version_changes['added']:
         print(f"\n➕ Added modules ({len(version_changes['added'])} modules):")
@@ -622,37 +627,51 @@ def display_comparison_summary(version_comparison_data, constants_comparison_dat
     if not any([version_changes['updated'], version_changes['added'], version_changes['removed']]):
         print_progress("No module structure changes detected", "success")
 
-    # Constants and storage changes
-    if constants_comparison_data:
-        print("\n💾 CONSTANTS & STORAGE VALUE CHANGES:")
-        print("-" * 40)
 
-        const_changes = constants_comparison_data['constants']
-        has_const_changes = False
+def _display_constants_changes(constants_comparison_data):
+    """Display constants and storage changes"""
+    if not constants_comparison_data:
+        return
 
-        if const_changes['updated']:
-            has_const_changes = True
-            print(f"\n✏️  Updated values ({len(const_changes['updated'])} items):")
-            for item in const_changes['updated']:
-                print(f"\n   📝 {item['key']}:")
-                print(f"      Old: {item['old']}")
-                print(f"      New: {item['new']}")
+    print("\n💾 CONSTANTS & STORAGE VALUE CHANGES:")
+    print("-" * 40)
 
-        if const_changes['added']:
-            has_const_changes = True
-            print(f"\n➕ Added values ({len(const_changes['added'])} items):")
-            for item in const_changes['added']:
-                print(f"   • {item['key']}: {item['value']}")
+    const_changes = constants_comparison_data['constants']
+    has_const_changes = False
 
-        if const_changes['removed']:
-            has_const_changes = True
-            print(f"\n➖ Removed values ({len(const_changes['removed'])} items):")
-            for item in const_changes['removed']:
-                print(f"   • {item['key']}: {item['value']}")
+    if const_changes['updated']:
+        has_const_changes = True
+        print(f"\n✏️  Updated values ({len(const_changes['updated'])} items):")
+        for item in const_changes['updated']:
+            print(f"\n   📝 {item['key']}:")
+            print(f"      Old: {item['old']}")
+            print(f"      New: {item['new']}")
 
-        if not has_const_changes:
-            print_progress("No constants or storage value changes detected", "success")
+    if const_changes['added']:
+        has_const_changes = True
+        print(f"\n➕ Added values ({len(const_changes['added'])} items):")
+        for item in const_changes['added']:
+            print(f"   • {item['key']}: {item['value']}")
 
+    if const_changes['removed']:
+        has_const_changes = True
+        print(f"\n➖ Removed values ({len(const_changes['removed'])} items):")
+        for item in const_changes['removed']:
+            print(f"   • {item['key']}: {item['value']}")
+
+    if not has_const_changes:
+        print_progress("No constants or storage value changes detected", "success")
+
+
+def display_comparison_summary(version_comparison_data, constants_comparison_data, current_runtime_version):
+    """Display the comparison summary at the end"""
+    if not version_comparison_data:
+        return
+
+    version_changes = version_comparison_data['changes']
+    _display_header(version_comparison_data, current_runtime_version)
+    _display_module_changes(version_changes)
+    _display_constants_changes(constants_comparison_data)
     print(f"\n{'='*80}\n")
 
 
