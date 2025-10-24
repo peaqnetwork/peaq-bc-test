@@ -135,21 +135,18 @@ class ChainInfoTestBehavior(SmartContractBehavior):
             "past_unlock_test": {
                 "success": result1[2],
                 "result": result1[0],
-                "execution_time": result1[1],
                 "has_time_bonus": result1[0] >= test_amount,
                 "gas_used": receipt1.get("gasUsed", 0)
             },
             "future_unlock_test": {
                 "success": result2[2],
                 "result": result2[0],
-                "execution_time": result2[1],
                 "correctly_failed": not result2[2],
                 "gas_used": receipt2.get("gasUsed", 0)
             },
             "edge_case_test": {
                 "success": result3[2],
                 "result": result3[0],
-                "execution_time": result3[1],
                 "gas_used": receipt3.get("gasUsed", 0)
             },
             "timestamp_dependency_working": result1[2] and not result2[2] and result3[2],
