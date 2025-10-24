@@ -593,7 +593,7 @@ def display_comparison_summary(version_comparison_data, constants_comparison_dat
     print(f"{'='*80}")
 
     # Module changes
-    print(f"\n📦 MODULE STRUCTURE CHANGES:")
+    print("\n📦 MODULE STRUCTURE CHANGES:")
     print("-" * 40)
 
     if version_changes['updated']:
@@ -624,7 +624,7 @@ def display_comparison_summary(version_comparison_data, constants_comparison_dat
 
     # Constants and storage changes
     if constants_comparison_data:
-        print(f"\n💾 CONSTANTS & STORAGE VALUE CHANGES:")
+        print("\n💾 CONSTANTS & STORAGE VALUE CHANGES:")
         print("-" * 40)
 
         const_changes = constants_comparison_data['constants']
