@@ -349,11 +349,13 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
 
         # Execute long calldata processing tests
         if args["long_calldata_processing_test"]:
-            results["long_calldata_processing_test"] = self.long_calldata_processing_test(*args["long_calldata_processing_test"])
+            results["long_calldata_processing_test"] = self.long_calldata_processing_test(
+                *args["long_calldata_processing_test"])
 
         # Execute nested calldata decoding tests
         if args["nested_calldata_decoding_test"]:
-            results["nested_calldata_decoding_test"] = self.nested_calldata_decoding_test(*args["nested_calldata_decoding_test"])
+            results["nested_calldata_decoding_test"] = self.nested_calldata_decoding_test(
+                *args["nested_calldata_decoding_test"])
 
         # Execute aggregator tests
         if args["aggregator_tests"]:
@@ -370,7 +372,8 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
 
         # Execute calldata limits write tests
         if args["calldata_limits_write_tests"]:
-            results["calldata_limits_write_tests"] = self.calldata_limits_write_tests(*args["calldata_limits_write_tests"])
+            results["calldata_limits_write_tests"] = self.calldata_limits_write_tests(
+                *args["calldata_limits_write_tests"])
 
         return results
 
