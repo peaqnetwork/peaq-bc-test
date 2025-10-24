@@ -258,7 +258,6 @@ class SmartContractBehavior:
         raise IOError("Not implemented yet!")
 
 
-
 class SmartMultipleContractBehavior:
     def __init__(self, unittest, folders, w3, kp_deployer):
         """This class is used to deploy the smart contract and test its behavior
@@ -479,4 +478,3 @@ class SmartMultipleContractBehavior:
         This is mainly for checking the storage/state, or some continue behaviors after the migration.
         """
         raise IOError("Not implemented yet!")
-
