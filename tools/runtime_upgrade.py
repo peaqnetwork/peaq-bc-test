@@ -1,18 +1,5 @@
 import sys
 sys.path.append('./')
-
-# Apply ALL monkey patches FIRST before any other imports
-from tools.monkey.monkey_wait_for_blocks import monkey_patch_wait_for_blocks
-monkey_patch_wait_for_blocks()
-
-# Verify the patch is applied
-import peaq.utils
-from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
-if peaq.utils.wait_for_n_blocks == wait_for_n_blocks_with_timeout:
-    print("✅ Monkey patch verified: wait_for_n_blocks is patched!")
-else:
-    print("❌ WARNING: Monkey patch not applied correctly!")
-
 import os
 import time
 import importlib
@@ -22,8 +9,6 @@ from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
 from substrateinterface import SubstrateInterface, Keypair
-from tools.monkey.monkey_3rd_substrate_interface import monkey_submit_extrinsic
-SubstrateInterface.submit_extrinsic = monkey_submit_extrinsic
 from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
 from tools.constants import UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT, POST_UPGRADE_WAIT_TIME
 from tools.constants import MIN_BALANCE_THRESHOLD, TRANSFER_AMOUNT, SUDO_MIN_BALANCE, FUNDING_AMOUNT_BASE
@@ -31,7 +16,7 @@ from tools.constants import XCM_VERSION, RELAY_ASSET_ID, DEFAULT_BLOCK_TIME
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
-import peaq.utils
+from peaq.utils import wait_for_n_blocks
 from tools.restart import restart_parachain_launch
 from peaq.utils import get_account_balance
 from tools.constants import DEFAULT_COLLATOR_PATH, DEFAULT_BINARY_CHAIN_PATH
@@ -106,8 +91,7 @@ def send_upgrade_call(substrate, kp_sudo, wasm_file):
 def wait_until_block_height(substrate, block_height):
     current_block = get_block_height(substrate)
     block_num = block_height - current_block + 1
-    from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
-    wait_for_n_blocks_with_timeout(substrate, block_num)
+    wait_for_n_blocks(substrate, block_num)
 
 
 def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
@@ -135,8 +119,7 @@ def upgrade(runtime_path):
         IOError: If upgrade fails
     """
     substrate = SubstrateInterface(url=WS_URL)
-    from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
-    wait_for_n_blocks_with_timeout(substrate, 1, 60 * 60)
+    wait_for_n_blocks(substrate, 1)
 
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
@@ -305,8 +288,7 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     # Reconnect to the new collator
     substrate = SubstrateInterface(url=WS_URL)
     substrate.connect_websocket()
-    from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
-    wait_for_n_blocks_with_timeout(substrate, 3, 60 * 60)
+    wait_for_n_blocks(substrate, 3, 3*DEFAULT_BLOCK_TIME*2)
     return substrate
 
 
@@ -345,8 +327,7 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 
     # Wait for upgrade completion with error handling
     try:
-        from tools.monkey.monkey_wait_for_blocks import wait_for_n_blocks_with_timeout
-        wait_for_n_blocks_with_timeout(substrate, UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT * 100)
+        wait_for_n_blocks(substrate, UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT)
     except Exception as e:
         print(f'Error: {e}')
         if not should_handle_upgrade_error(e, collator_dict):
