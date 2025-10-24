@@ -47,7 +47,8 @@ class GasSCBehavior(SmartContractBehavior):
             raise Exception(f"No events emitted - transaction may have failed silently")
 
         # Use create_filter with proper error handling
-        event_filter = contract.events.Success.create_filter(fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
+        event_filter = contract.events.Success.create_filter(
+            fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
         success_logs = event_filter.get_all_entries()
         if not success_logs:
             raise Exception(f"Success event not found in {len(tx_receipt['logs'])} emitted events")
@@ -73,7 +74,8 @@ class GasSCBehavior(SmartContractBehavior):
             raise Exception(f"No events emitted - transaction may have failed silently")
 
         # Use create_filter with proper error handling
-        event_filter = contract.events.Fail.create_filter(fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
+        event_filter = contract.events.Fail.create_filter(
+            fromBlock=tx_receipt['blockNumber'], toBlock=tx_receipt['blockNumber'])
         fail_logs = event_filter.get_all_entries()
         if not fail_logs:
             raise Exception(f"Fail event not found in {len(tx_receipt['logs'])} emitted events")
