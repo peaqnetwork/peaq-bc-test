@@ -20,22 +20,29 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         super().deploy(deploy_args)
 
     def compose_all_args(self):
+        # Create deterministic accounts for consistent testing
+        write_test_account = get_eth_info("calldata write test seed phrase for deterministic account")
+
         self._args = {
             "pre": {
                 "router_swap_tests": [get_eth_info()],
                 "multi_hop_tests": [get_eth_info()],
                 "batch_operation_tests": [get_eth_info()],
-                "long_calldata_tests": [get_eth_info()],
+                "long_calldata_processing_test": [get_eth_info()],
+                "nested_calldata_decoding_test": [get_eth_info()],
                 "aggregator_tests": [get_eth_info()],
                 "calldata_limits_tests": [],
+                "calldata_limits_write_tests": [write_test_account],
             },
             "after": {
                 "router_swap_tests": [get_eth_info()],
                 "multi_hop_tests": [get_eth_info()],
                 "batch_operation_tests": [get_eth_info()],
-                "long_calldata_tests": [get_eth_info()],
+                "long_calldata_processing_test": [get_eth_info()],
+                "nested_calldata_decoding_test": [get_eth_info()],
                 "aggregator_tests": [get_eth_info()],
                 "calldata_limits_tests": [],
+                "calldata_limits_write_tests": [write_test_account],
             },
         }
 
@@ -45,7 +52,8 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
             kp["substrate"]
             for action_type in ["pre", "after"]
             for test_type in ["router_swap_tests", "multi_hop_tests", "batch_operation_tests",
-                              "long_calldata_tests", "aggregator_tests"]
+                              "long_calldata_processing_test", "nested_calldata_decoding_test",
+                              "aggregator_tests", "calldata_limits_write_tests"]
             for kp in self._args[action_type][test_type]
         ]
 
@@ -177,8 +185,8 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         }
 
     @log_func
-    def long_calldata_tests(self, kp_caller):
-        """Test long calldata processing"""
+    def long_calldata_processing_test(self, kp_caller):
+        """Test long calldata processing operations"""
         contract = self._get_contract()
 
         # Generate test data chunks
@@ -196,13 +204,6 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         result = contract.functions.processLongCalldata(data1, data2, data3).call()
         data_hash, total_length = result[0], result[1]
 
-        # Test nested data decoding
-        nested_data = Web3.to_bytes(text="nested_test_data" * 20)  # ~340 bytes
-        tx_nested = contract.functions.decodeNestedCalldata(nested_data).build_transaction(
-            self.compose_build_transaction_args(kp_caller)
-        )
-        receipt_nested = self.send_and_check_tx(tx_nested, kp_caller)
-
         # Calldata analysis
         tx_data = self._w3.eth.get_transaction(receipt_long['transactionHash'])
         calldata_size = len(tx_data['input']) // 2 - 1
@@ -213,9 +214,33 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
             "calldata_size_bytes": calldata_size,
             "data_hash": Web3.to_hex(data_hash),
             "gas_used": receipt_long.get("gasUsed", 0),
+            "blob_like_processing_works": total_length > 5000,
+            "transaction_success": receipt_long["status"] == 1,
+        }
+
+    @log_func
+    def nested_calldata_decoding_test(self, kp_caller):
+        """Test nested calldata decoding operations"""
+        contract = self._get_contract()
+
+        # Test nested data decoding
+        nested_data = Web3.to_bytes(text="nested_test_data" * 20)  # ~340 bytes
+        tx_nested = contract.functions.decodeNestedCalldata(nested_data).build_transaction(
+            self.compose_build_transaction_args(kp_caller)
+        )
+        receipt_nested = self.send_and_check_tx(tx_nested, kp_caller)
+
+        # Get nested calldata size
+        tx_data = self._w3.eth.get_transaction(receipt_nested['transactionHash'])
+        nested_calldata_size = len(tx_data['input']) // 2 - 1
+
+        return {
             "nested_decoding_success": receipt_nested["status"] == 1,
             "nested_gas_used": receipt_nested.get("gasUsed", 0),
-            "blob_like_processing_works": total_length > 5000,
+            "nested_data_size": len(nested_data),
+            "nested_calldata_size": nested_calldata_size,
+            "transaction_success": receipt_nested["status"] == 1,
+            "decoding_functional": receipt_nested["status"] == 1,
         }
 
     @log_func
@@ -251,7 +276,7 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
 
     @log_func
     def calldata_limits_tests(self):
-        """Test calldata size limits and edge cases"""
+        """Test calldata size limits and edge cases (read-only for migration comparison)"""
         contract = self._get_contract()
 
         # Test different calldata sizes
@@ -259,26 +284,51 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         medium_data = self._generate_large_data(5)    # 5KB
         large_data = self._generate_large_data(10)    # 10KB
 
-        # Test calldata limits
+        # Test calldata limits (read-only call)
         result = contract.functions.testCalldataLimits(
             small_data, medium_data, large_data
         ).call()
 
         small_ok, medium_ok, large_ok = result
 
-        # Get calldata statistics
-        stats = contract.functions.getCalldataStats().call()
-        current_counter, total_stored, average_size = stats
+        # Note: Removed getCalldataStats() call to avoid state modification during migration comparison
+        # This test is now read-only and suitable for migration validation
 
         return {
             "small_calldata_ok": small_ok,
             "medium_calldata_ok": medium_ok,
             "large_calldata_ok": large_ok,
             "all_sizes_processed": small_ok and medium_ok and large_ok,
+            "size_handling_robust": small_ok and medium_ok,
+        }
+
+    @log_func
+    def calldata_limits_write_tests(self, kp_caller):
+        """Test calldata limits with state modification for functionality validation"""
+        contract = self._get_contract()
+
+        # Test different calldata sizes with transaction that modifies state
+        small_data = self._generate_large_data(1)     # 1KB
+        medium_data = self._generate_large_data(5)    # 5KB
+        large_data = self._generate_large_data(10)    # 10KB
+
+        # Execute transaction that modifies contract state
+        tx = contract.functions.testCalldataLimits(
+            small_data, medium_data, large_data
+        ).build_transaction(self.compose_build_transaction_args(kp_caller))
+        receipt = self.send_and_check_tx(tx, kp_caller)
+
+        # Get calldata statistics after state modification
+        stats = contract.functions.getCalldataStats().call()
+        current_counter, total_stored, average_size = stats
+
+        return {
+            "write_operation_success": receipt["status"] == 1,
             "calldata_counter": current_counter,
             "total_stored": total_stored,
             "average_size": average_size,
-            "size_handling_robust": small_ok and medium_ok,
+            "state_modification_working": current_counter > 0,
+            "gas_used": receipt.get("gasUsed", 0),
         }
 
     def migration_same_behavior(self, args):
@@ -297,9 +347,15 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         if args["batch_operation_tests"]:
             results["batch_operation_tests"] = self.batch_operation_tests(*args["batch_operation_tests"])
 
-        # Execute long calldata tests
-        if args["long_calldata_tests"]:
-            results["long_calldata_tests"] = self.long_calldata_tests(*args["long_calldata_tests"])
+        # Execute long calldata processing tests
+        if args["long_calldata_processing_test"]:
+            results["long_calldata_processing_test"] = self.long_calldata_processing_test(
+                *args["long_calldata_processing_test"])
+
+        # Execute nested calldata decoding tests
+        if args["nested_calldata_decoding_test"]:
+            results["nested_calldata_decoding_test"] = self.nested_calldata_decoding_test(
+                *args["nested_calldata_decoding_test"])
 
         # Execute aggregator tests
         if args["aggregator_tests"]:
@@ -309,3 +365,19 @@ class CalldataHeavyTestBehavior(SmartContractBehavior):
         results["calldata_limits_tests"] = self.calldata_limits_tests()
 
         return results
+
+    def migration_new_behavior(self, args):
+        """Execute write operations to test functionality after migration"""
+        results = {}
+
+        # Execute calldata limits write tests
+        if args["calldata_limits_write_tests"]:
+            results["calldata_limits_write_tests"] = self.calldata_limits_write_tests(
+                *args["calldata_limits_write_tests"])
+
+        return results
+
+    def run_write_tests(self):
+        """Run all write tests manually for debugging"""
+        self.compose_all_args()
+        return self.migration_new_behavior(self._args["after"])

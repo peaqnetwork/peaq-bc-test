@@ -2,6 +2,7 @@
 
 - [Introduction](#introduction)
 - [Preparation](#preparation)
+- [EVM Migration Tests](#evm-migration-tests)
 - [Limitation](#limitation)
 - [QA](#QA)
 
@@ -34,11 +35,120 @@ ETH_URL = 'http://127.0.0.1:9936'
 pytest
 ```
 
-# Runtime upgradae test
+# Runtime upgrade test
 ```
 RUNTIME_UPGRADE_PATH=~/PublicSMB/peaq_dev_runtime.compact.compressed.0.0.8.wasm python3 tools/runtime_upgrade.py
 RUNTIME_UPGRADE_PATH=~/PublicSMB/peaq_dev_runtime.compact.compressed.0.0.8.wasm pytest
 ```
+
+# EVM Migration Tests
+
+The EVM migration test suite provides comprehensive validation of EVM functionality during runtime upgrades. Tests are organized into 5 specialized files covering 19 different smart contracts.
+
+## Test Structure
+
+### 📁 Test Files
+- **`evm_migration_tokens_test.py`** - Token standards (ERC20, ERC721, ERC1155)
+- **`evm_migration_calls_test.py`** - Call operations (DelegateCall, CallTest, Reentry, Calldata)
+- **`evm_migration_storage_test.py`** - Storage operations (Storage, Upgrade, Struct)
+- **`evm_migration_precompile_test.py`** - Precompile operations (ecrecover, sha256, etc.)
+- **`evm_migration_advanced_test.py`** - Advanced features (Events, Gas, EIP-1153, EIP-5656)
+
+### 🧪 Test Execution Modes
+1. **Pre-Migration Tests**: Validate functionality before runtime upgrade
+2. **Post-Migration Tests**: Verify consistency after runtime upgrade with automatic comparison
+
+## Running EVM Migration Tests
+
+### Run All Migration Tests
+```bash
+pytest tests/evm_migration_*_test.py -v -m eth
+```
+
+### Run Specific Categories
+```bash
+# Token standards testing
+pytest tests/evm_migration_tokens_test.py -v
+
+# Call operations testing
+pytest tests/evm_migration_calls_test.py -v
+
+# Storage operations testing
+pytest tests/evm_migration_storage_test.py -v
+
+# Precompile operations testing
+pytest tests/evm_migration_precompile_test.py -v
+
+# Advanced features testing
+pytest tests/evm_migration_advanced_test.py -v
+```
+
+### Run Individual Tests
+```bash
+# Test specific contract before migration
+pytest tests/evm_migration_tokens_test.py::TestEVMTokensMigration::test_erc20_before_migration -v
+
+# Test with runtime upgrade
+RUNTIME_UPGRADE_PATH=~/path/to/runtime.wasm pytest tests/evm_migration_tokens_test.py::TestEVMTokensMigration::test_erc20_after_migration -v
+```
+
+### View Test Output
+```bash
+# See detailed output including print statements
+pytest tests/evm_migration_advanced_test.py -v -s
+```
+
+## Gas Tolerance Mechanism
+
+The framework includes **smart gas tolerance handling** for tests sensitive to gas cost changes:
+
+- **Gas-sensitive tests**: EIP-1153 (transient storage), EIP-5656 (MCOPY), gas consumption tests
+- **Behavior**: Compares all functional fields while ignoring gas-related fields
+- **Logging**: Reports gas changes as informational (not failures)
+
+**Example Output:**
+```
+✅ Gas changes detected in transient_storage_tests (expected behavior):
+   total_gas_used: 136152 → 116252 (-14.6%)
+```
+
+**Why needed**: Gas costs legitimately change during runtime upgrades due to optimizations and EVM improvements.
+
+## Test Coverage
+
+| Category | Contracts | Coverage |
+|----------|-----------|----------|
+| **Token Standards** | ERC20, ERC721, ERC1155 | Standard token operations, minting, transfers |
+| **Call Operations** | DelegateCall, CallTest, Reentry, Calldata | Proxy patterns, reentrancy protection, data handling |
+| **Storage** | Storage, Upgrade, Struct | State persistence, upgradeable contracts, complex data |
+| **Precompiles** | Standard Ethereum precompiles | ecrecover, sha256, ripemd160, identity, modexp |
+| **Advanced** | Events, Gas, EIP-1153, EIP-5656 | Logging, optimization, transient storage, MCOPY |
+
+## Migration Testing Flow
+
+1. **Setup**: Deploy contracts and fund test accounts
+2. **Pre-Migration**: Execute and store baseline behavior
+3. **Runtime Upgrade**: Perform blockchain runtime upgrade
+4. **Post-Migration**: Re-execute and compare with baseline
+5. **Validation**: Ensure functional consistency (with gas tolerance)
+
+## Trade-offs and Performance Considerations
+
+**Sequential Execution Required:**
+- EVM migration tests **cannot run in parallel** due to shared parachain instance
+- Each test file performs `restart_with_setup()` = full parachain restart
+- Running all 5 files = 5 separate parachain restarts
+
+**Time Implications:**
+- Total time = (5 × parachain_restart_time) + actual_test_time
+- Each restart includes blockchain initialization, genesis setup, funding accounts
+- Consider this when planning CI/CD pipeline timing
+
+**Recommended Usage:**
+- **Development**: Run individual files (`pytest tests/evm_migration_tokens_test.py`)
+- **CI/CD**: Run full suite sequentially for comprehensive validation
+- **Debugging**: Target specific domains to reduce restart overhead
+
 # Limitation
 1. In the peaq network, the standalone chain and parachain have different features and parameters; therefore, some tests may not pass, for example, the block creation time test and DID RPC test.
 2. This project requires the dependent libraries whose version is higher than 0.9.29 because of the weight structure.

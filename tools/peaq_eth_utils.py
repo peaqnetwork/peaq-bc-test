@@ -141,13 +141,16 @@ def send_raw_tx(w3, signed_txn):
             raise e
 
 
-def wait_w3_tx(w3, tx_hash, timimeout=ETH_TIMEOUT):
+def wait_w3_tx(w3, tx_hash, timeout=ETH_TIMEOUT):
     try:
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=ETH_TIMEOUT)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
         while w3.eth.get_block('finalized').number < receipt.blockNumber:
             time.sleep(BLOCK_GENERATE_TIME)
+        return receipt
     except Web3Exceptions.TimeExhausted:
         print(f'Timeout for tx: {tx_hash.hex()}')
+        # Return None on timeout to allow retry logic
+        return None
     except Exception as e:
         raise e
 
@@ -158,8 +161,8 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
         tx_hash = send_raw_tx(w3, signed_txn)
         wait_w3_tx(w3, tx_hash)
 
-        # Check whether the block is finalized or not. If not, wait for it
-        for i in range(3):
+        # If timeout occurred, try to get the receipt manually
+        for j in range(3):
             try:
                 receipt = w3.eth.get_transaction_receipt(tx_hash)
                 # Check the transaction is existed or not, if not, go back to send again
@@ -169,6 +172,6 @@ def sign_and_submit_evm_transaction(tx, w3, signer):
                 print(f'Tx {tx_hash.hex()} is not found')
                 time.sleep(BLOCK_GENERATE_TIME * 2)
         else:
-            print(f'Cannot find tx {tx_hash.hex()}')
+            print(f'Cannot find tx {tx_hash.hex()} after timeout, retrying...')
             tx['data'] = tx['data'] + '00'
-    raise IOError('Cannot send transaction')
+    raise IOError('Cannot send transaction after 3 attempts')

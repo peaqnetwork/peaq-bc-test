@@ -1,5 +1,5 @@
 from tests.evm_sc.base import SmartContractBehavior, log_func
-from tools.peaq_eth_utils import get_eth_info
+from tools.peaq_eth_utils import get_eth_info, wait_w3_tx
 from web3 import Web3
 import hashlib
 
@@ -41,21 +41,28 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         pass
 
     def compose_all_args(self):
+        # Create deterministic accounts for consistent testing
+        ecrecover_account = get_eth_info("direct ecrecover test seed phrase")
+        hash_account = get_eth_info("direct hash test seed phrase")
+        modexp_account = get_eth_info("direct modexp test seed phrase")
+        identity_account = get_eth_info("direct identity test seed phrase")
+        curve_account = get_eth_info("direct elliptic curve test seed phrase")
+
         self._args = {
             "pre": {
-                "direct_ecrecover_test": [get_eth_info()],
-                "direct_hash_test": [get_eth_info()],
-                "direct_modexp_test": [get_eth_info()],
-                "direct_identity_test": [get_eth_info()],
-                "direct_elliptic_curve_test": [get_eth_info()],
+                "direct_ecrecover_test": [ecrecover_account],
+                "direct_hash_test": [hash_account],
+                "direct_modexp_test": [modexp_account],
+                "direct_identity_test": [identity_account],
+                "direct_elliptic_curve_test": [curve_account],
                 "comprehensive_direct_test": [],
             },
             "after": {
-                "direct_ecrecover_test": [get_eth_info()],
-                "direct_hash_test": [get_eth_info()],
-                "direct_modexp_test": [get_eth_info()],
-                "direct_identity_test": [get_eth_info()],
-                "direct_elliptic_curve_test": [get_eth_info()],
+                "direct_ecrecover_test": [ecrecover_account],
+                "direct_hash_test": [hash_account],
+                "direct_modexp_test": [modexp_account],
+                "direct_identity_test": [identity_account],
+                "direct_elliptic_curve_test": [curve_account],
                 "comprehensive_direct_test": [],
             },
         }
@@ -80,11 +87,11 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         except Exception:
             gas_price = self._w3.to_wei('20', 'gwei')  # Fallback to higher gas price
 
-        # Build transaction
+        # Build transaction with higher gas limit for complex precompiles
         tx_params = {
             'to': to_address,
             'value': value,
-            'gas': 100000,
+            'gas': 200000,  # Increased gas limit for complex precompile operations
             'gasPrice': gas_price,
             'nonce': self._w3.eth.get_transaction_count(kp_caller['eth']),
             'data': data,
@@ -94,7 +101,19 @@ class PrecompileDirectTestBehavior(SmartContractBehavior):
         # Sign and send transaction
         signed_tx = self._w3.eth.account.sign_transaction(tx_params, kp_caller['kp'].private_key)
         tx_hash = self._w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash)
+
+        # Use proper timeout handling with increased timeout for precompiles
+        receipt = wait_w3_tx(self._w3, tx_hash, timeout=60)  # 60 second timeout for precompiles
+
+        if receipt is None:
+            # If timeout occurs, create a minimal receipt with failure status
+            print(f"Transaction timed out: {tx_hash.hex()}")
+            receipt = {
+                'status': 0,
+                'transactionHash': tx_hash,
+                'gasUsed': 0,
+                'blockNumber': 0
+            }
 
         return receipt
 

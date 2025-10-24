@@ -6,6 +6,7 @@ peaq-py==0.2.2
 eth-account==0.9.0
 web3==6.11.2
 pytest==7.4.3
+pytest-check==2.6.0
 python-on-whales==0.66.0
 eth-typing==3.5.2
 eth-utils==2.3.1
