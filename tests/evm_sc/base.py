@@ -133,6 +133,11 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_basic_tests',        # EIP-5656 basic functionality
+            'mcopy_zero_length_test',   # EIP-5656 edge case
+            'mcopy_overlap_test',       # EIP-5656 edge case
+            'mcopy_boundary_test',      # EIP-5656 edge case
+            'mcopy_odd_size_test',      # EIP-5656 edge case
             'gas_tests',                # General gas tests
             'calldata_limits_tests',    # Calldata counter and size tests
             'chain_metadata_tests',     # Has gas_used differences
@@ -257,6 +262,11 @@ class SmartContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_basic_tests',        # EIP-5656 basic functionality
+            'mcopy_zero_length_test',   # EIP-5656 edge case
+            'mcopy_overlap_test',       # EIP-5656 edge case
+            'mcopy_boundary_test',      # EIP-5656 edge case
+            'mcopy_odd_size_test',      # EIP-5656 edge case
             'gas_tests',                # General gas tests
             'calldata_limits_tests',    # Calldata counter and size tests
             'chain_metadata_tests',     # Has gas_used differences
@@ -431,6 +441,11 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_basic_tests',        # EIP-5656 basic functionality
+            'mcopy_zero_length_test',   # EIP-5656 edge case
+            'mcopy_overlap_test',       # EIP-5656 edge case
+            'mcopy_boundary_test',      # EIP-5656 edge case
+            'mcopy_odd_size_test',      # EIP-5656 edge case
             'gas_tests',                # General gas tests
             'calldata_limits_tests',    # Calldata counter and size tests
             'chain_metadata_tests',     # Has gas_used differences
@@ -555,6 +570,11 @@ class SmartMultipleContractBehavior:
         gas_sensitive_tests = [
             'transient_storage_tests',  # EIP-1153
             'mcopy_gas_tests',          # EIP-5656
+            'mcopy_basic_tests',        # EIP-5656 basic functionality
+            'mcopy_zero_length_test',   # EIP-5656 edge case
+            'mcopy_overlap_test',       # EIP-5656 edge case
+            'mcopy_boundary_test',      # EIP-5656 edge case
+            'mcopy_odd_size_test',      # EIP-5656 edge case
             'gas_tests',                # General gas tests
             'calldata_limits_tests',    # Calldata counter and size tests
             'chain_metadata_tests',     # Has gas_used differences
