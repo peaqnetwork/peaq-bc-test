@@ -312,9 +312,6 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     """
     validate_runtime_path(wasm_path)
 
-    docker_volume_path = get_docker_volume_path()
-    docker_info = get_docker_info(collator_dict)
-
     # Wait for both chains to be ready
     wait_until_block_height(SubstrateInterface(url=RELAYCHAIN_WS_URL), 1)
     wait_until_block_height(SubstrateInterface(url=WS_URL), 1)
@@ -335,6 +332,8 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
 
     # Switch to binary collator if enabled
     if collator_dict['enable_collator_binary']:
+        docker_volume_path = get_docker_volume_path()
+        docker_info = get_docker_info(collator_dict)
         substrate = switch_to_binary_collator(collator_dict, docker_volume_path, docker_info)
 
     # Validate upgrade was successful
