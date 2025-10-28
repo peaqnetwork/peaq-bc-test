@@ -35,7 +35,10 @@ def restart_with_setup():
 
 
 def start_runtime_upgrade_only():
-    do_runtime_upgrade_only(fetch_runtime_upgrade_path_from_env())
+    do_runtime_upgrade_only(
+        fetch_runtime_upgrade_path_from_env(),
+        fetch_collator_dict_from_env()
+    )
 
 
 # Will raise error
