@@ -143,19 +143,23 @@ class SmartContractBehavior:
             'chain_metadata_tests',     # Has gas_used differences
             'long_calldata_processing_test',  # Gas differences in migration
             'nested_calldata_decoding_test',  # Gas differences in migration
+            'direct_hash_test',         # Precompile hash functions
+            'direct_modexp_test',       # Precompile modexp
+            'direct_ecrecover_test',    # Precompile ecrecover
         ]
         return key in gas_sensitive_tests
 
-    def _compare_with_gas_tolerance(self, key):
-        """Compare results while ignoring gas-related fields"""
+    def _compare_with_gas_tolerance(self, key, tolerance_percent=10):
+        """Compare results with 10% tolerance for gas-related fields"""
         before_result = self._before_act_result[key]
         after_result = self._after_act_result[key]
 
-        # If it's a dict, compare non-gas fields
+        # If it's a dict, compare non-gas fields strictly and gas fields with tolerance
         if isinstance(before_result, dict) and isinstance(after_result, dict):
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
+            # Strictly compare non-gas fields
             check.equal(
                 before_filtered,
                 after_filtered,
@@ -163,18 +167,44 @@ class SmartContractBehavior:
                 f"{before_filtered} != {after_filtered}"
             )
 
-            # Log gas differences for information
+            # Check gas fields with tolerance
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
                 gas_changes = []
-                for field, (before_val, after_val) in gas_diffs.items():
-                    change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+                gas_tolerance_failures = []
 
-                warnings.warn(
-                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
-                    UserWarning
-                )
+                for field, (before_val, after_val) in gas_diffs.items():
+                    if before_val == 0:
+                        # If before value is 0, after should also be 0
+                        if after_val != 0:
+                            gas_tolerance_failures.append(
+                                f"{field}: {before_val} → {after_val} (changed from 0)"
+                            )
+                    else:
+                        change_percent = abs((after_val - before_val) / before_val * 100)
+                        gas_changes.append(
+                            f"{field}: {before_val} → {after_val} ({(after_val - before_val) / before_val * 100:+.1f}%)"
+                        )
+
+                        # Check if change exceeds tolerance
+                        if change_percent > tolerance_percent:
+                            gas_tolerance_failures.append(
+                                f"{field}: {before_val} → {after_val} ({change_percent:.1f}% > {tolerance_percent}% tolerance)"
+                            )
+
+                # Log gas changes for information
+                if gas_changes:
+                    warnings.warn(
+                        f"Gas changes in {key}: {'; '.join(gas_changes)}",
+                        UserWarning
+                    )
+
+                # Fail if any gas field exceeds tolerance
+                if gas_tolerance_failures:
+                    check.equal(
+                        True, False,
+                        f"Gas tolerance exceeded for {key}: {'; '.join(gas_tolerance_failures)}"
+                    )
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
@@ -365,19 +395,23 @@ class SmartMultipleContractBehavior:
             'chain_metadata_tests',     # Has gas_used differences
             'long_calldata_processing_test',  # Gas differences in migration
             'nested_calldata_decoding_test',  # Gas differences in migration
+            'direct_hash_test',         # Precompile hash functions
+            'direct_modexp_test',       # Precompile modexp
+            'direct_ecrecover_test',    # Precompile ecrecover
         ]
         return key in gas_sensitive_tests
 
-    def _compare_with_gas_tolerance(self, key):
-        """Compare results while ignoring gas-related fields"""
+    def _compare_with_gas_tolerance(self, key, tolerance_percent=10):
+        """Compare results with 10% tolerance for gas-related fields"""
         before_result = self._before_act_result[key]
         after_result = self._after_act_result[key]
 
-        # If it's a dict, compare non-gas fields
+        # If it's a dict, compare non-gas fields strictly and gas fields with tolerance
         if isinstance(before_result, dict) and isinstance(after_result, dict):
             before_filtered = self._filter_gas_fields(before_result)
             after_filtered = self._filter_gas_fields(after_result)
 
+            # Strictly compare non-gas fields
             check.equal(
                 before_filtered,
                 after_filtered,
@@ -385,18 +419,44 @@ class SmartMultipleContractBehavior:
                 f"{before_filtered} != {after_filtered}"
             )
 
-            # Log gas differences for information
+            # Check gas fields with tolerance
             gas_diffs = self._get_gas_differences(before_result, after_result)
             if gas_diffs:
                 gas_changes = []
-                for field, (before_val, after_val) in gas_diffs.items():
-                    change = ((after_val - before_val) / before_val * 100) if before_val else 0
-                    gas_changes.append(f"{field}: {before_val} → {after_val} ({change:+.1f}%)")
+                gas_tolerance_failures = []
 
-                warnings.warn(
-                    f"Gas changes detected in {key} (expected behavior): {'; '.join(gas_changes)}",
-                    UserWarning
-                )
+                for field, (before_val, after_val) in gas_diffs.items():
+                    if before_val == 0:
+                        # If before value is 0, after should also be 0
+                        if after_val != 0:
+                            gas_tolerance_failures.append(
+                                f"{field}: {before_val} → {after_val} (changed from 0)"
+                            )
+                    else:
+                        change_percent = abs((after_val - before_val) / before_val * 100)
+                        gas_changes.append(
+                            f"{field}: {before_val} → {after_val} ({(after_val - before_val) / before_val * 100:+.1f}%)"
+                        )
+
+                        # Check if change exceeds tolerance
+                        if change_percent > tolerance_percent:
+                            gas_tolerance_failures.append(
+                                f"{field}: {before_val} → {after_val} ({change_percent:.1f}% > {tolerance_percent}% tolerance)"
+                            )
+
+                # Log gas changes for information
+                if gas_changes:
+                    warnings.warn(
+                        f"Gas changes in {key}: {'; '.join(gas_changes)}",
+                        UserWarning
+                    )
+
+                # Fail if any gas field exceeds tolerance
+                if gas_tolerance_failures:
+                    check.equal(
+                        True, False,
+                        f"Gas tolerance exceeded for {key}: {'; '.join(gas_tolerance_failures)}"
+                    )
         else:
             # For non-dict results, do normal comparison
             check.equal(before_result, after_result,
