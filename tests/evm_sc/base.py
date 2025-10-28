@@ -146,6 +146,7 @@ class SmartContractBehavior:
             'direct_hash_test',         # Precompile hash functions
             'direct_modexp_test',       # Precompile modexp
             'direct_ecrecover_test',    # Precompile ecrecover
+            'direct_identity_test',     # Precompile identity
         ]
         return key in gas_sensitive_tests
 
@@ -398,6 +399,7 @@ class SmartMultipleContractBehavior:
             'direct_hash_test',         # Precompile hash functions
             'direct_modexp_test',       # Precompile modexp
             'direct_ecrecover_test',    # Precompile ecrecover
+            'direct_identity_test',     # Precompile identity
         ]
         return key in gas_sensitive_tests
 
