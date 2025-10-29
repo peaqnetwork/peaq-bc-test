@@ -237,6 +237,13 @@ class SmartContractBehavior:
 
     def _is_volatile_field(self, field_name, field_value):
         """Detect volatile fields based on naming patterns and value types"""
+        # Skip pattern matching for non-string field names (e.g., integer indices in arrays)
+        if not isinstance(field_name, str):
+            # For non-string keys, only check value-based volatility
+            if isinstance(field_value, int) and 1000000000 <= field_value <= 9999999999:
+                return True
+            return False
+
         # Volatile field name patterns
         volatile_patterns = [
             'timestamp', 'time', 'counter', 'count', 'nonce', 'block_number',
@@ -480,6 +487,13 @@ class SmartMultipleContractBehavior:
 
     def _is_volatile_field(self, field_name, field_value):
         """Detect volatile fields based on naming patterns and value types"""
+        # Skip pattern matching for non-string field names (e.g., integer indices in arrays)
+        if not isinstance(field_name, str):
+            # For non-string keys, only check value-based volatility
+            if isinstance(field_value, int) and 1000000000 <= field_value <= 9999999999:
+                return True
+            return False
+
         # Volatile field name patterns
         volatile_patterns = [
             'timestamp', 'time', 'counter', 'count', 'nonce', 'block_number',
