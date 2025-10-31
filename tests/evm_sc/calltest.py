@@ -8,8 +8,8 @@ class CallTestSCBehavior(SmartMultipleContractBehavior):
         super().__init__(
             unittest,
             {
-                # Use separate contract artifacts for target and caller contracts
-                "target": "ETH/calltest/target",
+                # Use the same contract artifacts for both target and caller
+                "target": "ETH/calltest",
                 "caller": "ETH/calltest",
             },
             w3,
@@ -26,13 +26,15 @@ class CallTestSCBehavior(SmartMultipleContractBehavior):
 
     @log_func
     def deploy(self, deploy_args=None):
-        # Deploy target contract first
-        target_address = deploy_contract(
+        # Deploy target contract first with dummy address (using same contract for both)
+        dummy_target_address = "0x0000000000000000000000000000000000000000"
+        target_address = deploy_contract_with_args(
             self._w3,
             self._kp_deployer["kp"],
             self._eth_chain_id,
             self._abis["target"],
             self._load_bytecode_by_key("target"),
+            [dummy_target_address],
         )
 
         # Deploy caller contract with target address
