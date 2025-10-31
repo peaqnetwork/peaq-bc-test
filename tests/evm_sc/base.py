@@ -172,12 +172,12 @@ class SmartContractBehavior:
                                 f"{field}: {before_val} → {after_val} (changed from 0)"
                             )
                     else:
-                        change_percent = abs((after_val - before_val) / before_val * 100)
+                        change_percent = (after_val - before_val) / before_val * 100
                         gas_changes.append(
-                            f"{field}: {before_val} → {after_val} ({(after_val - before_val) / before_val * 100:+.1f}%)"
+                            f"{field}: {before_val} → {after_val} ({change_percent:+.1f}%)"
                         )
 
-                        # Check if change exceeds tolerance
+                        # Only fail if gas INCREASES above tolerance (decreases are allowed)
                         if change_percent > tolerance_percent:
                             gas_tolerance_failures.append(
                                 f"{field}: {before_val} → {after_val} ({change_percent:.1f}% > {tolerance_percent}% tolerance)"
@@ -422,12 +422,12 @@ class SmartMultipleContractBehavior:
                                 f"{field}: {before_val} → {after_val} (changed from 0)"
                             )
                     else:
-                        change_percent = abs((after_val - before_val) / before_val * 100)
+                        change_percent = (after_val - before_val) / before_val * 100
                         gas_changes.append(
-                            f"{field}: {before_val} → {after_val} ({(after_val - before_val) / before_val * 100:+.1f}%)"
+                            f"{field}: {before_val} → {after_val} ({change_percent:+.1f}%)"
                         )
 
-                        # Check if change exceeds tolerance
+                        # Only fail if gas INCREASES above tolerance (decreases are allowed)
                         if change_percent > tolerance_percent:
                             gas_tolerance_failures.append(
                                 f"{field}: {before_val} → {after_val} ({change_percent:.1f}% > {tolerance_percent}% tolerance)"
