@@ -8,9 +8,8 @@ class CallTestSCBehavior(SmartMultipleContractBehavior):
         super().__init__(
             unittest,
             {
-                # Both contracts use the same compiled artifacts since the
-                # target subdirectory was never created in the original implementation
-                "target": "ETH/calltest",
+                # Use separate contract artifacts for target and caller contracts
+                "target": "ETH/calltest/target",
                 "caller": "ETH/calltest",
             },
             w3,
