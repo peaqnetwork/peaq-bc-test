@@ -68,7 +68,7 @@ INFLATION_YEAR = {
 
 INFLATION_RECALCULATION = {
     'peaq-network': 5256000,
-    'peaq-network-fork': 5684095,
+    'peaq-network-fork': 7890590,
     'peaq-dev': 5256000,
     'peaq-dev-fork': 9194356,
     # Because of the delay TGE

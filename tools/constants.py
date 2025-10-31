@@ -85,6 +85,6 @@ CORETIME_DURATION = 57600  # Duration for coretime assignment
 PARACHAIN_CORE_MAP = {
     2000: 4,  # 4 cores for parachain 2000
     2241: 4,  # 4 cores for parachain 2241
-    3338: 4,  # 4 cores for parachain 3338
+    3338: 3,  # 4 cores for parachain 3338
     3000: 1,  # 1 core for parachain 3000
 }
