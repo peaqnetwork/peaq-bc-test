@@ -1,5 +1,5 @@
 from tests.evm_sc.base import SmartMultipleContractBehavior, log_func
-from tools.peaq_eth_utils import deploy_contract, deploy_contract_with_args, get_eth_info
+from tools.peaq_eth_utils import deploy_contract_with_args, get_eth_info
 from web3 import Web3
 
 
