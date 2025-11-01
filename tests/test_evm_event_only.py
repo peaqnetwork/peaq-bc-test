@@ -8,7 +8,8 @@ from tools.runtime_upgrade import wait_until_block_height
 from tests.evm_sc.event import EventSCBehavior
 from peaq.utils import ExtrinsicBatch
 from tools.constants import KP_GLOBAL_SUDO
-from tools.coretime_utils import get_parachain_id, setup_coretime
+from tools.coretime_utils import get_parachain_id
+# from tools.coretime_utils import setup_coretime
 
 
 @pytest.mark.eth
@@ -22,8 +23,8 @@ class TestEVMEventOnly(unittest.TestCase):
         # Setup coretime cores
         parachain_id = get_parachain_id()
         self.assertIsNotNone(parachain_id, "Parachain ID must exist")
-        cores_assigned = setup_coretime(parachain_id)
-        print(f"Coretime setup: {cores_assigned} cores assigned for parachain {parachain_id}")
+        # cores_assigned = setup_coretime(parachain_id)
+        # print(f"Coretime setup: {cores_assigned} cores assigned for parachain {parachain_id}")
 
     def test_evm_event_only(self):
         """Test only the event-emitting contract"""
