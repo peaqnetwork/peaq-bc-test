@@ -282,14 +282,16 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     """Handles the transition from docker to binary collator."""
     stop_collator_binary()
 
-    # Only copy data if collator_folder not set (reuse existing folder if set)
-    if not collator_dict.get('collator_folder'):
-        copy_all_chain_data(collator_dict, docker_volume_path)
-        print('Copied chain data from Docker volume')
-    else:
-        print(f'Reusing existing chain data from: {collator_dict["collator_folder"]}')
-        # Update chain_data to use collator_folder
+    # If collator_folder is set, use it as both source and destination (reuse existing data)
+    # Otherwise, copy from Docker volume
+    if collator_dict.get('collator_folder'):
         collator_dict['chain_data'] = collator_dict['collator_folder']
+        docker_volume_path = collator_dict['collator_folder']
+        print(f'Reusing existing chain data from: {collator_dict["collator_folder"]}')
+    else:
+        print('Copying chain data from Docker volume')
+
+    copy_all_chain_data(collator_dict, docker_volume_path)
 
     print(f'docker info: {docker_info}')
     stop_peaq_docker_container()
