@@ -75,6 +75,7 @@ DEFAULT_COLLATOR_DICT = {
     'chain_data': None,
     'enable_collator_binary': False,
     'docker_compose_folder': None,
+    'collator_folder': None,  # If set, reuse this folder instead of copying from Docker
 }
 
 # Coretime configuration
@@ -88,3 +89,6 @@ PARACHAIN_CORE_MAP = {
     3338: 3,  # 4 cores for parachain 3338
     3000: 1,  # 1 core for parachain 3000
 }
+
+# Collator folder for reusing existing chain data during binary switch
+COLLATOR_FOLDER = os.environ.get('TEST_COLLATOR_FOLDER', None)

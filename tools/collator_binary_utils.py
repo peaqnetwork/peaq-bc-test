@@ -173,6 +173,9 @@ def build_parachain_args(collator_dict, docker_info):
         collator_dict['docker_compose_folder'],
         os.path.basename(docker_info['parachain_chainspec']))
 
+    # Use port 10044 if collator_folder is set (replacing Docker), otherwise use FORK_COLLATOR_PORT
+    rpc_port = 10044 if collator_dict.get('collator_folder') else FORK_COLLATOR_PORT
+
     return [
         f'--base-path {collator_chain_data_folder}',
         f'--chain {parachain_config}',
@@ -186,7 +189,7 @@ def build_parachain_args(collator_dict, docker_info):
         f'--node-key {docker_info["node_key"]}',
         f'--parachain-id {docker_info["parachain_id"]}',
         f'--port {PARACHAIN_PORT}',
-        f'--rpc-port {FORK_COLLATOR_PORT}',
+        f'--rpc-port {rpc_port}',
     ]
 
 
