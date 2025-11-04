@@ -319,19 +319,23 @@ def do_runtime_upgrade_only(wasm_path, collator_dict=DEFAULT_COLLATOR_DICT):
     substrate = SubstrateInterface(url=WS_URL)
     old_version = get_current_runtime_version(substrate)
 
-    # Perform the upgrade
-    upgrade(wasm_path)
-
     # Wait for upgrade completion with error handling
     try:
+        # Perform the upgrade
+        upgrade(wasm_path)
+
         wait_for_n_blocks(substrate, UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT)
     except Exception as e:
         print(f'Error: {e}')
+        print(f'DEBUG: Error type={type(e)}, args={e.args}')
         if not should_handle_upgrade_error(e, collator_dict):
+            print(f'DEBUG: should_handle returned False, re-raising')
             raise e
+        print(f'DEBUG: should_handle returned True, will switch to binary')
 
     # Switch to binary collator if enabled
     if collator_dict['enable_collator_binary']:
+        print(f'DEBUG: Switching to binary collator now...')
         docker_volume_path = get_docker_volume_path()
         docker_info = get_docker_info(collator_dict)
         substrate = switch_to_binary_collator(collator_dict, docker_volume_path, docker_info)
