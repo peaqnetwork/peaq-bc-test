@@ -1,7 +1,7 @@
 import os
 from substrateinterface import Keypair
 
-BLOCK_GENERATE_TIME = 6
+BLOCK_GENERATE_TIME = int(os.environ.get('CI_DEFAULT_BLOCK_GENERATION_TIME', '6'))
 
 TOKEN_NUM_BASE = pow(10, 3)
 TOKEN_NUM_BASE_DEV = pow(10, 18)
