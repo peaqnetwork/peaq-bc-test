@@ -66,7 +66,7 @@ def fetch_collator_dict_from_env():
     enable_collator_dict['collator_binary'] = os.environ.get('TEST_COLLATOR_BINARY')
     enable_collator_dict['chain_data'] = os.environ.get('TEST_CHAIN_DATA')
     enable_collator_dict['docker_compose_folder'] = os.environ.get('TEST_DOCKER_COMPOSE_FOLDER')
-    enable_collator_dict['collator_folder'] = os.environ.get('TEST_COLLATOR_FOLDER')
+    enable_collator_dict['collator_folder_same'] = os.environ.get('TEST_COLLATOR_FOLDER_SAME', 'false').lower() == 'true'
     return enable_collator_dict
 
 
@@ -282,12 +282,11 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     """Handles the transition from docker to binary collator."""
     stop_collator_binary()
 
-    # If collator_folder is set, use it as both source and destination (reuse existing data)
+    # If collator_folder_same is True, use chain_data for both source and destination
     # Otherwise, copy from Docker volume
-    if collator_dict.get('collator_folder'):
-        collator_dict['chain_data'] = collator_dict['collator_folder']
-        docker_volume_path = collator_dict['collator_folder']
-        print(f'Reusing existing chain data from: {collator_dict["collator_folder"]}')
+    if collator_dict.get('collator_folder_same'):
+        docker_volume_path = collator_dict['chain_data']
+        print(f'Reusing existing chain data from: {collator_dict["chain_data"]}')
     else:
         print('Copying chain data from Docker volume')
 

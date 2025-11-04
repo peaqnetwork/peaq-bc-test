@@ -75,7 +75,7 @@ DEFAULT_COLLATOR_DICT = {
     'chain_data': None,
     'enable_collator_binary': False,
     'docker_compose_folder': None,
-    'collator_folder': None,  # If set, reuse this folder instead of copying from Docker
+    'collator_folder_same': False,  # If True, chain_data is used for both source and destination
 }
 
 # Coretime configuration
