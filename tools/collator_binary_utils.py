@@ -242,7 +242,11 @@ def wakeup_latest_collator(collator_dict, docker_info):
     relaychain_args = build_relaychain_args(collator_dict, docker_info)
 
     # Combine with separator and add validator key
-    run_args = ['--ferdie'] + parachain_args + ['--'] + relaychain_args
+    # Skip --ferdie if reusing existing chain data (keys already inserted)
+    if collator_dict.get('collator_folder_same'):
+        run_args = parachain_args + ['--'] + relaychain_args
+    else:
+        run_args = ['--ferdie'] + parachain_args + ['--'] + relaychain_args
 
     # Start the collator process
     log_path = f'{collator_chain_data_folder}/collator.log'
