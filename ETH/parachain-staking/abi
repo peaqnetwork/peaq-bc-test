@@ -2,6 +2,25 @@
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "ethAddress",
+				"type": "address"
+			}
+		],
+		"name": "convertEthToSubstrateAccount",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "bytes32",
 				"name": "collator",
 				"type": "bytes32"
@@ -76,6 +95,64 @@
 					}
 				],
 				"internalType": "struct ParachainStaking.CollatorInfo[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "delegator",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "offset",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "limit",
+				"type": "uint256"
+			}
+		],
+		"name": "getDelegatorState",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "bytes32",
+						"name": "delegator",
+						"type": "bytes32"
+					},
+					{
+						"components": [
+							{
+								"internalType": "bytes32",
+								"name": "collator",
+								"type": "bytes32"
+							},
+							{
+								"internalType": "uint256",
+								"name": "amount",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct ParachainStaking.DelegationInfo[]",
+						"name": "collators",
+						"type": "tuple[]"
+					},
+					{
+						"internalType": "uint256",
+						"name": "total",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct ParachainStaking.CollatorDelegatorState[]",
 				"name": "",
 				"type": "tuple[]"
 			}

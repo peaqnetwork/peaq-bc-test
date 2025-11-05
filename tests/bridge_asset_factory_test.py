@@ -4,12 +4,10 @@ import pytest
 from substrateinterface import SubstrateInterface
 from tools.asset import get_valid_asset_id
 from tools.constants import WS_URL, ETH_URL
-from peaq.utils import ExtrinsicBatch
 from tools.peaq_eth_utils import get_contract
 from tools.peaq_eth_utils import get_eth_chain_id
 from tools.peaq_eth_utils import calculate_asset_to_evm_address
 from tools.peaq_eth_utils import get_eth_info
-from tools.constants import KP_GLOBAL_SUDO
 from tests.evm_utils import sign_and_submit_evm_transaction
 from web3 import Web3
 
@@ -33,25 +31,14 @@ class bridge_asset_factory_test(unittest.TestCase):
         self._eth_chain_id = get_eth_chain_id(self._substrate)
 
     def _fund_users(self):
-        # Fund users
-        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
-        batch.compose_call(
-            'Balances',
-            'transfer_keep_alive',
-            {
-                'dest': self._kp_creator['substrate'],
-                'value': 10000 * 10 ** 18,
-            }
-        )
-        batch.compose_call(
-            'Balances',
-            'transfer_keep_alive',
-            {
-                'dest': self._kp_admin['substrate'],
-                'value': 10000 * 10 ** 18,
-            }
-        )
-        batch.execute()
+        from tools.peaq_eth_utils import fund_test_accounts
+
+        accounts_to_fund = [
+            self._kp_creator['substrate'],
+            self._kp_admin['substrate']
+        ]
+
+        return fund_test_accounts(self._substrate, accounts_to_fund, 10000 * 10 ** 18, method='transfer_keep_alive')
 
     def evm_asset_create(self, contract, eth_kp_src, asset_id, eth_admin, min_balance):
         w3 = self._w3
