@@ -89,6 +89,3 @@ PARACHAIN_CORE_MAP = {
     3338: 3,  # 4 cores for parachain 3338
     3000: 1,  # 1 core for parachain 3000
 }
-
-# Collator folder for reusing existing chain data during binary switch
-COLLATOR_FOLDER = os.environ.get('TEST_COLLATOR_FOLDER', None)
