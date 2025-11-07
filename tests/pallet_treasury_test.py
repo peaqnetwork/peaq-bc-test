@@ -25,8 +25,9 @@ WEIGHT_BOND = {
     'proof_size': 1000000
 }
 LENGTH_BOND = 100
-AMOUNT = random.randint(1, 100000000)
 TOTAL_AMOUNT = 20 ** 5 * 10 ** 18
+# AMOUNT must be less than TOTAL_AMOUNT to ensure treasury has enough funds
+AMOUNT = random.randint(1, 1000)  # Max 1000 tokens for quick testing
 
 DIVISION_FACTOR = pow(10, 7)
 
@@ -71,6 +72,18 @@ def close_vote(substrate, kp_member, proposal_hash, proposal_index, weight_bond,
     return batch.execute()
 
 
+def trigger_payout(substrate, kp_caller, spend_index):
+    """Trigger payout for an approved spend"""
+    batch = ExtrinsicBatch(substrate, kp_caller)
+    batch.compose_call(
+        'Treasury',
+        'payout',
+        {
+            'index': spend_index
+        })
+    return batch.execute()
+
+
 # To directly spend funds from treasury
 def spend(substrate, value, beneficiary):
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
@@ -91,15 +104,17 @@ class TestTreasury(unittest.TestCase):
     def setUp(self):
         self.substrate = SubstrateInterface(url=WS_URL)
 
-    # To submit a spend proposal
+    # To submit a spend proposal using modern Treasury.spend()
     def propose_spend(self, value, beneficiary, kp_member):
 
         treasury_payload = self.substrate.compose_call(
             call_module='Treasury',
-            call_function='spend_local',
+            call_function='spend',
             call_params={
+                'asset_kind': (),
                 'amount': value*TOKEN_NUM_BASE_DEV,
-                'beneficiary': beneficiary.ss58_address
+                'beneficiary': beneficiary.ss58_address,
+                'valid_from': None
             })
 
         batch = ExtrinsicBatch(self.substrate, kp_member)
@@ -131,12 +146,24 @@ class TestTreasury(unittest.TestCase):
         proposal_index = None
         proposal_hash = None
 
+        # Get beneficiary balance before spend
+        balance_before = self.substrate.query('System', 'Account', [KP_BENEFICIARY.ss58_address])
+        balance_before_free = balance_before.value['data']['free']
+        print(f"Beneficiary balance before: {balance_before_free}")
+
+        # Check treasury balance
+        treasury_balance = self.substrate.query('System', 'Account', [KP_TREASURY])
+        treasury_free = treasury_balance.value['data']['free']
+        print(f"Treasury balance: {treasury_free}")
+        print(f"Spend amount will be: {AMOUNT * TOKEN_NUM_BASE_DEV}")
+
         # submit a proposal
         proposal_index, proposal_hash = self.propose_spend(AMOUNT,
                                                            KP_BENEFICIARY,
                                                            KP_USER)
 
-        # To submit votes by all council member to APPORVE the motion
+        # To submit votes by all council member to APPROVE the motion
+        # Result: 2/3 votes YES = 66.7% approval (meets >50% threshold)
         receipt = cast_vote(self.substrate, KP_USER, proposal_hash, proposal_index, True)
         self.assertTrue(receipt.is_success,
                         f'Extrinsic Failed: {receipt.error_message}' +
@@ -163,7 +190,54 @@ class TestTreasury(unittest.TestCase):
                              LENGTH_BOND)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
 
+        # Extract SpendIndex from AssetSpendApproved event
+        spend_index = None
+        for event in self.substrate.get_events(receipt.block_hash):
+            if event.value['event_id'] == 'AssetSpendApproved':
+                spend_index = event.value['attributes']['index']
+                print(f"Treasury spend approved with index: {spend_index}")
+                print(f"Spend details: {event.value['attributes']}")
+                break
+
+        self.assertIsNotNone(spend_index, "Treasury spend was not approved by Council")
+
+        # Trigger payout (anyone can do this)
+        print(f"Triggering payout for spend index {spend_index}...")
+        receipt = trigger_payout(self.substrate, KP_USER, spend_index)
+        self.assertTrue(receipt.is_success,
+                        f'Payout failed: {receipt.error_message}' +
+                        f'{self.substrate.get_events(receipt.block_hash)}')
+
+        # Verify payout was successful
+        paid_event_found = False
+        for event in self.substrate.get_events(receipt.block_hash):
+            if event.value['event_id'] == 'Paid':
+                paid_event_found = True
+                print(f"✅ Payout executed: {event.value['attributes']}")
+                break
+
+        self.assertTrue(paid_event_found, "Paid event not found after payout")
+
+        # Verify beneficiary balance increased
+        balance_after = self.substrate.query('System', 'Account', [KP_BENEFICIARY.ss58_address])
+        balance_after_free = balance_after.value['data']['free']
+        balance_increase = balance_after_free - balance_before_free
+
+        print(f"Beneficiary balance after: {balance_after_free}")
+        print(f"Balance increase: {balance_increase}")
+        print(f"Expected amount: {AMOUNT * TOKEN_NUM_BASE_DEV}")
+
+        self.assertEqual(balance_increase, AMOUNT * TOKEN_NUM_BASE_DEV,
+                         f"Balance increase {balance_increase} does not match expected {AMOUNT * TOKEN_NUM_BASE_DEV}")
+
+        print("✅ Council-approved treasury spend executed successfully!")
+
     def check_reject_proposal(self):
+        """
+        Test rejection scenario: 1 YES vote vs 2 NO votes = 33.3% approval
+        With SpendOrigin requiring >50% approval, the treasury spend will NOT be approved.
+        The Council.close() will succeed but the inner Treasury.spend() will fail.
+        """
         proposal_index = None
         proposal_hash = None
 
@@ -173,6 +247,7 @@ class TestTreasury(unittest.TestCase):
                                                            KP_USER)
 
         # To submit votes by all council member to REJECT the proposal
+        # Result: 1/3 votes YES = 33.3% approval (does NOT meet >50% threshold)
         receipt = cast_vote(self.substrate, KP_USER, proposal_hash,
                             proposal_index,
                             True)
@@ -200,6 +275,18 @@ class TestTreasury(unittest.TestCase):
                              WEIGHT_BOND,
                              LENGTH_BOND)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+
+        # Verify that treasury spend was NOT approved (insufficient votes)
+        spend_approved = False
+        for event in self.substrate.get_events(receipt.block_hash):
+            if event.value['event_id'] == 'AssetSpendApproved':
+                spend_approved = True
+                break
+
+        self.assertFalse(spend_approved,
+                         "Treasury spend should NOT be approved with only 33% approval")
+
+        print("✅ Proposal correctly rejected due to insufficient approval (33% < 50%)")
 
     def check_treasury_rewards(self):
         # To get current block reward as configured in BlockReward.BlockIssueReward
@@ -256,6 +343,16 @@ class TestTreasury(unittest.TestCase):
         batch_fund(batch, KP_COUNCIL_FIRST_MEMBER, TOTAL_AMOUNT)
         batch_fund(batch, KP_COUNCIL_SECOND_MEMBER, TOTAL_AMOUNT)
 
+        # Fund treasury account for payouts
+        # Verify treasury account derivation
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': KP_TREASURY,
+                'new_free': TOTAL_AMOUNT
+            })
+
         print("--set member test started---")
         council_members = [KP_USER.ss58_address,
                            KP_COUNCIL_FIRST_MEMBER.ss58_address,
@@ -286,6 +383,16 @@ class TestTreasury(unittest.TestCase):
         batch_fund(batch, KP_COUNCIL_FIRST_MEMBER, TOTAL_AMOUNT)
         batch_fund(batch, KP_COUNCIL_SECOND_MEMBER, TOTAL_AMOUNT)
 
+        # Fund treasury account for payouts
+        print(f"Funding treasury account: {KP_TREASURY}")
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': KP_TREASURY,
+                'new_free': TOTAL_AMOUNT
+            })
+
         print("--set member test started---")
         council_members = [KP_USER.ss58_address,
                            KP_COUNCIL_FIRST_MEMBER.ss58_address,
@@ -312,6 +419,16 @@ class TestTreasury(unittest.TestCase):
         batch_fund(batch, KP_USER, TOTAL_AMOUNT)
         batch_fund(batch, KP_COUNCIL_FIRST_MEMBER, TOTAL_AMOUNT)
         batch_fund(batch, KP_COUNCIL_SECOND_MEMBER, TOTAL_AMOUNT)
+
+        # Fund treasury account for payouts
+        print(f"Funding treasury account: {KP_TREASURY}")
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': KP_TREASURY,
+                'new_free': TOTAL_AMOUNT
+            })
 
         print("--set member test started---")
         council_members = [KP_USER.ss58_address,
