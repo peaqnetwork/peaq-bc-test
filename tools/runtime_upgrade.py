@@ -299,7 +299,7 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     # Reconnect to the new collator
     substrate = SubstrateInterface(url=WS_URL)
     substrate.connect_websocket()
-    wait_for_n_blocks(substrate, 3, 3*DEFAULT_BLOCK_TIME*2)
+    wait_for_n_blocks(substrate, 3, 3*DEFAULT_BLOCK_TIME*3)
     return substrate
 
 
