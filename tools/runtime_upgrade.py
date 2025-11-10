@@ -12,7 +12,7 @@ from substrateinterface import SubstrateInterface, Keypair
 from tools.constants import WS_URL, KP_GLOBAL_SUDO, RELAYCHAIN_WS_URL, KP_COLLATOR
 from tools.constants import UPGRADE_WAIT_BLOCKS, UPGRADE_TIMEOUT, POST_UPGRADE_WAIT_TIME
 from tools.constants import MIN_BALANCE_THRESHOLD, TRANSFER_AMOUNT, SUDO_MIN_BALANCE, FUNDING_AMOUNT_BASE
-from tools.constants import XCM_VERSION, RELAY_ASSET_ID, DEFAULT_BLOCK_TIME
+from tools.constants import XCM_VERSION, RELAY_ASSET_ID, DEFAULT_BLOCK_TIME, LONG_TIMEOUT_BASE
 from peaq.sudo_extrinsic import funds
 from peaq.utils import show_extrinsic, get_block_height
 from substrateinterface.utils.hasher import blake2_256
@@ -92,7 +92,7 @@ def send_upgrade_call(substrate, kp_sudo, wasm_file):
 def wait_until_block_height(substrate, block_height):
     current_block = get_block_height(substrate)
     block_num = block_height - current_block + 1
-    wait_for_n_blocks(substrate, block_num)
+    wait_for_n_blocks(substrate, block_num, LONG_TIMEOUT_BASE * block_num)
 
 
 def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
@@ -120,7 +120,7 @@ def upgrade(runtime_path):
         IOError: If upgrade fails
     """
     substrate = SubstrateInterface(url=WS_URL)
-    wait_for_n_blocks(substrate, 1)
+    wait_for_n_blocks(substrate, 1, 1 * DEFAULT_BLOCK_TIME)
 
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
@@ -445,7 +445,7 @@ def main():
     old_version = substrate.get_block_runtime_version(substrate.get_block_hash())['specVersion']
 
     do_runtime_upgrade(runtime_path, fetch_collator_dict_from_env())
-    print('Done but wait 30s')
+    print(f'Done but wait {POST_UPGRADE_WAIT_TIME}s')
     time.sleep(POST_UPGRADE_WAIT_TIME)
 
     substrate = SubstrateInterface(url=WS_URL)

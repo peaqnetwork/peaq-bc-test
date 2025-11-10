@@ -1,7 +1,7 @@
 import math
 import pytest
 from substrateinterface import SubstrateInterface, Keypair
-from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
+from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO, LONG_TIMEOUT_BASE
 from tools.utils import get_account_balance_locked
 from peaq.utils import get_account_balance
 from peaq.sudo_extrinsic import funds
@@ -147,7 +147,7 @@ class TestPalletVesting(unittest.TestCase):
         print("We need to wait till finzlization of block: ",
               starting_block_number + NO_OF_BLOCKS_TO_WAIT)
 
-        wait_for_n_blocks(substrate, NO_OF_BLOCKS_TO_WAIT)
+        wait_for_n_blocks(substrate, NO_OF_BLOCKS_TO_WAIT, NO_OF_BLOCKS_TO_WAIT * LONG_TIMEOUT_BASE)
 
         locked_bal_before_vest = \
             get_account_balance_locked(substrate, kp_target.ss58_address)
@@ -203,7 +203,7 @@ class TestPalletVesting(unittest.TestCase):
         # Vest all the funds through vest_others
         print("We need to wait till finzlization of block: ", starting_block_number + NO_OF_BLOCKS_TO_WAIT)
 
-        wait_for_n_blocks(substrate, NO_OF_BLOCKS_TO_WAIT)
+        wait_for_n_blocks(substrate, NO_OF_BLOCKS_TO_WAIT, NO_OF_BLOCKS_TO_WAIT * LONG_TIMEOUT_BASE)
 
         locked_bal_before_vest = get_account_balance_locked(substrate, kp_target.ss58_address)
 
