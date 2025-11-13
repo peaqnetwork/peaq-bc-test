@@ -10,7 +10,6 @@ from tools.runtime_upgrade import send_upgrade_call
 from tools.runtime_upgrade import wait_relay_upgrade_block
 from tools.constants import KP_GLOBAL_SUDO
 from tools.xcm_setup import setup_hrmp_channel
-from tools.constants import LONG_TIMEOUT_BASE
 # from tools.asset import convert_enum_to_asset_id
 import argparse
 
@@ -35,7 +34,7 @@ ACA_TOKEN_ASSET_ID = 2
 def wait_until_block_height(substrate, block_height):
     current_block = get_block_height(substrate)
     block_num = block_height - current_block + 1
-    wait_for_n_blocks(substrate, block_num, LONG_TIMEOUT_BASE * block_num)
+    wait_for_n_blocks(substrate, block_num)
 
 
 def parachain_behaviour(wasm_path):
@@ -54,7 +53,7 @@ def parachain_behaviour(wasm_path):
 
 
 def upgrade(substrate, runtime_path):
-    wait_for_n_blocks(substrate, 1, LONG_TIMEOUT_BASE)
+    wait_for_n_blocks(substrate, 1)
 
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
@@ -70,7 +69,7 @@ def do_runtime_upgrade(substrate, wasm_path):
     wait_until_block_height(SubstrateInterface(url=PEAQ_WS_URL), 1)
 
     upgrade(substrate, wasm_path)
-    wait_for_n_blocks(substrate, 10, 10 * LONG_TIMEOUT_BASE)
+    wait_for_n_blocks(substrate, 10)
 
 
 def setup_slot(substrate):

@@ -29,6 +29,7 @@ def stop_collator_binary():
         text=True,
     )
     time.sleep(COLLATOR_STOP_WAIT_TIME)
+    print('Collator binary processes stopped.')
 
 
 def remove_chain_data(folder_path, is_keep_keystores):

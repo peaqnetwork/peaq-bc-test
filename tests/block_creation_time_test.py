@@ -2,7 +2,7 @@ import unittest
 import pytest
 
 from substrateinterface import SubstrateInterface
-from tools.constants import WS_URL, LONG_TIMEOUT_BASE
+from tools.constants import WS_URL
 from peaq.utils import wait_for_n_blocks, get_block_height
 from tools.block_creation_utils import get_block_creation_times
 
@@ -17,7 +17,7 @@ class TestBlockCreationTime(unittest.TestCase):
         now_block = get_block_height(substrate)
         if now_block >= block_number:
             return
-        wait_for_n_blocks(substrate, block_number - now_block + 1, LONG_TIMEOUT_BASE * (block_number - now_block + 1))
+        wait_for_n_blocks(substrate, block_number - now_block + 1)
 
     def test_block_creation_time(self):
         substrate = SubstrateInterface(url=WS_URL)
