@@ -1,12 +1,12 @@
 import time
 from peaq.utils import get_block_height
-from tools.constants import DEFAULT_BLOCK_TIME, POLL_INTERVAL, LONG_TIMEOUT_BASE
+from tools.constants import POLL_INTERVAL, LONG_TIMEOUT_BASE
 
 
 def wait_for_n_blocks_with_timeout(substrate, n=1, timeout=None):
     """Waits until the next block has been created with timeout support"""
     if timeout is None:
-        timeout = n * 2 * LONG_TIMEOUT_BASE
+        timeout = n * 3 * LONG_TIMEOUT_BASE
 
     start_time = time.time()
     height = get_block_height(substrate)
