@@ -27,7 +27,7 @@ def restart_parachain_launch():
     my_docker.compose.down(volumes=True)
     my_docker.compose.up(detach=True, build=True)
     count_down = 0
-    wait_time = 150
+    wait_time = 420  # 7 minutes for coverage-instrumented binaries
     while count_down < wait_time:
         try:
             SubstrateInterface(
