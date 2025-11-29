@@ -89,10 +89,14 @@ def send_upgrade_call(substrate, kp_sudo, wasm_file):
     return batch.execute()
 
 
-def wait_until_block_height(substrate, block_height):
+def wait_until_block_height(substrate, block_height, timeout=1800):
+    """
+    Wait until chain reaches block height.
+    Default timeout=1800s (30min) for coverage-instrumented builds.
+    """
     current_block = get_block_height(substrate)
     block_num = block_height - current_block + 1
-    wait_for_n_blocks(substrate, block_num)
+    wait_for_n_blocks(substrate, block_num, timeout)
 
 
 def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
