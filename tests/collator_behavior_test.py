@@ -1,5 +1,6 @@
 import unittest
 import pytest
+import warnings
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.constants import WS_URL, ETH_URL
 from tools.constants import KP_COLLATOR
@@ -32,6 +33,20 @@ def get_eth_block_author():
     return block['author']
 
 
+def is_collator_already_mapped(substrate):
+    """Check if the collator account is already mapped to an EVM address."""
+    try:
+        result = substrate.query(
+            module='AddressUnification',
+            storage_function='EvmAddresses',
+            params=[KP_COLLATOR.ss58_address]
+        )
+        return result.value is not None
+    except Exception as e:
+        warnings.warn(f"Could not check if collator is mapped: {e}")
+        return False
+
+
 @pytest.mark.eth
 class TestCollatorBehavior(unittest.TestCase):
     def setUp(self):
@@ -41,6 +56,15 @@ class TestCollatorBehavior(unittest.TestCase):
         self._eth_chain_id = get_eth_chain_id(self._substrate)
 
     def test_author_check_address_unification(self):
+        # Check if collator is already mapped
+        if is_collator_already_mapped(self._substrate):
+            warnings.warn(
+                f"Collator {KP_COLLATOR.ss58_address} is already mapped to an EVM address. "
+                "Skipping test (likely running on fork test environment).",
+                UserWarning
+            )
+            self.skipTest("Collator already mapped - fork test environment detected")
+
         kp_eth = Keypair.create_from_mnemonic(Keypair.generate_mnemonic(), crypto_type=KeypairType.ECDSA)
 
         signature = calculate_claim_signature(
@@ -61,6 +85,15 @@ class TestCollatorBehavior(unittest.TestCase):
             Web3.to_checksum_address(kp_eth.ss58_address), f'{evm_block_author} != {kp_eth.ss58_address}')
 
     def test_author_check_default_unify(self):
+        # Check if collator is already mapped
+        if is_collator_already_mapped(self._substrate):
+            warnings.warn(
+                f"Collator {KP_COLLATOR.ss58_address} is already mapped to an EVM address. "
+                "Skipping test (likely running on fork test environment).",
+                UserWarning
+            )
+            self.skipTest("Collator already mapped - fork test environment detected")
+
         # Directly test the author of the block without unification
         kp_sub = KP_COLLATOR
         kp_evm_addr = calculate_evm_addr(kp_sub.ss58_address)
