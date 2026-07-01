@@ -308,6 +308,101 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     show_test('create_pair_n_swap_test', True)
 
 
+def count_zdex_swap_events(receipt):
+    """數某筆 extrinsic 觸發的 ZenlinkProtocol.AssetSwap 事件數(含 fee-payment 的 swap)。"""
+    n = 0
+    for ev in receipt.triggered_events:
+        val = ev.value
+        inner = val.get('event', val)
+        if inner.get('module_id') == 'ZenlinkProtocol' and inner.get('event_id') == 'AssetSwap':
+            n += 1
+    return n
+
+
+def payment_local_currency_single_swap_test(si_peaq, asset_id):
+    """
+    回歸測試 fix#2(runtime/common payment.rs can_withdraw_fee):
+    使用者 native 不足、以 local currency(asset_id)付手續費時,fee-payment 只能觸發「一次」
+    Zenlink swap。修復前 can_withdraw_fee 在 validate 階段也 swap 一次 → 共兩次(double-swap,
+    且 validate 有副作用)。本測試用一筆「非-swap」extrinsic(system.remark)隔離出 fee-payment
+    的 swap,斷言剛好一次。
+    前置:asset_id/native 的 Zenlink pool 已存在且有流動性(可先跑 create_pair_n_swap_test)。
+    """
+    show_subtitle('payment_local_currency_single_swap_test')
+    user = URI_MOON
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    kp_user = into_keypair(user)
+
+    # user 要有足夠 local token 付費、但 native 幾乎為 0 → 強制以 local currency 付費。
+    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, 10 ** 20)
+    compose_balances_setbalance(bt_sudo, user, get_existential_deposit(si_peaq) + 1000)
+    assert bt_sudo.execute_n_clear().is_success
+
+    asset_before = state_token_assets_accounts(si_peaq, kp_user, asset_id)
+
+    # 送一筆非-swap extrinsic;手續費只能用 local currency 付(觸發 fee-payment swap)。
+    bt_user = ExtrinsicBatch(si_peaq, kp_user)
+    bt_user.compose_call('System', 'remark', {'remark': '0x00'})
+    receipt = bt_user.execute_n_clear()
+    assert receipt.is_success, \
+        f'fee-in-local-currency remark failed: {receipt.error_message}'
+
+    # 核心斷言:fee-payment 只 swap 一次(修復前 double-swap 會是 2)。
+    swaps = count_zdex_swap_events(receipt)
+    assert swaps == 1, \
+        f'expected exactly 1 fee-payment swap, got {swaps} (double-swap regression!)'
+
+    # 次要:local token 確實被扣(有付費)。
+    asset_after = state_token_assets_accounts(si_peaq, kp_user, asset_id)
+    assert asset_after < asset_before, \
+        'fee should be paid in local currency (asset balance must drop)'
+
+    show_test('payment_local_currency_single_swap_test', True)
+
+
+def local_asset_reap_on_withdraw_test(si_peaq, asset_id):
+    """
+    回歸測試 fix#1(runtime/common wrapper.rs 非原生 withdraw 用 Expendable):
+    使用者透過 Zenlink 把「全部」local asset(asset_id)swap 出去 → Zenlink 經
+    LocalAssetAdaptor.local_withdraw → PeaqMultiCurrencies::withdraw(非原生) → burn_from。
+    修復前用 Preservation::Protect 會卡在 asset 的 min_balance 底線,無法扣到 0 → FundsUnavailable
+    → swap 失敗;修復後 Expendable 可 reap → swap 成功。
+    前置:asset_id/native 的 Zenlink pool 已存在且有流動性;asset min_balance 需 > 0(預設 100)。
+    注意:此 case 與 native ExistentialDeposit(=0)無關——管的是 asset 自己的 min_balance。
+    URI_MARS 於 setUp 已有 native,故 swap 手續費以 native 支付,不涉 fix#2。
+    """
+    show_subtitle('local_asset_reap_on_withdraw_test')
+    user = URI_MARS
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    kp_user = into_keypair(user)
+    asset_min_balance = 100  # setup_asset_if_not_exist 預設 min_balance
+
+    swap_in = dot(TOK_SWAP)
+    # 給 user 剛好 swap_in 的 local token,等下「全部」swap 出去 → 餘額歸 0(必須 reap 才成立)。
+    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, swap_in)
+    assert bt_sudo.execute_n_clear().is_success
+    assert state_token_assets_accounts(si_peaq, kp_user, asset_id) == swap_in
+
+    # 輸入為 local asset(amount_in1)→ Zenlink 從 user withdraw 全部 local token。
+    bt_user = ExtrinsicBatch(si_peaq, kp_user)
+    compose_zdex_swap_exact_for(bt_user, asset_id, amount_in1=swap_in)
+    receipt = bt_user.execute_n_clear()
+
+    # 核心斷言:修復後可 reap → swap 成功(修壞 Protect 會 FundsUnavailable 導致 swap 失敗)。
+    assert receipt.is_success, \
+        f'reap-on-withdraw swap failed (Protect regression?): {receipt.error_message}'
+
+    # local token 被扣到 min_balance 以下(reap/dust);帳戶被 reap 時 query 回 None → 視為 0。
+    q = si_peaq.query('Assets', 'Account', [asset_id, kp_user.ss58_address])
+    after = 0 if q.value is None else int(q['balance'].value)
+    assert after < asset_min_balance, \
+        f'expected asset reaped below min_balance({asset_min_balance}), got {after}'
+
+    show_test('local_asset_reap_on_withdraw_test', True)
+
+
 def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     """
     This test as about the Zenlink-DEX-Protocol bootstrap functionality.
@@ -477,6 +572,24 @@ class TestZenlinkDex(unittest.TestCase):
             asset_id = 1
             setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
             create_pair_n_swap_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_payment_local_currency_single_swap(self):
+        show_title('Zenlink-DEX fee-in-local-currency single-swap Test')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
+            # 先建 pool + 流動性(複用既有 setup),再驗 fee-payment 只 swap 一次(fix#2 回歸)。
+            create_pair_n_swap_test(si_peaq, asset_id)
+            payment_local_currency_single_swap_test(si_peaq, asset_id)
+            local_asset_reap_on_withdraw_test(si_peaq, asset_id)
 
         except Exception:
             ex_type, ex_val, ex_tb = sys.exc_info()
