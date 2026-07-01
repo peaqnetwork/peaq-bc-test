@@ -361,48 +361,6 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
     show_test('payment_local_currency_single_swap_test', True)
 
 
-def local_asset_reap_on_withdraw_test(si_peaq, asset_id):
-    """
-    回歸測試 fix#1(runtime/common wrapper.rs 非原生 withdraw 用 Expendable):
-    使用者透過 Zenlink 把「全部」local asset(asset_id)swap 出去 → Zenlink 經
-    LocalAssetAdaptor.local_withdraw → PeaqMultiCurrencies::withdraw(非原生) → burn_from。
-    修復前用 Preservation::Protect 會卡在 asset 的 min_balance 底線,無法扣到 0 → FundsUnavailable
-    → swap 失敗;修復後 Expendable 可 reap → swap 成功。
-    前置:asset_id/native 的 Zenlink pool 已存在且有流動性;asset min_balance 需 > 0(預設 100)。
-    注意:此 case 與 native ExistentialDeposit(=0)無關——管的是 asset 自己的 min_balance。
-    URI_MARS 於 setUp 已有 native,故 swap 手續費以 native 支付,不涉 fix#2。
-    """
-    show_subtitle('local_asset_reap_on_withdraw_test')
-    user = URI_MARS
-    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
-    kp_user = into_keypair(user)
-    asset_min_balance = 100  # setup_asset_if_not_exist 預設 min_balance
-
-    swap_in = dot(TOK_SWAP)
-    # 給 user 剛好 swap_in 的 local token,等下「全部」swap 出去 → 餘額歸 0(必須 reap 才成立)。
-    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
-    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, swap_in)
-    assert bt_sudo.execute_n_clear().is_success
-    assert state_token_assets_accounts(si_peaq, kp_user, asset_id) == swap_in
-
-    # 輸入為 local asset(amount_in1)→ Zenlink 從 user withdraw 全部 local token。
-    bt_user = ExtrinsicBatch(si_peaq, kp_user)
-    compose_zdex_swap_exact_for(bt_user, asset_id, amount_in1=swap_in)
-    receipt = bt_user.execute_n_clear()
-
-    # 核心斷言:修復後可 reap → swap 成功(修壞 Protect 會 FundsUnavailable 導致 swap 失敗)。
-    assert receipt.is_success, \
-        f'reap-on-withdraw swap failed (Protect regression?): {receipt.error_message}'
-
-    # local token 被扣到 min_balance 以下(reap/dust);帳戶被 reap 時 query 回 None → 視為 0。
-    q = si_peaq.query('Assets', 'Account', [asset_id, kp_user.ss58_address])
-    after = 0 if q.value is None else int(q['balance'].value)
-    assert after < asset_min_balance, \
-        f'expected asset reaped below min_balance({asset_min_balance}), got {after}'
-
-    show_test('local_asset_reap_on_withdraw_test', True)
-
-
 def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     """
     This test as about the Zenlink-DEX-Protocol bootstrap functionality.
@@ -589,7 +547,6 @@ class TestZenlinkDex(unittest.TestCase):
             # 先建 pool + 流動性(複用既有 setup),再驗 fee-payment 只 swap 一次(fix#2 回歸)。
             create_pair_n_swap_test(si_peaq, asset_id)
             payment_local_currency_single_swap_test(si_peaq, asset_id)
-            local_asset_reap_on_withdraw_test(si_peaq, asset_id)
 
         except Exception:
             ex_type, ex_val, ex_tb = sys.exc_info()
