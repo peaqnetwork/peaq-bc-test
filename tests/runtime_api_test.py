@@ -18,10 +18,10 @@ from substrateinterface import SubstrateInterface
 
 from tools.constants import PARACHAIN_WS_URL
 
-# Well-known Substrate Core runtime-API trait hash; its version is 5 at
-# polkadot-sdk stable2503 (was 4 at v1.7.2 / spec 110).
+# Well-known Substrate Core runtime-API trait hash; its version is >= 5 from
+# polkadot-sdk stable2503 onward (was 4 at v1.7.2 / spec 110).
 CORE_API_HASH = '0xdf6acb689907609b'
-EXPECTED_CORE_API_VERSION = 5
+MIN_CORE_API_VERSION = 5
 
 
 def state_call(substrate, method, data='0x'):
@@ -58,15 +58,20 @@ class TestRuntimeApi(unittest.TestCase):
         preset = state_call(self.substrate, 'GenesisBuilder_get_preset', '0x00')
         self.assertIsNotNone(preset, 'GenesisBuilder.get_preset(None) not callable')
 
-    def test_core_api_version_bumped_to_5(self):
+    def test_core_api_version_at_least_5(self):
+        # Durable invariant: the 110->112 upgrade brought spec >= 112 and Core
+        # API >= 5, and neither regresses on later upgrades. The exact
+        # specVersion == 112 gate belongs to UP-3, not to this regression test.
         version = self.substrate.get_block_runtime_version(
             self.substrate.get_chain_head())
-        self.assertEqual(version.get('specVersion'), 112)
+        self.assertGreaterEqual(version.get('specVersion'), 112)
         apis = dict(version.get('apis', []))
-        self.assertEqual(
-            apis.get(CORE_API_HASH), EXPECTED_CORE_API_VERSION,
-            f'Core API must be v{EXPECTED_CORE_API_VERSION} at stable2503, '
-            f'got {apis.get(CORE_API_HASH)}')
+        core_version = apis.get(CORE_API_HASH)
+        self.assertIsNotNone(core_version, 'Core runtime API not found')
+        self.assertGreaterEqual(
+            core_version, MIN_CORE_API_VERSION,
+            f'Core API must be >= v{MIN_CORE_API_VERSION} at stable2503+, '
+            f'got {core_version}')
 
 
 if __name__ == '__main__':
