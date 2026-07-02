@@ -361,6 +361,59 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
     show_test('payment_local_currency_single_swap_test', True)
 
 
+def state_lp_asset_balance(si_peaq, kp_user, tok_idx):
+    """讀使用者持有的 LP pallet-assets 餘額(帳戶被 reap 時 query 回 None → 視為 0)。"""
+    lp_idx = state_znlnkprot_lppair_assetidx(si_peaq, tok_idx)
+    q = si_peaq.query('Assets', 'Account', [lp_idx, kp_user.ss58_address])
+    return 0 if q.value is None else int(q['balance'].value)
+
+
+def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
+    """
+    回歸測試 fix#1(runtime/common wrapper.rs 非原生 withdraw 用 Expendable):
+    使用者移除「全部自有」LP → ZenlinkProtocol.remove_liquidity →
+    ZenlinkMultiAssets::withdraw(LP) → local_withdraw → PeaqMultiCurrenciesWrapper::withdraw
+    (非原生) → Assets::burn_from。LP token 是有 min_balance 的 pallet-assets 資產,燒到 0 需 reap。
+    修復前 Preservation::Protect 會卡 min_balance 底線 → FundsUnavailable → remove_liquidity 失敗;
+    修復後 Expendable 可 reap → 成功。全程單鏈(remove_liquidity 同步執行,不涉 XCM)。
+    前置:asset_id/native 的 pair 已存在且有流動性(先跑 create_pair_n_swap_test)。
+    """
+    show_subtitle('lp_reap_on_remove_liquidity_test')
+    user = URI_MARS
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    kp_user = into_keypair(user)
+
+    # user 需有 token + native 才能加流動性;pair 已存在,故 user 非首位 LP(無 MINIMUM_LIQUIDITY 鎖)。
+    dot_liq = dot(TOK_LIQUIDITY)
+    peaq_liq = peaq(TOK_LIQUIDITY)
+    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, dot_liq * 2)
+    compose_balances_setbalance(bt_sudo, user, peaq_liq * 2)
+    assert bt_sudo.execute_n_clear().is_success
+
+    # user 加流動性 → 取得「自己完全持有」的 LP。
+    bt_add = ExtrinsicBatch(si_peaq, kp_user)
+    compose_zdex_add_liquidity(bt_add, asset_id, peaq_liq, dot_liq)
+    assert bt_add.execute_n_clear().is_success
+    lp_before = state_lp_asset_balance(si_peaq, kp_user, asset_id)
+    assert lp_before > 0, 'user should hold LP after add_liquidity'
+
+    # 移除「全部自有」LP → withdraw 燒 LP 到 0 → 需 Expendable。
+    bt_rm = ExtrinsicBatch(si_peaq, kp_user)
+    compose_zdex_remove_liquidity(bt_rm, asset_id, lp_before)
+    receipt = bt_rm.execute_n_clear()
+
+    # 核心斷言:修復後可 reap → 成功(修壞 Protect 會 FundsUnavailable)。
+    assert receipt.is_success, \
+        f'remove full LP failed (Protect regression?): {receipt.error_message}'
+
+    # LP 帳戶被 reap 到 0(< min_balance → query None)。
+    lp_after = state_lp_asset_balance(si_peaq, kp_user, asset_id)
+    assert lp_after == 0, f'expected LP account reaped to 0, got {lp_after}'
+
+    show_test('lp_reap_on_remove_liquidity_test', True)
+
+
 def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     """
     This test as about the Zenlink-DEX-Protocol bootstrap functionality.
@@ -544,9 +597,20 @@ class TestZenlinkDex(unittest.TestCase):
             si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
             asset_id = 1
             setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
-            # 先建 pool + 流動性(複用既有 setup),再驗 fee-payment 只 swap 一次(fix#2 回歸)。
-            create_pair_n_swap_test(si_peaq, asset_id)
+            # 建 pool + 流動性(避開 flaky create_pair_n_swap_test / wait_n_check_swap_event)。
+            kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+            bt = ExtrinsicBatch(si_peaq, kp_sudo)
+            batch_mint(bt, kp_sudo.ss58_address, asset_id, dot(TOK_LIQUIDITY) * 4)
+            assert bt.execute_n_clear().is_success
+            if not state_znlnkprot_lppair_status(si_peaq, asset_id):
+                bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
+                compose_zdex_create_lppair(bt2, asset_id)
+                assert bt2.execute_n_clear().is_success
+            bt3 = ExtrinsicBatch(si_peaq, kp_sudo)
+            compose_zdex_add_liquidity(bt3, asset_id, peaq(TOK_LIQUIDITY), dot(TOK_LIQUIDITY))
+            assert bt3.execute_n_clear().is_success
             payment_local_currency_single_swap_test(si_peaq, asset_id)
+            lp_reap_on_remove_liquidity_test(si_peaq, asset_id)
 
         except Exception:
             ex_type, ex_val, ex_tb = sys.exc_info()
