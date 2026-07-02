@@ -16,6 +16,7 @@ funded with native PEAQ so ``WithdrawAsset`` can pay the execution fee.
 import time
 import unittest
 
+import pytest
 from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 
@@ -33,6 +34,7 @@ def sibling_sovereign(para_id, ss58_format):
     return pub, Keypair(public_key=pub, ss58_format=ss58_format).ss58_address
 
 
+@pytest.mark.xcm
 class TestXcmFeeToBlockReward(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

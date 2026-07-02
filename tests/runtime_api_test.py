@@ -13,6 +13,7 @@ without trapping, so a non-error SCALE result proves "callable".
 """
 import unittest
 
+import pytest
 from substrateinterface import SubstrateInterface
 
 from tools.constants import PARACHAIN_WS_URL
@@ -29,6 +30,7 @@ def state_call(substrate, method, data='0x'):
     return resp.get('result')
 
 
+@pytest.mark.substrate
 class TestRuntimeApi(unittest.TestCase):
     def setUp(self):
         self.substrate = SubstrateInterface(url=PARACHAIN_WS_URL)
