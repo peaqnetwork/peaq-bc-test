@@ -312,9 +312,8 @@ def count_zdex_swap_events(receipt):
     """數某筆 extrinsic 觸發的 ZenlinkProtocol.AssetSwap 事件數(含 fee-payment 的 swap)。"""
     n = 0
     for ev in receipt.triggered_events:
-        val = ev.value
-        inner = val.get('event', val)
-        if inner.get('module_id') == 'ZenlinkProtocol' and inner.get('event_id') == 'AssetSwap':
+        v = ev.value
+        if v.get('module_id') == 'ZenlinkProtocol' and v.get('event_id') == 'AssetSwap':
             n += 1
     return n
 
@@ -335,7 +334,7 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
 
     # user 要有足夠 local token 付費、但 native 幾乎為 0 → 強制以 local currency 付費。
     bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
-    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, 10 ** 20)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, dot(TOK_LIQUIDITY))
     compose_balances_setbalance(bt_sudo, user, get_existential_deposit(si_peaq) + 1000)
     assert bt_sudo.execute_n_clear().is_success
 
@@ -350,6 +349,8 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
 
     # 核心斷言:fee-payment 只 swap 一次(修復前 double-swap 會是 2)。
     swaps = count_zdex_swap_events(receipt)
+    assert swaps >= 1, \
+        f'no fee-payment swap detected (got {swaps}); fee not paid via local-currency swap?'
     assert swaps == 1, \
         f'expected exactly 1 fee-payment swap, got {swaps} (double-swap regression!)'
 
@@ -412,6 +413,23 @@ def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
     assert lp_after == 0, f'expected LP account reaped to 0, got {lp_after}'
 
     show_test('lp_reap_on_remove_liquidity_test', True)
+
+
+def ensure_asset_and_pool(si_peaq, asset_id):
+    """確保 asset_id 存在、asset_id/native 的 Zenlink pool 已建且有流動性(容忍 pair 已存在)。
+    避開 flaky create_pair_n_swap_test / wait_n_check_swap_event。"""
+    setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    bt = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt, kp_sudo.ss58_address, asset_id, dot(TOK_LIQUIDITY) * 4)
+    assert bt.execute_n_clear().is_success
+    if not state_znlnkprot_lppair_status(si_peaq, asset_id):
+        bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
+        compose_zdex_create_lppair(bt2, asset_id)
+        assert bt2.execute_n_clear().is_success
+    bt3 = ExtrinsicBatch(si_peaq, kp_sudo)
+    compose_zdex_add_liquidity(bt3, asset_id, peaq(TOK_LIQUIDITY), dot(TOK_LIQUIDITY))
+    assert bt3.execute_n_clear().is_success
 
 
 def bootstrap_pair_n_swap_test(si_peaq, asset_id):
@@ -592,24 +610,26 @@ class TestZenlinkDex(unittest.TestCase):
 
     @pytest.mark.xcm
     def test_payment_local_currency_single_swap(self):
-        show_title('Zenlink-DEX fee-in-local-currency single-swap Test')
+        show_title('Zenlink-DEX fee-in-local-currency single-swap Test (fix#2)')
         try:
             si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
             asset_id = 1
-            setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
-            # 建 pool + 流動性(避開 flaky create_pair_n_swap_test / wait_n_check_swap_event)。
-            kp_sudo = into_keypair(KP_GLOBAL_SUDO)
-            bt = ExtrinsicBatch(si_peaq, kp_sudo)
-            batch_mint(bt, kp_sudo.ss58_address, asset_id, dot(TOK_LIQUIDITY) * 4)
-            assert bt.execute_n_clear().is_success
-            if not state_znlnkprot_lppair_status(si_peaq, asset_id):
-                bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
-                compose_zdex_create_lppair(bt2, asset_id)
-                assert bt2.execute_n_clear().is_success
-            bt3 = ExtrinsicBatch(si_peaq, kp_sudo)
-            compose_zdex_add_liquidity(bt3, asset_id, peaq(TOK_LIQUIDITY), dot(TOK_LIQUIDITY))
-            assert bt3.execute_n_clear().is_success
+            ensure_asset_and_pool(si_peaq, asset_id)
             payment_local_currency_single_swap_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_lp_reap_on_remove_liquidity(self):
+        show_title('Zenlink-DEX LP reap on remove_liquidity Test (fix#1)')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            ensure_asset_and_pool(si_peaq, asset_id)
             lp_reap_on_remove_liquidity_test(si_peaq, asset_id)
 
         except Exception:
