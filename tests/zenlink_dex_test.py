@@ -309,7 +309,7 @@ def create_pair_n_swap_test(si_peaq, asset_id):
 
 
 def count_zdex_swap_events(receipt):
-    """數某筆 extrinsic 觸發的 ZenlinkProtocol.AssetSwap 事件數(含 fee-payment 的 swap)。"""
+    """Count ZenlinkProtocol.AssetSwap events triggered by one extrinsic (incl. fee-payment swaps)."""
     n = 0
     for ev in receipt.triggered_events:
         v = ev.value
@@ -320,19 +320,21 @@ def count_zdex_swap_events(receipt):
 
 def payment_local_currency_single_swap_test(si_peaq, asset_id):
     """
-    回歸測試 fix#2(runtime/common payment.rs can_withdraw_fee):
-    使用者 native 不足、以 local currency(asset_id)付手續費時,fee-payment 只能觸發「一次」
-    Zenlink swap。修復前 can_withdraw_fee 在 validate 階段也 swap 一次 → 共兩次(double-swap,
-    且 validate 有副作用)。本測試用一筆「非-swap」extrinsic(system.remark)隔離出 fee-payment
-    的 swap,斷言剛好一次。
-    前置:asset_id/native 的 Zenlink pool 已存在且有流動性(可先跑 create_pair_n_swap_test)。
+    Regression test for fix#2 (runtime/common payment.rs can_withdraw_fee):
+    when the user lacks native balance and pays the fee in a local currency
+    (asset_id), fee-payment must trigger exactly ONE Zenlink swap. Before the
+    fix, can_withdraw_fee also swapped during the validate phase -> two swaps
+    total (double-swap, with side effects in validate). This test uses a
+    non-swap extrinsic (system.remark) to isolate the fee-payment swap and
+    asserts it happens exactly once.
+    Precondition: the asset_id/native Zenlink pool exists with liquidity.
     """
     show_subtitle('payment_local_currency_single_swap_test')
     user = URI_MOON
     kp_sudo = into_keypair(KP_GLOBAL_SUDO)
     kp_user = into_keypair(user)
 
-    # user 要有足夠 local token 付費、但 native 幾乎為 0 → 強制以 local currency 付費。
+    # Give the user enough local tokens but near-zero native, forcing fee payment in local currency.
     bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
     batch_mint(bt_sudo, kp_user.ss58_address, asset_id, dot(TOK_LIQUIDITY))
     compose_balances_setbalance(bt_sudo, user, get_existential_deposit(si_peaq) + 1000)
@@ -340,21 +342,21 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
 
     asset_before = state_token_assets_accounts(si_peaq, kp_user, asset_id)
 
-    # 送一筆非-swap extrinsic;手續費只能用 local currency 付(觸發 fee-payment swap)。
+    # Submit a non-swap extrinsic; the fee can only be paid in local currency (triggers the fee-payment swap).
     bt_user = ExtrinsicBatch(si_peaq, kp_user)
     bt_user.compose_call('System', 'remark', {'remark': '0x00'})
     receipt = bt_user.execute_n_clear()
     assert receipt.is_success, \
         f'fee-in-local-currency remark failed: {receipt.error_message}'
 
-    # 核心斷言:fee-payment 只 swap 一次(修復前 double-swap 會是 2)。
+    # Core assertion: fee-payment swaps exactly once (the pre-fix double-swap would yield 2).
     swaps = count_zdex_swap_events(receipt)
     assert swaps >= 1, \
         f'no fee-payment swap detected (got {swaps}); fee not paid via local-currency swap?'
     assert swaps == 1, \
         f'expected exactly 1 fee-payment swap, got {swaps} (double-swap regression!)'
 
-    # 次要:local token 確實被扣(有付費)。
+    # Secondary: local tokens were actually deducted (the fee was paid).
     asset_after = state_token_assets_accounts(si_peaq, kp_user, asset_id)
     assert asset_after < asset_before, \
         'fee should be paid in local currency (asset balance must drop)'
@@ -363,7 +365,7 @@ def payment_local_currency_single_swap_test(si_peaq, asset_id):
 
 
 def state_lp_asset_balance(si_peaq, kp_user, tok_idx):
-    """讀使用者持有的 LP pallet-assets 餘額(帳戶被 reap 時 query 回 None → 視為 0)。"""
+    """Read the user's LP pallet-assets balance (query returns None once reaped -> treat as 0)."""
     lp_idx = state_znlnkprot_lppair_assetidx(si_peaq, tok_idx)
     q = si_peaq.query('Assets', 'Account', [lp_idx, kp_user.ss58_address])
     return 0 if q.value is None else int(q['balance'].value)
@@ -371,20 +373,25 @@ def state_lp_asset_balance(si_peaq, kp_user, tok_idx):
 
 def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
     """
-    回歸測試 fix#1(runtime/common wrapper.rs 非原生 withdraw 用 Expendable):
-    使用者移除「全部自有」LP → ZenlinkProtocol.remove_liquidity →
-    ZenlinkMultiAssets::withdraw(LP) → local_withdraw → PeaqMultiCurrenciesWrapper::withdraw
-    (非原生) → Assets::burn_from。LP token 是有 min_balance 的 pallet-assets 資產,燒到 0 需 reap。
-    修復前 Preservation::Protect 會卡 min_balance 底線 → FundsUnavailable → remove_liquidity 失敗;
-    修復後 Expendable 可 reap → 成功。全程單鏈(remove_liquidity 同步執行,不涉 XCM)。
-    前置:asset_id/native 的 pair 已存在且有流動性(先跑 create_pair_n_swap_test)。
+    Regression test for fix#1 (runtime/common wrapper.rs non-native withdraw
+    uses Expendable): the user removes ALL of their own LP ->
+    ZenlinkProtocol.remove_liquidity -> ZenlinkMultiAssets::withdraw(LP) ->
+    local_withdraw -> PeaqMultiCurrenciesWrapper::withdraw (non-native) ->
+    Assets::burn_from. The LP token is a pallet-assets asset with a
+    min_balance, so burning it to 0 requires a reap. Before the fix,
+    Preservation::Protect enforced the min_balance floor -> FundsUnavailable
+    -> remove_liquidity failed; with Expendable the account can be reaped ->
+    success. Single-chain throughout (remove_liquidity executes synchronously,
+    no XCM involved).
+    Precondition: the asset_id/native pair exists with liquidity.
     """
     show_subtitle('lp_reap_on_remove_liquidity_test')
     user = URI_MARS
     kp_sudo = into_keypair(KP_GLOBAL_SUDO)
     kp_user = into_keypair(user)
 
-    # user 需有 token + native 才能加流動性;pair 已存在,故 user 非首位 LP(無 MINIMUM_LIQUIDITY 鎖)。
+    # The user needs tokens + native to add liquidity; the pair already exists,
+    # so the user is not the first LP (no MINIMUM_LIQUIDITY lock).
     dot_liq = dot(TOK_LIQUIDITY)
     peaq_liq = peaq(TOK_LIQUIDITY)
     bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
@@ -392,23 +399,24 @@ def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
     compose_balances_setbalance(bt_sudo, user, peaq_liq * 2)
     assert bt_sudo.execute_n_clear().is_success
 
-    # user 加流動性 → 取得「自己完全持有」的 LP。
+    # The user adds liquidity and receives LP tokens they fully own.
     bt_add = ExtrinsicBatch(si_peaq, kp_user)
     compose_zdex_add_liquidity(bt_add, asset_id, peaq_liq, dot_liq)
     assert bt_add.execute_n_clear().is_success
     lp_before = state_lp_asset_balance(si_peaq, kp_user, asset_id)
     assert lp_before > 0, 'user should hold LP after add_liquidity'
 
-    # 移除「全部自有」LP → withdraw 燒 LP 到 0 → 需 Expendable。
+    # Remove ALL owned LP -> withdraw burns the LP balance to 0 -> requires Expendable.
     bt_rm = ExtrinsicBatch(si_peaq, kp_user)
     compose_zdex_remove_liquidity(bt_rm, asset_id, lp_before)
     receipt = bt_rm.execute_n_clear()
 
-    # 核心斷言:修復後可 reap → 成功(修壞 Protect 會 FundsUnavailable)。
+    # Core assertion: with the fix the account can be reaped -> success
+    # (a Protect regression fails with FundsUnavailable).
     assert receipt.is_success, \
         f'remove full LP failed (Protect regression?): {receipt.error_message}'
 
-    # LP 帳戶被 reap 到 0(< min_balance → query None)。
+    # The LP account is reaped to 0 (< min_balance -> query returns None).
     lp_after = state_lp_asset_balance(si_peaq, kp_user, asset_id)
     assert lp_after == 0, f'expected LP account reaped to 0, got {lp_after}'
 
@@ -416,8 +424,9 @@ def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
 
 
 def ensure_asset_and_pool(si_peaq, asset_id):
-    """確保 asset_id 存在、asset_id/native 的 Zenlink pool 已建且有流動性(容忍 pair 已存在)。
-    避開 flaky create_pair_n_swap_test / wait_n_check_swap_event。"""
+    """Ensure asset_id exists and the asset_id/native Zenlink pool is created
+    with liquidity (tolerates an already-existing pair). Avoids the flaky
+    create_pair_n_swap_test / wait_n_check_swap_event setup."""
     setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
     kp_sudo = into_keypair(KP_GLOBAL_SUDO)
     bt = ExtrinsicBatch(si_peaq, kp_sudo)
