@@ -10,6 +10,8 @@ from substrateinterface import SubstrateInterface
 from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
 from tools.utils import show_test, show_title, show_subtitle, wait_for_event
 from tools.utils import get_existential_deposit
+import secrets
+
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance
 from tools.currency import peaq, dot, aca
@@ -592,6 +594,81 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
 
 
 @pytest.mark.substrate
+def payment_multi_tx_no_free_execution_test(si_peaq, asset_id):
+    """Codex-nit coverage for the read-only can_withdraw_fee change: firing
+    several non-native-fee txs from one account must never let a tx execute for
+    free. Every tx that gets included pays exactly one AssetSwap; once the
+    account's local tokens run out, the next tx is rejected instead of running
+    unpaid. (Sequential submission; the concurrent race resolves to the same
+    rejection at withdraw_fee / re-validation.)"""
+    show_subtitle('payment_multi_tx_no_free_execution_test')
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    near_zero_native = get_existential_deposit(si_peaq) + 1000
+
+    def local_balance(kp):
+        q = si_peaq.query('Assets', 'Account', [asset_id, kp.ss58_address])
+        return 0 if q.value is None else int(q['balance'].value)
+
+    # Phase 1: measure the per-tx local-currency fee with a well-funded probe.
+    probe_uri = '//payspprobe' + secrets.token_hex(3)
+    kp_probe = into_keypair(probe_uri)
+    bt = ExtrinsicBatch(si_peaq, kp_sudo)
+    # Fund native FIRST so the fresh account gets a provider ref; otherwise the
+    # subsequent Assets.mint fails with Token::CannotCreate (no account to hold it).
+    compose_balances_setbalance(bt, probe_uri, near_zero_native)
+    # Local must be >> one tx fee: the fee is paid in local via a swap, and one
+    # remark fee is ~1e16 native (pool is ~1:1). dot(TOK_LIQUIDITY) (~5e11) is
+    # far below one fee, so a fresh probe cannot afford even a single tx. Mint a
+    # large balance so Phase 1 can actually measure the fee.
+    batch_mint(bt, kp_probe.ss58_address, asset_id, 100000 * 10 ** 18)
+    assert bt.execute_n_clear().is_success
+    before = local_balance(kp_probe)
+    bp = ExtrinsicBatch(si_peaq, kp_probe)
+    bp.compose_call('System', 'remark', {'remark': '0x00'})
+    rp = bp.execute_n_clear()
+    assert rp.is_success and count_zdex_swap_events(rp) == 1, 'probe fee tx must pay via one swap'
+    fee_cost = before - local_balance(kp_probe)
+    assert fee_cost > 0, 'could not measure the local fee cost'
+
+    # Phase 2: fresh account with local tokens for ~2 fees + near-zero native.
+    budget = 2
+    user_uri = '//payspuser' + secrets.token_hex(3)
+    kp_user = into_keypair(user_uri)
+    bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
+    compose_balances_setbalance(bt2, user_uri, near_zero_native)
+    batch_mint(bt2, kp_user.ss58_address, asset_id, fee_cost * budget + fee_cost // 2)
+    assert bt2.execute_n_clear().is_success
+
+    # Fire remarks one at a time until one is rejected (local tokens exhausted).
+    paid = 0
+    rejected = False
+    for i in range(budget + 3):
+        bt_i = ExtrinsicBatch(si_peaq, kp_user)
+        bt_i.compose_call('System', 'remark', {'remark': '0x00'})
+        try:
+            r = bt_i.execute_n_clear()
+        except Exception as exc:  # unaffordable fee -> InvalidTransaction::Payment at validate
+            rejected = True
+            msg = str(exc).lower()
+            assert any(k in msg for k in ('payment', 'invalid', '1010', '1012', 'pay', 'fund', 'balance')), \
+                f'excess tx was rejected but not for a payment reason: {exc}'
+            break
+        if not r.is_success:
+            rejected = True
+            break
+        # Every INCLUDED fee tx must pay exactly one swap: no free-rider, no double-swap.
+        swaps = count_zdex_swap_events(r)
+        assert swaps == 1, \
+            f'included tx #{i} paid {swaps} swaps (want exactly 1; free execution or double-swap?)'
+        paid += 1
+
+    assert paid >= 1, 'expected at least one affordable fee tx to be included and paid'
+    assert rejected, 'expected fee exhaustion to reject the excess tx (never reached the boundary)'
+    assert local_balance(kp_user) < fee_cost, 'local tokens should be drained below one fee'
+
+    show_test('payment_multi_tx_no_free_execution_test', True)
+
+
 class TestZenlinkDex(unittest.TestCase):
     def setUp(self):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
@@ -640,6 +717,21 @@ class TestZenlinkDex(unittest.TestCase):
             asset_id = 1
             ensure_asset_and_pool(si_peaq, asset_id)
             lp_reap_on_remove_liquidity_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_payment_multi_tx_no_free_execution(self):
+        show_title('Zenlink-DEX multi-tx non-native fee no-free-execution Test (fix#2 edge)')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            ensure_asset_and_pool(si_peaq, asset_id)
+            payment_multi_tx_no_free_execution_test(si_peaq, asset_id)
 
         except Exception:
             ex_type, ex_val, ex_tb = sys.exc_info()
