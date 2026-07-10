@@ -172,3 +172,9 @@ tags
 # Persistent undo
 [._]*.un~
 reports/
+
+# local env, generated chain data, scratch
+.venv-smoke/
+es.chain/
+QQ
+CLAUDE.md
