@@ -293,13 +293,11 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     assert not data['result'] is None
 
     # 2.) Swap liquidity pair on Zenlink-DEX
-    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bene, asset_id, amount_in1=dot(TOK_SWAP))
     receipt = bt_para_bene.execute_n_clear()
     assert receipt.is_success
     wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), receipt.block_hash)
 
-    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bob, asset_id, amount_in0=peaq(TOK_SWAP))
     receipt = bt_para_bob.execute_n_clear()
     assert receipt.is_success
