@@ -26,6 +26,10 @@ from tools.zenlink import calc_deadline
 
 # Technical constants
 XCM_RTA_TO = 45  # timeout for xcm-rta
+# Re-scan for the AssetSwap event a few times: on a forked/slow chain the event
+# can be observed or finalized late (the previous-block window grows between
+# rounds). Local to this test — does not touch the shared wait_for_event.
+SWAP_EVENT_RETRIES = 3
 # Test parameter configurations
 TOK_LIQUIDITY = 50  # generic amount of tokens
 TOK_SWAP = 1  # generic amount of tokens
@@ -223,9 +227,18 @@ def state_znlnkprot_lppair_status(si_peaq, tok_idx):
 
 
 def wait_n_check_swap_event(substrate, min_tokens, block_idx_prev):
-    event = wait_for_event(
-        substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO, block_idx_prev=block_idx_prev)
-    assert event is not None
+    # Retry the scan: a single wait_for_event can miss an AssetSwap that lands or
+    # finalizes late on a forked/slow chain. Re-scanning from block_idx_prev
+    # (the previous-block window grows and finalizes between rounds) tolerates
+    # that without touching the shared helper. If it still fails after all
+    # retries, the event genuinely never appeared (chain-side root cause).
+    event = None
+    for _ in range(SWAP_EVENT_RETRIES):
+        event = wait_for_event(
+            substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO, block_idx_prev=block_idx_prev)
+        if event is not None:
+            break
+    assert event is not None, 'AssetSwap event not observed after retries'
     assert event['attributes'][3][1] > min_tokens
 
 
