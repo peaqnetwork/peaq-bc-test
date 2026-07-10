@@ -8,7 +8,7 @@ sys.path.append('./')
 from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
 from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
-from tools.utils import show_test, show_title, show_subtitle, wait_for_event
+from tools.utils import show_test, show_title, show_subtitle, wait_for_event, get_event
 from tools.utils import get_existential_deposit
 import secrets
 
@@ -26,10 +26,6 @@ from tools.zenlink import calc_deadline
 
 # Technical constants
 XCM_RTA_TO = 45  # timeout for xcm-rta
-# Re-scan for the AssetSwap event a few times: on a forked/slow chain the event
-# can be observed or finalized late (the previous-block window grows between
-# rounds). Local to this test — does not touch the shared wait_for_event.
-SWAP_EVENT_RETRIES = 3
 # Test parameter configurations
 TOK_LIQUIDITY = 50  # generic amount of tokens
 TOK_SWAP = 1  # generic amount of tokens
@@ -226,20 +222,14 @@ def state_znlnkprot_lppair_status(si_peaq, tok_idx):
         return query.value
 
 
-def wait_n_check_swap_event(substrate, min_tokens, block_idx_prev):
-    # Retry the scan: a single wait_for_event can miss an AssetSwap that lands or
-    # finalizes late on a forked/slow chain. Re-scanning from block_idx_prev
-    # (the previous-block window grows and finalizes between rounds) tolerates
-    # that without touching the shared helper. If it still fails after all
-    # retries, the event genuinely never appeared (chain-side root cause).
-    event = None
-    for _ in range(SWAP_EVENT_RETRIES):
-        event = wait_for_event(
-            substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO, block_idx_prev=block_idx_prev)
-        if event is not None:
-            break
-    assert event is not None, 'AssetSwap event not observed after retries'
-    assert event['attributes'][3][1] > min_tokens
+def wait_n_check_swap_event(substrate, min_tokens, block_hash):
+    # Deterministic (not flaky): the AssetSwap event is emitted in the same block
+    # as the swap extrinsic, so read it directly from the swap receipt's block
+    # instead of polling wait_for_event across blocks (timing-flaky on a forked
+    # chain). If it is absent here, the swap genuinely emitted nothing (real bug).
+    event = get_event(substrate, block_hash, 'ZenlinkProtocol', 'AssetSwap')
+    assert event is not None, 'AssetSwap event not in swap block'
+    assert event.value['attributes'][3][1] > min_tokens
 
 
 def create_pair_n_swap_test(si_peaq, asset_id):
@@ -307,13 +297,13 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     compose_zdex_swap_exact_for(bt_para_bene, asset_id, amount_in1=dot(TOK_SWAP))
     receipt = bt_para_bene.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), receipt.block_hash)
 
     block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bob, asset_id, amount_in0=peaq(TOK_SWAP))
     receipt = bt_para_bob.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), receipt.block_hash)
 
     # 3.) Remove some liquidity
     compose_zdex_remove_liquidity(bt_para_sudo, asset_id, int(dot_liquidity / 4))
@@ -536,7 +526,7 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     compose_zdex_swap_exact_for(bt_peaq_user, asset_id, amount_in1=ed_recal(TOK_SWAP))
     receipt = bt_peaq_user.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, 1, block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, 1, receipt.block_hash)
 
     # Check that pool has been fully created after goal was reached
     lpstatus = state_znlnkprot_lppair_status(si_peaq, asset_id)
