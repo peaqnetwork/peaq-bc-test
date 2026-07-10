@@ -124,7 +124,7 @@ def upgrade(runtime_path):
         IOError: If upgrade fails
     """
     substrate = SubstrateInterface(url=WS_URL)
-    wait_for_n_blocks(substrate, 1)
+    wait_for_n_blocks(substrate, 1, 1800)  # 30 min timeout for coverage builds
 
     print(f'Global Sudo: {KP_GLOBAL_SUDO.ss58_address}')
     receipt = send_upgrade_call(substrate, KP_GLOBAL_SUDO, runtime_path)
