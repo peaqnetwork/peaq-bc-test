@@ -17,11 +17,21 @@ import pytest
 from substrateinterface import SubstrateInterface
 
 from tools.constants import PARACHAIN_WS_URL
+from peaq.utils import get_chain
+from tools.utils import get_modified_chain_spec
 
 # Well-known Substrate Core runtime-API trait hash; its version is >= 5 from
 # polkadot-sdk stable2503 onward (was 4 at v1.7.2 / spec 110).
 CORE_API_HASH = '0xdf6acb689907609b'
 MIN_CORE_API_VERSION = 5
+
+# Minimum specVersion per chain after the stable2503 upgrade (peaq->112,
+# peaq-dev/krest->108). -fork chains resolve to their base name.
+MIN_SPEC_VERSION = {
+    'peaq-network': 112,
+    'peaq-dev': 108,
+    'krest-network': 108,
+}
 
 
 def state_call(substrate, method, data='0x'):
@@ -59,12 +69,16 @@ class TestRuntimeApi(unittest.TestCase):
         self.assertIsNotNone(preset, 'GenesisBuilder.get_preset(None) not callable')
 
     def test_core_api_version_at_least_5(self):
-        # Durable invariant: the 110->112 upgrade brought spec >= 112 and Core
-        # API >= 5, and neither regresses on later upgrades. The exact
-        # specVersion == 112 gate belongs to UP-3, not to this regression test.
+        # Durable invariant: the stable2503 upgrade brought a per-chain minimum
+        # specVersion and Core API >= 5, and neither regresses on later
+        # upgrades. (peaq->112, peaq-dev/krest->108; -fork resolves to base.)
         version = self.substrate.get_block_runtime_version(
             self.substrate.get_chain_head())
-        self.assertGreaterEqual(version.get('specVersion'), 112)
+        chain_spec = get_modified_chain_spec(get_chain(self.substrate))
+        min_spec = MIN_SPEC_VERSION[chain_spec]
+        self.assertGreaterEqual(
+            version.get('specVersion'), min_spec,
+            f'{chain_spec}: specVersion {version.get("specVersion")} < {min_spec}')
         apis = dict(version.get('apis', []))
         core_version = apis.get(CORE_API_HASH)
         self.assertIsNotNone(core_version, 'Core runtime API not found')

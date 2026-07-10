@@ -79,6 +79,23 @@ INFLATION_RECALCULATION = {
 WAIT_BLOCKS = 5
 
 
+def _expected_yearly_parameters(config, year):
+    """Derive the disinflated InflationParameters for `year` from the base
+    config, mirroring pallet-inflation-manager update_inflation_parameters:
+    disinflation_rate(n) = (1 - config.disinflation_rate) ** (n-1) and
+    inflation_rate(n) = config.inflation_rate * disinflation_rate(n), all in
+    Perbill (parts-per-billion) with per-multiply truncation."""
+    PB = 1_000_000_000
+    base_ir = config['inflation_parameters']['inflation_rate']
+    base_dr = config['inflation_parameters']['disinflation_rate']
+    factor = PB - base_dr
+    dr = PB
+    for _ in range(year - 1):
+        dr = (dr * factor) // PB
+    ir = (base_ir * dr) // PB
+    return {'inflation_rate': ir, 'disinflation_rate': dr}
+
+
 class InflationState(Enum):
     InflationConfiguration = 'InflationConfiguration'
     YearlyInflationParameters = 'InflationParameters'
@@ -296,7 +313,6 @@ class TestPalletInflationManager(unittest.TestCase):
         )
         self.assertEqual(trigger_height + 5256000, next_recalculate_at.value)
 
-    # Will fail after 1 year
     def test_now_state(self):
         block_height = get_block_height(self.substrate)
 
@@ -319,8 +335,27 @@ class TestPalletInflationManager(unittest.TestCase):
             InflationState.RecalculationAt.value,
             block_height)
 
+        # InflationConfiguration is year-invariant -> always assert exactly.
         self.assertEqual(golden_inflation_config, onchain_inflation_config)
-        self.assertEqual(golden_inflation_parameters, onchain_base_inflation_parameters)
-        self.assertEqual(onchain_year, golden_year)
-        # If it's forked chain, it should be after 1 year + upgrade time
-        self.assertEqual(onchain_do_recalculation_at, INFLATION_RECALCULATION[self.detail_chain_spec])
+
+        # A forked chain has aged past year 1, so the stored yearly
+        # InflationParameters have been disinflated (year-1) times. Derive the
+        # expected params from the config + on-chain CurrentYear instead of the
+        # year-1 golden literals (mirrors pallet update_inflation_parameters).
+        self.assertGreaterEqual(onchain_year, golden_year)
+        if onchain_year >= 1:
+            self.assertEqual(
+                _expected_yearly_parameters(onchain_inflation_config, onchain_year),
+                onchain_base_inflation_parameters)
+        else:
+            # Pre-TGE (e.g. krest year 0): params still at the uninitialised default.
+            self.assertEqual(golden_inflation_parameters, onchain_base_inflation_parameters)
+
+        # DoRecalculationAt = last year boundary + BLOCKS_PER_YEAR; the absolute
+        # block depends on the (fork-specific) TGE block, so only pin it on a
+        # non-forked chain.
+        if not self.detail_chain_spec.endswith('-fork'):
+            self.assertEqual(
+                onchain_do_recalculation_at, INFLATION_RECALCULATION[self.detail_chain_spec])
+        else:
+            self.assertGreater(onchain_do_recalculation_at, block_height)

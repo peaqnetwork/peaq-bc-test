@@ -212,21 +212,27 @@ class TokenEconomyTest(unittest.TestCase):
 
     @pytest.mark.skipif(TestUtils.is_local_new_chain() is True, reason='Dont need to test on the new chain')
     def test_block_reward(self):
-        block_reward = {
-            'peaq-dev-fork': int(1.902587519 * 10 ** 18),
-            'krest-network-fork': int(3.805175038 * 10 ** 18),
-            'peaq-network-fork': int(27.96803653 * 10 ** 18),
-        }
+        # The per-block reward is disinflated every year, so a hardcoded golden
+        # drifts once a (forked) chain ages past year 1. Compare the emitted
+        # BlockRewardsDistributed event against the per-block reward the runtime
+        # actually stores in InflationManager.BlockRewards for the current year
+        # (formula-free, year- and chain-agnostic).
+        onchain_block_reward = self._substrate.query(
+            module='InflationManager',
+            storage_function='BlockRewards',
+            params=[],
+            block_hash=self._block_hash,
+        ).value
 
         result = get_event(
             self._substrate,
             self._substrate.get_block_hash(),
             'BlockReward', 'BlockRewardsDistributed')
         self.assertIsNotNone(result, 'BlockReward event not found')
-        self.assertAlmostEqual(
-            result.value['attributes'] / block_reward[self._chain_spec],
-            1, 7,
-            msg=f'{result.value["attributes"]} != {block_reward[self._chain_spec]}')
+        self.assertEqual(
+            result.value['attributes'], onchain_block_reward,
+            msg=f'distributed {result.value["attributes"]} != '
+                f'InflationManager.BlockRewards {onchain_block_reward}')
 
     # The krest failed because it's used the delayed TGE, but that's okay
     @pytest.mark.skipif(
