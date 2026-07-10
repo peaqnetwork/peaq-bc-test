@@ -21,10 +21,10 @@ from substrateinterface import SubstrateInterface, Keypair
 from peaq.utils import ExtrinsicBatch
 
 from tools.constants import KP_GLOBAL_SUDO, PARACHAIN_WS_URL
+from tools.coretime_utils import get_parachain_id
 
 SIBLING_WS = 'ws://127.0.0.1:10144'
 SIBLING_PARA = 3000
-SELF_PARA = 3338
 
 
 def sibling_sovereign(para_id, ss58_format):
@@ -42,6 +42,9 @@ class TestXcmFeeToBlockReward(unittest.TestCase):
         cls.si_sibling = SubstrateInterface(url=SIBLING_WS)
         props = cls.si.rpc_request('system_properties', []).get('result') or {}
         cls.ss58 = props.get('ss58Format') or 42
+        # para id of the chain under test (peaq=3338, peaq-dev=2000, krest=...);
+        # the inbound XCM dest must target THIS chain, not a hardcoded value.
+        cls.self_para = get_parachain_id()
         # ensure the 3000<->3338 HRMP channel exists (tolerant if already open)
         try:
             from tools.xcm_setup import setup_hrmp_channel
@@ -83,7 +86,7 @@ class TestXcmFeeToBlockReward(unittest.TestCase):
                 'beneficiary': {'parents': 0, 'interior': {
                     'X1': [{'AccountId32': {'network': None, 'id': f'0x{pub.hex()}'}}]}}}},
         ]]}
-        dest = {'V4': {'parents': 1, 'interior': {'X1': [{'Parachain': SELF_PARA}]}}}
+        dest = {'V4': {'parents': 1, 'interior': {'X1': [{'Parachain': self.self_para}]}}}
         b2 = ExtrinsicBatch(self.si_sibling, KP_GLOBAL_SUDO)
         b2.compose_sudo_call('PolkadotXcm', 'send', {'dest': dest, 'message': message})
         self.assertTrue(b2.execute().is_success, 'sibling polkadotXcm.send failed')
