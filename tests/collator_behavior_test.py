@@ -3,14 +3,13 @@ import pytest
 import warnings
 from substrateinterface import SubstrateInterface, Keypair, KeypairType
 from tools.constants import WS_URL, ETH_URL
-from tools.constants import KP_COLLATOR
+from tools.constants import KP_COLLATOR, KP_GLOBAL_SUDO
 from tools.evm_claim_sign import calculate_claim_signature, claim_account
 from tests.utils_func import restart_parachain_and_runtime_upgrade
 from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_eth_chain_id, calculate_evm_default_addr
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
-from peaq.eth import calculate_evm_addr
 
 
 def claim_default_account(substrate, kp_sub):
@@ -47,12 +46,34 @@ def is_collator_already_mapped(substrate):
         return False
 
 
+def unmap_collator_if_mapped(substrate):
+    """Fork setup: there is no un-map extrinsic (a mapping only clears via
+    OnKilledAccount when the account is reaped), so if the collator is already
+    EVM-mapped, sudo-kill its AddressUnification storage entries directly so the
+    claim / default-unify tests start from an unmapped collator."""
+    existing = substrate.query(
+        'AddressUnification', 'EvmAddresses', [KP_COLLATOR.ss58_address])
+    if existing.value is None:
+        return
+    evm_addr = existing.value
+    fwd_key = substrate.create_storage_key(
+        'AddressUnification', 'EvmAddresses', [KP_COLLATOR.ss58_address]).to_hex()
+    rev_key = substrate.create_storage_key(
+        'AddressUnification', 'Accounts', [evm_addr]).to_hex()
+    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
+    batch.compose_sudo_call('System', 'kill_storage', {'keys': [fwd_key, rev_key]})
+    batch.execute()
+
+
 @pytest.mark.eth
 class TestCollatorBehavior(unittest.TestCase):
     def setUp(self):
         restart_parachain_and_runtime_upgrade()
         wait_until_block_height(SubstrateInterface(url=WS_URL), 2)
         self._substrate = SubstrateInterface(url=WS_URL)
+        # Fork setup: ensure the collator starts EVM-unmapped so the claim and
+        # default-unify tests run from a clean state.
+        unmap_collator_if_mapped(self._substrate)
         self._eth_chain_id = get_eth_chain_id(self._substrate)
 
     def test_author_check_address_unification(self):
@@ -96,13 +117,13 @@ class TestCollatorBehavior(unittest.TestCase):
 
         # Directly test the author of the block without unification
         kp_sub = KP_COLLATOR
-        kp_evm_addr = calculate_evm_addr(kp_sub.ss58_address)
 
         eth_default_addr = calculate_evm_default_addr(kp_sub.public_key)
         evm_block_author = get_eth_block_author()
         self.assertEqual(
             Web3.to_checksum_address(evm_block_author),
-            Web3.to_checksum_address(kp_evm_addr), f'{evm_block_author} != {kp_evm_addr}')
+            Web3.to_checksum_address(eth_default_addr),
+            f'author {evm_block_author} != default {eth_default_addr}')
 
         # Start to test default
 
