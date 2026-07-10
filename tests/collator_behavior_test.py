@@ -10,6 +10,7 @@ from tools.runtime_upgrade import wait_until_block_height
 from tools.peaq_eth_utils import get_eth_chain_id, calculate_evm_default_addr
 from peaq.utils import ExtrinsicBatch
 from web3 import Web3
+from peaq.eth import calculate_evm_addr
 
 
 def claim_default_account(substrate, kp_sub):
@@ -117,13 +118,13 @@ class TestCollatorBehavior(unittest.TestCase):
 
         # Directly test the author of the block without unification
         kp_sub = KP_COLLATOR
+        kp_evm_addr = calculate_evm_addr(kp_sub.ss58_address)
 
         eth_default_addr = calculate_evm_default_addr(kp_sub.public_key)
         evm_block_author = get_eth_block_author()
         self.assertEqual(
             Web3.to_checksum_address(evm_block_author),
-            Web3.to_checksum_address(eth_default_addr),
-            f'author {evm_block_author} != default {eth_default_addr}')
+            Web3.to_checksum_address(kp_evm_addr), f'{evm_block_author} != {kp_evm_addr}')
 
         # Start to test default
 
