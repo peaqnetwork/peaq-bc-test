@@ -411,6 +411,81 @@ class TestTreasury(unittest.TestCase):
         print("---proposal rejection test completed successfully---")
         print()
 
+    def test_treasury_spend_bad_origin(self):
+        print('----Start of pallet_treasury_test!! ----')
+        print()
+
+        kp_normal = Keypair.create_from_uri('//Charlie')
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, kp_normal, TOTAL_AMOUNT)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+
+        print("---Spend by normal signed user (expect BadOrigin) started---")
+        batch = ExtrinsicBatch(self.substrate, kp_normal)
+        batch.compose_call(
+            'Treasury',
+            'spend',
+            {
+                'asset_kind': (),
+                'amount': AMOUNT * TOKEN_NUM_BASE_DEV,
+                'beneficiary': KP_BENEFICIARY.ss58_address,
+                'valid_from': None,
+            })
+        receipt = batch.execute()
+        self.assertFalse(
+            receipt.is_success,
+            'Treasury.spend by a normal signed user must be rejected '
+            '(SpendOrigin = root or council supermajority)')
+        self.assertIn(
+            'BadOrigin', str(receipt.error_message),
+            f'Expected BadOrigin, got: {receipt.error_message}')
+        print("✅ Treasury.spend by normal user correctly rejected with BadOrigin")
+
+    def test_treasury_void_spend(self):
+        print('----Start of pallet_treasury_test!! ----')
+        print()
+
+        # Fund treasury so the payout below WOULD succeed if void_spend failed
+        # to remove the spend (makes the negative payout check meaningful).
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'Balances',
+            'force_set_balance',
+            {
+                'who': KP_TREASURY,
+                'new_free': TOTAL_AMOUNT
+            })
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+
+        print("---void_spend test started---")
+        receipt = spend(self.substrate, AMOUNT, KP_BENEFICIARY)
+        self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
+        event = get_event(self.substrate, receipt.block_hash, 'Treasury', 'AssetSpendApproved')
+        self.assertIsNotNone(event, 'AssetSpendApproved event not found')
+        spend_index = event.value['attributes']['index']
+        print(f"Spend approved with index: {spend_index}")
+
+        # RejectOrigin (root via sudo) voids the approved-but-unpaid spend
+        batch = ExtrinsicBatch(self.substrate, KP_GLOBAL_SUDO)
+        batch.compose_sudo_call(
+            'Treasury',
+            'void_spend',
+            {
+                'index': spend_index
+            })
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'void_spend failed: {receipt.error_message}')
+        event = get_event(self.substrate, receipt.block_hash, 'Treasury', 'AssetSpendVoided')
+        self.assertIsNotNone(event, 'AssetSpendVoided event not found')
+        print(f"✅ Spend {spend_index} voided")
+
+        # After void the spend no longer exists, so payout must fail
+        receipt = trigger_payout(self.substrate, KP_GLOBAL_SUDO, spend_index)
+        self.assertFalse(receipt.is_success, 'payout after void_spend must fail')
+        print(f"✅ payout after void correctly failed: {receipt.error_message}")
+
     def test_treasury_others(self):
         print('----Start of pallet_treasury_test!! ----')
         print()
