@@ -76,10 +76,13 @@ def verify_deployed(w3):
     bad = bytearray(P256_VALID_VECTOR)
     bad[0] ^= 0x01
     out = bytes(w3.eth.call({"to": CANONICAL_ADDRESS, "data": "0x" + bad.hex()}))
-    if out != b"":
-        print(f"FAIL: invalid vector returned {out.hex()} (expected empty)")
+    # The Daimo CONTRACT returns a 32-byte 0 for invalid input (verified against the
+    # original on Base). Note this differs from the RIP-7212 PRECOMPILE, which returns
+    # empty output; callers using `out.length == 32 && out[31] == 1` are unaffected.
+    if out != b"\x00" * 32:
+        print(f"FAIL: invalid vector returned {out.hex() or '(empty)'} (expected 32-byte 0)")
         return False
-    print("verified: runtime hash pinned OK; valid vector -> 0x..01, invalid -> empty")
+    print("verified: runtime hash pinned OK; valid vector -> 32-byte 1, invalid -> 32-byte 0")
     return True
 
 
