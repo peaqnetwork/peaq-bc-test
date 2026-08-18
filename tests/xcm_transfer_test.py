@@ -188,35 +188,33 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
         'reserve_transfer_assets',
         {
             'dest': {
-                'V2': {
+                'V5': {
                     'parents': 0,
                     'interior': {
-                        'X1': {
+                        'X1': [{
                             'Parachain': paraid,
-                        }
+                        }]
                     },
                 }
             },
             'beneficiary': {
-                'V2': {
+                'V5': {
                     'parents': 0,
                     'interior': {
-                        'X1': {
+                        'X1': [{
                             'AccountId32': {
-                                'network': 'Any',
+                                'network': None,
                                 'id': kp_dst.public_key,
                             }
-                        }
+                        }]
                     },
                 }
             },
             'assets': {
-                'V2': [[{
+                'V5': [[{
                     'id': {
-                        'Concrete': {
-                            'parents': 0,
-                            'interior': 'Here'
-                        }
+                        'parents': 0,
+                        'interior': 'Here'
                     },
                     'fun': {
                         'Fungible': token

@@ -96,9 +96,9 @@ class TestTreasury(unittest.TestCase):
 
         treasury_payload = self.substrate.compose_call(
             call_module='Treasury',
-            call_function='propose_spend',
+            call_function='spend_local',
             call_params={
-                'value': value*TOKEN_NUM_BASE_DEV,
+                'amount': value*TOKEN_NUM_BASE_DEV,
                 'beneficiary': beneficiary.ss58_address
             })
 
@@ -126,7 +126,7 @@ class TestTreasury(unittest.TestCase):
         show_extrinsic(receipt, 'propose_spend')
         return (pi, ph)
 
-    def approve_proposal_test(self):
+    def check_approve_proposal(self):
 
         proposal_index = None
         proposal_hash = None
@@ -163,7 +163,7 @@ class TestTreasury(unittest.TestCase):
                              LENGTH_BOND)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
 
-    def reject_proposal_test(self):
+    def check_reject_proposal(self):
         proposal_index = None
         proposal_hash = None
 
@@ -201,7 +201,7 @@ class TestTreasury(unittest.TestCase):
                              LENGTH_BOND)
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
 
-    def treasury_rewards_test(self):
+    def check_treasury_rewards(self):
         # To get current block reward as configured in BlockReward.BlockIssueReward
         result = get_event(
             self.substrate,
@@ -273,7 +273,7 @@ class TestTreasury(unittest.TestCase):
         print()
 
         print("---proposal approval test started---")
-        self.approve_proposal_test()
+        self.check_approve_proposal()
         print("---proposal approval test completed successfully---")
         print()
 
@@ -300,7 +300,7 @@ class TestTreasury(unittest.TestCase):
         self.assertTrue(receipt.is_success, f'Extrinsic Failed: {receipt.error_message}')
 
         print("---proposal rejection test started---")
-        self.reject_proposal_test()
+        self.check_reject_proposal()
         print("---proposal rejection test completed successfully---")
         print()
 
@@ -335,7 +335,7 @@ class TestTreasury(unittest.TestCase):
         print()
 
         print("---Treasury reward distribution test started---")
-        self.treasury_rewards_test()
+        self.check_treasury_rewards()
         print("---Treasury reward distribution test completed successfully---")
         print()
 

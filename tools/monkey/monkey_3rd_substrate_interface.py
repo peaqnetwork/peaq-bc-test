@@ -1,6 +1,12 @@
 from substrateinterface.exceptions import SubstrateRequestException, ExtrinsicNotFound
 from scalecodec.types import GenericExtrinsic
 from substrateinterface.base import ExtrinsicReceipt
+from substrateinterface import SubstrateInterface
+from json.decoder import JSONDecodeError
+import time
+import socket
+
+
 from peaq.utils import wait_for_n_blocks
 
 
@@ -11,6 +17,22 @@ def _wait_finalization(substrate, included_block):
         if finalized_block >= included_block:
             break
         wait_for_n_blocks(substrate, 1)
+
+
+def monkey_patch():
+    original_rpc_request = SubstrateInterface.rpc_request
+
+    def patched_rpc_request(self, method, params, result_handler=None):
+        try:
+            self.websocket.ping()
+            return original_rpc_request(self, method, params, result_handler)
+        except (BrokenPipeError, JSONDecodeError, socket.error) as e:
+            print(f"Connection error: {e}. Attempting to reconnect... {self.url}")
+            time.sleep(1)
+            self.connect_websocket()
+            return original_rpc_request(self, method, params, result_handler)
+
+    SubstrateInterface.rpc_request = patched_rpc_request
 
 
 def monkey_submit_extrinsic(self, extrinsic: GenericExtrinsic, wait_for_inclusion: bool = False,

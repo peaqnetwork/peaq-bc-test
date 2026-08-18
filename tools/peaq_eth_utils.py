@@ -101,6 +101,9 @@ def get_eth_chain_id(substrate):
         chain_name = substrate.rpc_request(method='system_chain', params=[]).get('result')
         forked_info = {
             'peaq-dev-fork': 9990,
+            'Agung network': 9990,
+            'peaq network': 3338,
+            'krest network': 2241,
             'agung-network-fork': 9990,
             'krest-network-fork': 2241,
             'peaq-network-fork': 3338,
