@@ -77,13 +77,13 @@ def send_upgrade_call(substrate, kp_sudo, wasm_file):
     print(f'File hash: {file_hash}')
     batch = ExtrinsicBatch(substrate, kp_sudo)
     batch.compose_sudo_call(
-        'ParachainSystem',
+        'System',
         'authorize_upgrade',
-        {'code_hash': file_hash, 'check_version': True}
+        {'code_hash': file_hash}
     )
     batch.compose_sudo_call(
-        'ParachainSystem',
-        'enact_authorized_upgrade',
+        'System',
+        'apply_authorized_upgrade',
         {'code': data}
     )
     return batch.execute()
@@ -131,6 +131,7 @@ def upgrade(runtime_path):
     show_extrinsic(receipt, 'upgrade?')
     if not receipt.is_success:
         raise IOError('Cannot upgrade')
+    wait_for_n_blocks(substrate, 10, 1800)
     wait_relay_upgrade_block()
 
 
