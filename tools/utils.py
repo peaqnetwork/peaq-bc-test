@@ -341,8 +341,11 @@ def get_block_reward_sinks(substrate):
 
 
 def set_block_reward_sinks(substrate, sinks):
+    # SinksOf<T> is a BoundedVec, which scale-info exposes as a single-field
+    # composite wrapping the Vec, so the list has to be nested one level deeper
+    # than the pallet signature suggests. Verified against a spec-113 chain.
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    batch.compose_sudo_call('BlockReward', 'set_sinks', {'new_sinks': sinks})
+    batch.compose_sudo_call('BlockReward', 'set_sinks', {'new_sinks': [sinks]})
     return batch.execute()
 
 
