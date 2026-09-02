@@ -5,6 +5,7 @@ from tools.constants import WS_URL, TOKEN_NUM_BASE_DEV, KP_GLOBAL_SUDO
 from peaq.utils import show_extrinsic
 from peaq.utils import ExtrinsicBatch
 from tools.utils import batch_fund, get_event
+from tools.utils import get_block_reward_sink_share
 import unittest
 import random
 
@@ -300,9 +301,10 @@ class TestTreasury(unittest.TestCase):
         print("Block reward:", block_reward)
 
         # To get treasury percentage in block reward
-        # as configured in BlockReward.RewardDistributionConfigStorage
-        result = self.substrate.query('BlockReward', 'RewardDistributionConfigStorage')
-        treasury_percentage = ((result['treasury_percent']).decode()) / DIVISION_FACTOR
+        # as configured in BlockReward.Sinks (PR #395 replaced the old
+        # RewardDistributionConfigStorage struct with a list of sinks)
+        treasury_share = get_block_reward_sink_share(self.substrate, 'treasury')
+        treasury_percentage = treasury_share / DIVISION_FACTOR
         print("Treasury percentage: ", '{:.2f}%'.format(treasury_percentage))
 
         # To get expected reward to be distributd to treasury
