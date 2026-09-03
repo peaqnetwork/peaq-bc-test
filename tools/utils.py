@@ -325,6 +325,10 @@ def block_reward_pallet_sink(name, share):
     return {'target': {'Pallet': block_reward_sink_target(name)}, 'share': share}
 
 
+def block_reward_evm_sink(evm_address, share):
+    return {'target': {'Evm': evm_address}, 'share': share}
+
+
 def normalize_sink_target(target):
     # SinkPalletId is a [u8; 8] newtype, which scale decoding can surface as a
     # hex string, as bytes, or as a list of ints. Normalise to a hex string.

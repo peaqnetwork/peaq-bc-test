@@ -5,7 +5,12 @@ from tools.utils import block_reward_pallet_sink
 from tools.utils import get_block_reward_sink_share
 from tools.utils import get_block_reward_sinks
 from tools.utils import get_event
+from tools.utils import block_reward_evm_sink
 from tools.utils import set_block_reward_sinks
+from tools.constants import BLOCK_GENERATE_TIME
+from peaq.eth import calculate_evm_account
+from peaq.utils import get_account_balance
+from peaq.utils import wait_for_n_blocks
 import unittest
 import pytest
 
@@ -77,3 +82,28 @@ class TestPalletBlockReward(unittest.TestCase):
             self.substrate, receipt.block_hash,
             'BlockReward', 'TokenSinksUpdated')
         self.assertIsNotNone(event, 'TokenSinksUpdated event not found')
+
+    def test_evm_sink(self):
+        # A sink can also target an EVM contract address. The runtime resolves it
+        # with HashedAddressMapping<BlakeTwo256> (see BlockRewardAddressMapping in
+        # runtime/*/src/lib.rs); the pallet's own unit tests cannot cover that
+        # wiring because they run against a mock mapping.
+        evm_addr = '0x1234567890123456789012345678901234567890'
+        sink_account = calculate_evm_account(evm_addr)
+
+        receipt = set_block_reward_sinks(self.substrate, [
+            block_reward_pallet_sink('treasury', 70 * PERBILL_PERCENT),
+            block_reward_evm_sink(evm_addr, 30 * PERBILL_PERCENT),
+        ])
+        self.assertTrue(receipt.is_success,
+                        'cannot setup the evm block reward sink')
+
+        prev_balance = get_account_balance(self.substrate, sink_account)
+        # A 30% share of several block rewards, so the credit clears the
+        # existential deposit and the account is actually created.
+        wait_for_n_blocks(self.substrate, 5, 5 * BLOCK_GENERATE_TIME * 3)
+        now_balance = get_account_balance(self.substrate, sink_account)
+
+        self.assertGreater(
+            now_balance, prev_balance,
+            f'the evm sink {evm_addr} ({sink_account}) received no block reward')
