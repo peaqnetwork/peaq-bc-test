@@ -1,112 +1,73 @@
-#!/usr/bin/env python3
-
+# Coretime helpers for local relay/parachain test networks.
+#
+# Reconstructed implementation: the original file was referenced by
+# tools/restart.py, tools/setup_coretime.py and tests/test_evm_event_only.py
+# but was never committed. Call semantics recovered from those call sites;
+# the relay-side extrinsic shape follows the relay runtime's `Coretime`
+# pallet: assign_core(core: u16, begin, assignment: Vec<(CoreAssignment,
+# PartsOf57600)>, end_hint), root origin allowed.
 from substrateinterface import SubstrateInterface
-from tools.constants import PARACHAIN_WS_URL, RELAYCHAIN_WS_URL, KP_GLOBAL_SUDO, CORETIME_CORES, CORETIME_DURATION, PARACHAIN_CORE_MAP
 from peaq.utils import ExtrinsicBatch
+from tools.constants import KP_GLOBAL_SUDO, PARACHAIN_WS_URL, RELAYCHAIN_WS_URL
+from tools.constants import CORETIME_CORES, CORETIME_DURATION, PARACHAIN_CORE_MAP
 
 
-def get_parachain_id(parachain_url=PARACHAIN_WS_URL):
-    """Get the parachain ID from the parachain instance"""
-    substrate = SubstrateInterface(url=parachain_url)
-
-    # Query parachain ID
-    para_id = substrate.query(
-        module='ParachainInfo',
-        storage_function='ParachainId'
-    )
-
-    return para_id.value if para_id else None
+def get_parachain_id(ws_url=PARACHAIN_WS_URL):
+    """Return the parachain's on-chain id (parachainInfo.parachainId), or None."""
+    try:
+        substrate = SubstrateInterface(url=ws_url)
+        return substrate.query('ParachainInfo', 'ParachainId').value
+    except Exception as err:
+        print(f'Warning: cannot read parachain id from {ws_url}: {err}')
+        return None
 
 
-def check_coretime_assigned(substrate, cores):
-    """Check if coretime is already assigned by querying coreDescriptor"""
-    assigned_cores = []
-    for core in range(cores):
-        try:
-            # Query the CoretimeAssignmentProvider.CoreDescriptors storage
-            result = substrate.query(
-                module='CoretimeAssignmentProvider',
-                storage_function='CoreDescriptors',
-                params=[core]
-            )
-
-            # If result has value, core is assigned
-            if result and result.value:
-                assigned_cores.append(core)
-        except Exception:
-            # If query fails, assume core is not assigned
-            continue
-
-    return assigned_cores
-
-
-def setup_coretime(parachain_id, cores=None, duration=CORETIME_DURATION, raise_on_exists=False, relay_url=RELAYCHAIN_WS_URL, start_core=0):
-    """Setup coretime for parachain using sudo with ExtrinsicBatch for multiple cores
-
-    Args:
-        parachain_id: The parachain ID to assign cores to
-        cores: Number of cores to assign (auto-determined from parachain ID if None)
-        duration: Duration for coretime assignment
-        raise_on_exists: If True, raise exception if coretime already assigned
-        relay_url: Relay chain URL for sudo operations
-        start_core: Starting core index (default 0)
-
-    Returns:
-        int: Number of cores assigned, or 0 on failure
-    """
-    if parachain_id is None:
-        print("Skipping coretime setup: no parachain ID")
+def _cores_assigned_to(relay, parachain_id):
+    """Count relay cores whose descriptor currently serves `parachain_id`."""
+    count = 0
+    try:
+        for _, descriptor in relay.query_map('CoretimeAssignmentProvider', 'CoreDescriptors'):
+            if descriptor is None:
+                continue
+            if f"'Task': {parachain_id}" in str(descriptor.value):
+                count += 1
+    except Exception:
+        # Storage shape differs between relay versions; treat as unknown.
         return 0
+    return count
 
-    # Determine core count based on parachain ID if not specified
+
+def setup_coretime(parachain_id, cores=None, duration=CORETIME_DURATION,
+                   raise_on_exists=False, relay_url=RELAYCHAIN_WS_URL, start_core=0):
+    """Assign relay coretime cores to `parachain_id` via sudo on a test relay.
+
+    Returns the number of cores assigned (or already serving the parachain).
+    With raise_on_exists=True an existing assignment raises instead of being
+    treated as success. Only meaningful against a local/test relay where the
+    global sudo key is root; never run this against a live network.
+    """
     if cores is None:
         cores = PARACHAIN_CORE_MAP.get(parachain_id, CORETIME_CORES)
-        print(f"Auto-determined {cores} cores for parachain {parachain_id}")
 
-    # Connect to relay chain for sudo operations with rococo type registry
-    substrate = SubstrateInterface(url=relay_url, type_registry_preset='rococo')
-
-    # Check if any cores in our range are already assigned
-    end_core = start_core + cores
-    assigned_cores = check_coretime_assigned(substrate, end_core)
-    cores_to_assign = [c for c in range(start_core, end_core) if c not in assigned_cores]
-
-    if not cores_to_assign:
+    relay = SubstrateInterface(url=relay_url)
+    existing = _cores_assigned_to(relay, parachain_id)
+    if existing:
         if raise_on_exists:
-            raise ValueError(f"All cores {start_core}-{end_core-1} already assigned. Aborting to prevent duplicate assignment.")
-        else:
-            print(f"All cores {start_core}-{end_core-1} already assigned. Skipping setup.")
-            return 0
+            raise RuntimeError(
+                f'parachain {parachain_id} already has {existing} core(s) assigned')
+        print(f'Coretime already set up for {parachain_id} ({existing} cores); skipping')
+        return existing
 
-    # Get current block number
-    current_block = substrate.get_block_number(None)
-
-    # Prepare the assignment - (CoreAssignment, duration) tuple
-    assignment = [({"Task": parachain_id}, duration)]
-
-    # Use ExtrinsicBatch for sudo call
-    batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-
-    # Add assignCore calls for cores that need assignment
-    for core in cores_to_assign:
-        batch.compose_sudo_call(
-            'Coretime',
-            'assign_core',
-            {
-                'core': core,
-                'begin': current_block,
-                'assignment': assignment,
-                'end_hint': None
-            }
-        )
-
-    # Execute all assignCore calls in a single batch
+    batch = ExtrinsicBatch(relay, KP_GLOBAL_SUDO)
+    for i in range(cores):
+        batch.compose_sudo_call('Coretime', 'assign_core', {
+            'core': start_core + i,
+            'begin': 0,
+            'assignment': [({'Task': parachain_id}, duration)],
+            'end_hint': None,
+        })
     receipt = batch.execute()
-
-    if receipt.is_success:
-        print(f"Successfully assigned coretime for parachain {parachain_id}")
-        print(f"  Cores: {cores_to_assign}, Begin block: {current_block}, Duration: {duration}")
-        return len(cores_to_assign)
-    else:
-        print(f"Coretime assignment failed: {receipt.error_message}")
+    if not receipt:
+        print(f'Warning: coretime assignment submission failed for {parachain_id}')
         return 0
+    return cores
