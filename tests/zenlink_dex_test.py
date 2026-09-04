@@ -8,8 +8,10 @@ sys.path.append('./')
 from peaq.sudo_extrinsic import funds
 from substrateinterface import SubstrateInterface
 from tools.constants import PARACHAIN_WS_URL, KP_GLOBAL_SUDO, URI_GLOBAL_SUDO
-from tools.utils import show_test, show_title, show_subtitle, wait_for_event
+from tools.utils import show_test, show_title, show_subtitle, wait_for_event, get_event
 from tools.utils import get_existential_deposit
+import secrets
+
 from peaq.utils import ExtrinsicBatch, into_keypair
 from peaq.utils import get_account_balance
 from tools.currency import peaq, dot, aca
@@ -220,11 +222,14 @@ def state_znlnkprot_lppair_status(si_peaq, tok_idx):
         return query.value
 
 
-def wait_n_check_swap_event(substrate, min_tokens, block_idx_prev):
-    event = wait_for_event(
-        substrate, 'ZenlinkProtocol', 'AssetSwap', timeout=XCM_RTA_TO, block_idx_prev=block_idx_prev)
-    assert event is not None
-    assert event['attributes'][3][1] > min_tokens
+def wait_n_check_swap_event(substrate, min_tokens, block_hash):
+    # Deterministic (not flaky): the AssetSwap event is emitted in the same block
+    # as the swap extrinsic, so read it directly from the swap receipt's block
+    # instead of polling wait_for_event across blocks (timing-flaky on a forked
+    # chain). If it is absent here, the swap genuinely emitted nothing (real bug).
+    event = get_event(substrate, block_hash, 'ZenlinkProtocol', 'AssetSwap')
+    assert event is not None, 'AssetSwap event not in swap block'
+    assert event.value['attributes'][3][1] > min_tokens
 
 
 def create_pair_n_swap_test(si_peaq, asset_id):
@@ -288,17 +293,15 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     assert not data['result'] is None
 
     # 2.) Swap liquidity pair on Zenlink-DEX
-    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bene, asset_id, amount_in1=dot(TOK_SWAP))
     receipt = bt_para_bene.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), receipt.block_hash)
 
-    block_idx_peaq = si_peaq.get_block_number(None)
     compose_zdex_swap_exact_for(bt_para_bob, asset_id, amount_in0=peaq(TOK_SWAP))
     receipt = bt_para_bob.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, dot(TOK_SWAP), receipt.block_hash)
 
     # 3.) Remove some liquidity
     compose_zdex_remove_liquidity(bt_para_sudo, asset_id, int(dot_liquidity / 4))
@@ -306,6 +309,139 @@ def create_pair_n_swap_test(si_peaq, asset_id):
     assert receipt.is_success
 
     show_test('create_pair_n_swap_test', True)
+
+
+def count_zdex_swap_events(receipt):
+    """Count ZenlinkProtocol.AssetSwap events triggered by one extrinsic (incl. fee-payment swaps)."""
+    n = 0
+    for ev in receipt.triggered_events:
+        v = ev.value
+        if v.get('module_id') == 'ZenlinkProtocol' and v.get('event_id') == 'AssetSwap':
+            n += 1
+    return n
+
+
+def payment_local_currency_single_swap_test(si_peaq, asset_id):
+    """
+    Regression test for fix#2 (runtime/common payment.rs can_withdraw_fee):
+    when the user lacks native balance and pays the fee in a local currency
+    (asset_id), fee-payment must trigger exactly ONE Zenlink swap. Before the
+    fix, can_withdraw_fee also swapped during the validate phase -> two swaps
+    total (double-swap, with side effects in validate). This test uses a
+    non-swap extrinsic (system.remark) to isolate the fee-payment swap and
+    asserts it happens exactly once.
+    Precondition: the asset_id/native Zenlink pool exists with liquidity.
+    """
+    show_subtitle('payment_local_currency_single_swap_test')
+    user = URI_MOON
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    kp_user = into_keypair(user)
+
+    # Give the user enough local tokens but near-zero native, forcing fee payment in local currency.
+    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, dot(TOK_LIQUIDITY))
+    compose_balances_setbalance(bt_sudo, user, get_existential_deposit(si_peaq) + 1000)
+    assert bt_sudo.execute_n_clear().is_success
+
+    asset_before = state_token_assets_accounts(si_peaq, kp_user, asset_id)
+
+    # Submit a non-swap extrinsic; the fee can only be paid in local currency (triggers the fee-payment swap).
+    bt_user = ExtrinsicBatch(si_peaq, kp_user)
+    bt_user.compose_call('System', 'remark', {'remark': '0x00'})
+    receipt = bt_user.execute_n_clear()
+    assert receipt.is_success, \
+        f'fee-in-local-currency remark failed: {receipt.error_message}'
+
+    # Core assertion: fee-payment swaps exactly once (the pre-fix double-swap would yield 2).
+    swaps = count_zdex_swap_events(receipt)
+    assert swaps >= 1, \
+        f'no fee-payment swap detected (got {swaps}); fee not paid via local-currency swap?'
+    assert swaps == 1, \
+        f'expected exactly 1 fee-payment swap, got {swaps} (double-swap regression!)'
+
+    # Secondary: local tokens were actually deducted (the fee was paid).
+    asset_after = state_token_assets_accounts(si_peaq, kp_user, asset_id)
+    assert asset_after < asset_before, \
+        'fee should be paid in local currency (asset balance must drop)'
+
+    show_test('payment_local_currency_single_swap_test', True)
+
+
+def state_lp_asset_balance(si_peaq, kp_user, tok_idx):
+    """Read the user's LP pallet-assets balance (query returns None once reaped -> treat as 0)."""
+    lp_idx = state_znlnkprot_lppair_assetidx(si_peaq, tok_idx)
+    q = si_peaq.query('Assets', 'Account', [lp_idx, kp_user.ss58_address])
+    return 0 if q.value is None else int(q['balance'].value)
+
+
+def lp_reap_on_remove_liquidity_test(si_peaq, asset_id):
+    """
+    Regression test for fix#1 (runtime/common wrapper.rs non-native withdraw
+    uses Expendable): the user removes ALL of their own LP ->
+    ZenlinkProtocol.remove_liquidity -> ZenlinkMultiAssets::withdraw(LP) ->
+    local_withdraw -> PeaqMultiCurrenciesWrapper::withdraw (non-native) ->
+    Assets::burn_from. The LP token is a pallet-assets asset with a
+    min_balance, so burning it to 0 requires a reap. Before the fix,
+    Preservation::Protect enforced the min_balance floor -> FundsUnavailable
+    -> remove_liquidity failed; with Expendable the account can be reaped ->
+    success. Single-chain throughout (remove_liquidity executes synchronously,
+    no XCM involved).
+    Precondition: the asset_id/native pair exists with liquidity.
+    """
+    show_subtitle('lp_reap_on_remove_liquidity_test')
+    user = URI_MARS
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    kp_user = into_keypair(user)
+
+    # The user needs tokens + native to add liquidity; the pair already exists,
+    # so the user is not the first LP (no MINIMUM_LIQUIDITY lock).
+    dot_liq = dot(TOK_LIQUIDITY)
+    peaq_liq = peaq(TOK_LIQUIDITY)
+    bt_sudo = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt_sudo, kp_user.ss58_address, asset_id, dot_liq * 2)
+    compose_balances_setbalance(bt_sudo, user, peaq_liq * 2)
+    assert bt_sudo.execute_n_clear().is_success
+
+    # The user adds liquidity and receives LP tokens they fully own.
+    bt_add = ExtrinsicBatch(si_peaq, kp_user)
+    compose_zdex_add_liquidity(bt_add, asset_id, peaq_liq, dot_liq)
+    assert bt_add.execute_n_clear().is_success
+    lp_before = state_lp_asset_balance(si_peaq, kp_user, asset_id)
+    assert lp_before > 0, 'user should hold LP after add_liquidity'
+
+    # Remove ALL owned LP -> withdraw burns the LP balance to 0 -> requires Expendable.
+    bt_rm = ExtrinsicBatch(si_peaq, kp_user)
+    compose_zdex_remove_liquidity(bt_rm, asset_id, lp_before)
+    receipt = bt_rm.execute_n_clear()
+
+    # Core assertion: with the fix the account can be reaped -> success
+    # (a Protect regression fails with FundsUnavailable).
+    assert receipt.is_success, \
+        f'remove full LP failed (Protect regression?): {receipt.error_message}'
+
+    # The LP account is reaped to 0 (< min_balance -> query returns None).
+    lp_after = state_lp_asset_balance(si_peaq, kp_user, asset_id)
+    assert lp_after == 0, f'expected LP account reaped to 0, got {lp_after}'
+
+    show_test('lp_reap_on_remove_liquidity_test', True)
+
+
+def ensure_asset_and_pool(si_peaq, asset_id):
+    """Ensure asset_id exists and the asset_id/native Zenlink pool is created
+    with liquidity (tolerates an already-existing pair). Avoids the flaky
+    create_pair_n_swap_test / wait_n_check_swap_event setup."""
+    setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    bt = ExtrinsicBatch(si_peaq, kp_sudo)
+    batch_mint(bt, kp_sudo.ss58_address, asset_id, dot(TOK_LIQUIDITY) * 4)
+    assert bt.execute_n_clear().is_success
+    if not state_znlnkprot_lppair_status(si_peaq, asset_id):
+        bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
+        compose_zdex_create_lppair(bt2, asset_id)
+        assert bt2.execute_n_clear().is_success
+    bt3 = ExtrinsicBatch(si_peaq, kp_sudo)
+    compose_zdex_add_liquidity(bt3, asset_id, peaq(TOK_LIQUIDITY), dot(TOK_LIQUIDITY))
+    assert bt3.execute_n_clear().is_success
 
 
 def bootstrap_pair_n_swap_test(si_peaq, asset_id):
@@ -388,7 +524,7 @@ def bootstrap_pair_n_swap_test(si_peaq, asset_id):
     compose_zdex_swap_exact_for(bt_peaq_user, asset_id, amount_in1=ed_recal(TOK_SWAP))
     receipt = bt_peaq_user.execute_n_clear()
     assert receipt.is_success
-    wait_n_check_swap_event(si_peaq, 1, block_idx_peaq)
+    wait_n_check_swap_event(si_peaq, 1, receipt.block_hash)
 
     # Check that pool has been fully created after goal was reached
     lpstatus = state_znlnkprot_lppair_status(si_peaq, asset_id)
@@ -459,6 +595,81 @@ def zenlink_empty_lp_swap_test(si_peaq, asset_id):
 
 
 @pytest.mark.substrate
+def payment_multi_tx_no_free_execution_test(si_peaq, asset_id):
+    """Codex-nit coverage for the read-only can_withdraw_fee change: firing
+    several non-native-fee txs from one account must never let a tx execute for
+    free. Every tx that gets included pays exactly one AssetSwap; once the
+    account's local tokens run out, the next tx is rejected instead of running
+    unpaid. (Sequential submission; the concurrent race resolves to the same
+    rejection at withdraw_fee / re-validation.)"""
+    show_subtitle('payment_multi_tx_no_free_execution_test')
+    kp_sudo = into_keypair(KP_GLOBAL_SUDO)
+    near_zero_native = get_existential_deposit(si_peaq) + 1000
+
+    def local_balance(kp):
+        q = si_peaq.query('Assets', 'Account', [asset_id, kp.ss58_address])
+        return 0 if q.value is None else int(q['balance'].value)
+
+    # Phase 1: measure the per-tx local-currency fee with a well-funded probe.
+    probe_uri = '//payspprobe' + secrets.token_hex(3)
+    kp_probe = into_keypair(probe_uri)
+    bt = ExtrinsicBatch(si_peaq, kp_sudo)
+    # Fund native FIRST so the fresh account gets a provider ref; otherwise the
+    # subsequent Assets.mint fails with Token::CannotCreate (no account to hold it).
+    compose_balances_setbalance(bt, probe_uri, near_zero_native)
+    # Local must be >> one tx fee: the fee is paid in local via a swap, and one
+    # remark fee is ~1e16 native (pool is ~1:1). dot(TOK_LIQUIDITY) (~5e11) is
+    # far below one fee, so a fresh probe cannot afford even a single tx. Mint a
+    # large balance so Phase 1 can actually measure the fee.
+    batch_mint(bt, kp_probe.ss58_address, asset_id, 100000 * 10 ** 18)
+    assert bt.execute_n_clear().is_success
+    before = local_balance(kp_probe)
+    bp = ExtrinsicBatch(si_peaq, kp_probe)
+    bp.compose_call('System', 'remark', {'remark': '0x00'})
+    rp = bp.execute_n_clear()
+    assert rp.is_success and count_zdex_swap_events(rp) == 1, 'probe fee tx must pay via one swap'
+    fee_cost = before - local_balance(kp_probe)
+    assert fee_cost > 0, 'could not measure the local fee cost'
+
+    # Phase 2: fresh account with local tokens for ~2 fees + near-zero native.
+    budget = 2
+    user_uri = '//payspuser' + secrets.token_hex(3)
+    kp_user = into_keypair(user_uri)
+    bt2 = ExtrinsicBatch(si_peaq, kp_sudo)
+    compose_balances_setbalance(bt2, user_uri, near_zero_native)
+    batch_mint(bt2, kp_user.ss58_address, asset_id, fee_cost * budget + fee_cost // 2)
+    assert bt2.execute_n_clear().is_success
+
+    # Fire remarks one at a time until one is rejected (local tokens exhausted).
+    paid = 0
+    rejected = False
+    for i in range(budget + 3):
+        bt_i = ExtrinsicBatch(si_peaq, kp_user)
+        bt_i.compose_call('System', 'remark', {'remark': '0x00'})
+        try:
+            r = bt_i.execute_n_clear()
+        except Exception as exc:  # unaffordable fee -> InvalidTransaction::Payment at validate
+            rejected = True
+            msg = str(exc).lower()
+            assert any(k in msg for k in ('payment', 'invalid', '1010', '1012', 'pay', 'fund', 'balance')), \
+                f'excess tx was rejected but not for a payment reason: {exc}'
+            break
+        if not r.is_success:
+            rejected = True
+            break
+        # Every INCLUDED fee tx must pay exactly one swap: no free-rider, no double-swap.
+        swaps = count_zdex_swap_events(r)
+        assert swaps == 1, \
+            f'included tx #{i} paid {swaps} swaps (want exactly 1; free execution or double-swap?)'
+        paid += 1
+
+    assert paid >= 1, 'expected at least one affordable fee tx to be included and paid'
+    assert rejected, 'expected fee exhaustion to reject the excess tx (never reached the boundary)'
+    assert local_balance(kp_user) < fee_cost, 'local tokens should be drained below one fee'
+
+    show_test('payment_multi_tx_no_free_execution_test', True)
+
+
 class TestZenlinkDex(unittest.TestCase):
     def setUp(self):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)
@@ -477,6 +688,51 @@ class TestZenlinkDex(unittest.TestCase):
             asset_id = 1
             setup_asset_if_not_exist(si_peaq, KP_GLOBAL_SUDO, asset_id, RELAY_METADATA)
             create_pair_n_swap_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_payment_local_currency_single_swap(self):
+        show_title('Zenlink-DEX fee-in-local-currency single-swap Test (fix#2)')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            ensure_asset_and_pool(si_peaq, asset_id)
+            payment_local_currency_single_swap_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_lp_reap_on_remove_liquidity(self):
+        show_title('Zenlink-DEX LP reap on remove_liquidity Test (fix#1)')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            ensure_asset_and_pool(si_peaq, asset_id)
+            lp_reap_on_remove_liquidity_test(si_peaq, asset_id)
+
+        except Exception:
+            ex_type, ex_val, ex_tb = sys.exc_info()
+            tb = traceback.TracebackException(ex_type, ex_val, ex_tb)
+            show_test(tb.stack[-1].name, False, tb.stack[-1].lineno)
+            raise
+
+    @pytest.mark.xcm
+    def test_payment_multi_tx_no_free_execution(self):
+        show_title('Zenlink-DEX multi-tx non-native fee no-free-execution Test (fix#2 edge)')
+        try:
+            si_peaq = SubstrateInterface(url=PARACHAIN_WS_URL)
+            asset_id = 1
+            ensure_asset_and_pool(si_peaq, asset_id)
+            payment_multi_tx_no_free_execution_test(si_peaq, asset_id)
 
         except Exception:
             ex_type, ex_val, ex_tb = sys.exc_info()

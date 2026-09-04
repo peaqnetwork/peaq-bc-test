@@ -28,7 +28,27 @@ from peaq.utils import ExtrinsicBatch
 from tools.monkey.monkey_reorg_batch import monkey_execute_extrinsic_batch
 ExtrinsicBatch._execute_extrinsic_batch = monkey_execute_extrinsic_batch
 
+from tools.monkey.monkey_wait_for_blocks import monkey_patch_wait_for_blocks
+monkey_patch_wait_for_blocks()
+
 PARACHAIN_STAKING_POT = '5EYCAe5cKPAoFh2HnQQvpKqRYZGqBpaA87u4Zzw89qPE58is'
+
+
+def has_sufficient_balance(substrate, address, threshold):
+    """
+    Checks if an account has sufficient balance above a threshold.
+
+    Args:
+        substrate: SubstrateInterface instance
+        address: Account address (string or Keypair)
+        threshold: Minimum balance required
+
+    Returns:
+        bool: True if balance >= threshold
+    """
+    if hasattr(address, 'ss58_address'):
+        address = address.ss58_address
+    return get_account_balance(substrate, address) >= threshold
 
 
 import pprint
@@ -278,23 +298,68 @@ def show_account(substrate, addr, out_str):
     return result
 
 
-def set_block_reward_configuration(substrate, data):
+# Block-reward token sinks, as reworked by peaq-network-node PR #395 (spec 113).
+# The old RewardDistributionConfigStorage struct of named *_percent fields is
+# gone; the pallet now stores a list of (target, share) sinks and each target is
+# addressed by the pot's PalletId. See runtime/*/src/lib.rs for the constants
+# (PotStakeId, TreasuryPalletId, PotCoretimeId, ...).
+BLOCK_REWARD_SINK_IDS = {
+    'stake': b'PotStake',
+    'treasury': b'py/trsry',
+    'coretime': b'PotCoret',
+    'subsidization': b'PotSubsi',
+    'depin_staking': b'PotDPStk',
+    'depin_incentivization': b'PotDPInc',
+}
+
+# Shares are Perbill: 10^9 is 100%.
+PERBILL = pow(10, 9)
+PERBILL_PERCENT = PERBILL // 100
+
+
+def block_reward_sink_target(name):
+    return '0x' + BLOCK_REWARD_SINK_IDS[name].hex()
+
+
+def block_reward_pallet_sink(name, share):
+    return {'target': {'Pallet': block_reward_sink_target(name)}, 'share': share}
+
+
+def block_reward_evm_sink(evm_address, share):
+    return {'target': {'Evm': evm_address}, 'share': share}
+
+
+def normalize_sink_target(target):
+    # SinkPalletId is a [u8; 8] newtype, which scale decoding can surface as a
+    # hex string, as bytes, or as a list of ints. Normalise to a hex string.
+    value = target.get('Pallet') if isinstance(target, dict) else target
+    if isinstance(value, dict):
+        value = next(iter(value.values()))
+    if isinstance(value, (list, tuple, bytes, bytearray)):
+        return '0x' + bytes(value).hex()
+    return str(value).lower()
+
+
+def get_block_reward_sinks(substrate):
+    return substrate.query('BlockReward', 'Sinks').value
+
+
+def set_block_reward_sinks(substrate, sinks):
+    # SinksOf<T> is a BoundedVec, which scale-info exposes as a single-field
+    # composite wrapping the Vec, so the list has to be nested one level deeper
+    # than the pallet signature suggests. Verified against a spec-113 chain.
     batch = ExtrinsicBatch(substrate, KP_GLOBAL_SUDO)
-    batch.compose_sudo_call(
-        'BlockReward',
-        'set_configuration',
-        {
-            'reward_distro_params': {
-                'treasury_percent': data['treasury_percent'],
-                'depin_incentivization_percent': data['depin_incentivization_percent'],
-                'collators_delegators_percent': data['collators_delegators_percent'],
-                'depin_staking_percent': data['depin_staking_percent'],
-                'coretime_percent': data['coretime_percent'],
-                'subsidization_pool_percent': data['subsidization_pool_percent'],
-            }
-        }
-    )
+    batch.compose_sudo_call('BlockReward', 'set_sinks', {'new_sinks': [sinks]})
     return batch.execute()
+
+
+def get_block_reward_sink_share(substrate, name):
+    """Perbill share routed to the given pot, 0 when it is not a configured sink."""
+    target = block_reward_sink_target(name)
+    for sink in get_block_reward_sinks(substrate):
+        if normalize_sink_target(sink['target']) == target:
+            return sink['share']
+    return 0
 
 
 def send_proposal(substrate, kp_src, kp_dst, threshold, payload, timepoint=None):

@@ -1,7 +1,7 @@
 import os
 from substrateinterface import Keypair
 
-BLOCK_GENERATE_TIME = 6
+BLOCK_GENERATE_TIME = int(os.environ.get('CI_DEFAULT_BLOCK_GENERATION_TIME', '6'))
 
 TOKEN_NUM_BASE = pow(10, 3)
 TOKEN_NUM_BASE_DEV = pow(10, 18)
@@ -36,6 +36,49 @@ KP_GLOBAL_SUDO = Keypair.create_from_uri(URI_GLOBAL_SUDO)
 KP_COLLATOR = Keypair.create_from_uri('//Ferdie')
 ACA_PD_CHAIN_ID = 3000
 
+DEFAULT_COLLATOR_PATH = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'peaq-network-node', 'target', 'release', 'peaq-node')
+DEFAULT_BINARY_CHAIN_PATH = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'peaq-network-node', 'collator')
+DEFAULT_DOCKER_COMPOSE_FOLDER = os.path.join(
+    os.path.expanduser('~'), 'Work', 'peaq', 'parachain-launch', 'yoyo')
+
+# Runtime upgrade constants
+UPGRADE_WAIT_BLOCKS = 15
+DEFAULT_BLOCK_TIME = int(os.environ.get('CI_DEFAULT_BLOCK_GENERATION_TIME', '12'))  # seconds per block
+UPGRADE_TIMEOUT = UPGRADE_WAIT_BLOCKS * DEFAULT_BLOCK_TIME * 3  # 3x margin: block time is a rate, not a budget
+POST_UPGRADE_WAIT_TIME = DEFAULT_BLOCK_TIME * 5
+LONG_TIMEOUT_BASE = (BLOCK_GENERATE_TIME + DEFAULT_BLOCK_TIME)
+
+# Balance constants (in Wei)
+MIN_BALANCE_THRESHOLD = 1 * 10 ** 18
+TRANSFER_AMOUNT = 3 * 10 ** 18
+SUDO_MIN_BALANCE = 0.5 * 10 ** 18
+FUNDING_AMOUNT_BASE = 302231 * 10 ** 18
+
+# Collator constants
+COLLATOR_STOP_WAIT_TIME = 12  # seconds
+COLLATOR_START_WAIT_TIME = 120  # seconds
+POLL_INTERVAL = 1  # seconds
+
+# Network ports
+FORK_COLLATOR_PORT = 10044
+PARACHAIN_PORT = 40333
+RELAYCHAIN_PORT = 50345
+RPC_PORT = 30055
+
+# XCM configuration
+XCM_VERSION = 4
+RELAY_ASSET_ID = 1
+
+DEFAULT_COLLATOR_DICT = {
+    'collator_binary': None,
+    'chain_data': None,
+    'enable_collator_binary': False,
+    'docker_compose_folder': None,
+    'collator_folder_same': False,  # If True, chain_data is used for both source and destination
+}
+
 # Coretime configuration
 CORETIME_CORES = 4  # Default number of cores to assign
 CORETIME_DURATION = 57600  # Duration for coretime assignment
@@ -44,6 +87,6 @@ CORETIME_DURATION = 57600  # Duration for coretime assignment
 PARACHAIN_CORE_MAP = {
     2000: 4,  # 4 cores for parachain 2000
     2241: 4,  # 4 cores for parachain 2241
-    3338: 4,  # 4 cores for parachain 3338
+    3338: 3,  # 4 cores for parachain 3338
     3000: 1,  # 1 core for parachain 3000
 }

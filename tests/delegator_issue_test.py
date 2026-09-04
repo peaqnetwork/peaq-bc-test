@@ -8,7 +8,9 @@ from tools.utils import get_collators, batch_fund, get_existential_deposit
 from tools.constants import WS_URL, KP_GLOBAL_SUDO, KP_COLLATOR
 from peaq.utils import ExtrinsicBatch, get_account_balance
 from tests.utils_func import restart_parachain_and_runtime_upgrade
-from tools.utils import set_block_reward_configuration
+from tools.utils import PERBILL_PERCENT
+from tools.utils import block_reward_pallet_sink
+from tools.utils import set_block_reward_sinks
 
 
 def add_delegator(substrate, kp_delegator, addr_collator, stake_number):
@@ -112,15 +114,11 @@ class TestDelegatorIssue(unittest.TestCase):
 
     def set_collator_delegator_precentage(self):
         # If the collator/delegator reward distirbution is less than ED, the collator/delegator cannot receive rewards
-        set_value = {
-            'treasury_percent': 20000000,
-            'depin_incentivization_percent': 10000000,
-            'collators_delegators_percent': 220000000,
-            'depin_staking_percent': 50000000,
-            'coretime_percent': 40000000,
-            'subsidization_pool_percent': 660000000,
-        }
-        return set_block_reward_configuration(self.substrate, set_value)
+        set_value = [
+            block_reward_pallet_sink('treasury', 78 * PERBILL_PERCENT),
+            block_reward_pallet_sink('stake', 22 * PERBILL_PERCENT),
+        ]
+        return set_block_reward_sinks(self.substrate, set_value)
 
     def get_one_collator_without_delegator(self, keys):
         for key in keys:

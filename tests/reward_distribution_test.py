@@ -11,7 +11,11 @@ from peaq.extrinsic import transfer, transfer_with_tip
 from peaq.utils import get_account_balance
 from tools.utils import get_event, get_modified_chain_spec
 from tools.constants import KP_COLLATOR, KP_GLOBAL_SUDO
-from tools.utils import set_block_reward_configuration
+from tools.utils import PERBILL, PERBILL_PERCENT
+from tools.utils import block_reward_pallet_sink
+from tools.utils import get_block_reward_sink_share
+from tools.utils import get_block_reward_sinks
+from tools.utils import set_block_reward_sinks
 from tools.constants import BLOCK_GENERATE_TIME
 import unittest
 import time
@@ -75,12 +79,9 @@ class TestRewardDistribution(unittest.TestCase):
     def setUpClass(cls):
         restart_parachain_and_runtime_upgrade()
         substrate = SubstrateInterface(url=WS_URL)
-        cls.ori_reward_config = substrate.query(
-            module='BlockReward',
-            storage_function='RewardDistributionConfigStorage',
-        )
-        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
-        assert receipt.is_success, 'cannot setup the block reward configuration'
+        cls.ori_sinks = get_block_reward_sinks(substrate)
+        receipt = set_block_reward_sinks(substrate, cls.ori_sinks)
+        assert receipt.is_success, 'cannot setup the block reward sinks'
         cls.ori_round = substrate.query(
             module='ParachainStaking',
             storage_function='Round',
@@ -91,8 +92,8 @@ class TestRewardDistribution(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         substrate = SubstrateInterface(url=WS_URL)
-        receipt = set_block_reward_configuration(substrate, cls.ori_reward_config.value)
-        assert receipt.is_success, 'cannot setup the block reward configuration'
+        receipt = set_block_reward_sinks(substrate, cls.ori_sinks)
+        assert receipt.is_success, 'cannot setup the block reward sinks'
         receipt = set_round(substrate, cls.ori_round)
         assert receipt.is_success, 'cannot setup the round'
 
@@ -108,25 +109,17 @@ class TestRewardDistribution(unittest.TestCase):
 
     def set_collator_delegator_precentage(self):
         # If the collator/delegator reward distirbution is less than ED, the collator/delegator cannot receive rewards
-        set_value = {
-            'treasury_percent': 20000000,
-            'depin_incentivization_percent': 10000000,
-            'collators_delegators_percent': 220000000,
-            'depin_staking_percent': 50000000,
-            'coretime_percent': 40000000,
-            'subsidization_pool_percent': 660000000,
-        }
-        receipt = set_block_reward_configuration(self._substrate, set_value)
+        set_value = [
+            block_reward_pallet_sink('treasury', 78 * PERBILL_PERCENT),
+            block_reward_pallet_sink('stake', 22 * PERBILL_PERCENT),
+        ]
+        receipt = set_block_reward_sinks(self._substrate, set_value)
         self.assertTrue(receipt.is_success,
-                        'cannot setup the block reward configuration')
+                        'cannot setup the block reward sinks')
 
     def _get_collator_delegator_precentage(self):
-        reward_config = self._substrate.query(
-            module='BlockReward',
-            storage_function='RewardDistributionConfigStorage',
-        )
-        collator_number = ((reward_config['collators_delegators_percent']).decode()) / DIVISION_FACTOR
-        return collator_number / 100
+        # The collator/delegator pot is the 'stake' sink since PR #395.
+        return get_block_reward_sink_share(self._substrate, 'stake') / PERBILL
 
     def _get_parachain_reward(self, block_hash):
         result = get_event(

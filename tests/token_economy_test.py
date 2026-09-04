@@ -3,6 +3,9 @@ import pytest
 
 from substrateinterface import SubstrateInterface, Keypair
 from tools.utils import get_modified_chain_spec
+from tools.utils import BLOCK_REWARD_SINK_IDS
+from tools.utils import PERBILL_PERCENT
+from tools.utils import normalize_sink_target
 from tools.constants import WS_URL, ACA_WS_URL
 from peaq.utils import get_block_height, get_block_hash, get_chain
 from tests.utils_func import restart_parachain_and_runtime_upgrade
@@ -35,46 +38,26 @@ STATE_INFOS = [{
         'krest-network': {'length': 2400},
         'peaq-network': {'length': 2400},
     }
-}, {
-    'module': 'BlockReward',
-    'storage_function': 'RewardDistributionConfigStorage',
-    'type': {
-        # It's special case because below is percentage,
-        # and then you have to divide by 1000000000
-        'peaq-dev': {
-            'treasury_percent': 250000000,
-            'collators_delegators_percent': 400000000,
-            'coretime_percent': 100000000,
-            'subsidization_pool_percent': 50000000,
-            'depin_staking_percent': 50000000,
-            'depin_incentivization_percent': 150000000,
-        },
-        'krest-network': {
-            'treasury_percent': 250000000,
-            'collators_delegators_percent': 400000000,
-            'coretime_percent': 100000000,
-            'subsidization_pool_percent': 50000000,
-            'depin_staking_percent': 50000000,
-            'depin_incentivization_percent': 150000000,
-        },
-        'peaq-network': {
-            'treasury_percent': 250000000,
-            'collators_delegators_percent': 400000000,
-            'coretime_percent': 100000000,
-            'subsidization_pool_percent': 50000000,
-            'depin_staking_percent': 50000000,
-            'depin_incentivization_percent': 150000000,
-        },
-        'peaq-network-fork': {
-            'treasury_percent': 250000000,
-            'collators_delegators_percent': 400000000,
-            'coretime_percent': 100000000,
-            'subsidization_pool_percent': 50000000,
-            'depin_staking_percent': 50000000,
-            'depin_incentivization_percent': 150000000,
-        }
-    }
 }]
+
+
+# Expected block-reward sink distribution per chain, in percent, keyed by the
+# pot names in tools.utils.BLOCK_REWARD_SINK_IDS. Mirrors BLOCK_REWARD_SINKS in
+# runtime/<chain>/src/lib.rs. PR #395 split peaq/peaq-dev (70/30) away from the
+# krest six-way distribution.
+BLOCK_REWARD_SINK_INFOS = {
+    'peaq-dev': {'treasury': 70, 'stake': 30},
+    'peaq-network': {'treasury': 70, 'stake': 30},
+    'peaq-network-fork': {'treasury': 70, 'stake': 30},
+    'krest-network': {
+        'treasury': 25,
+        'stake': 40,
+        'coretime': 10,
+        'subsidization': 5,
+        'depin_staking': 5,
+        'depin_incentivization': 15,
+    },
+}
 
 
 CONSTANT_INFOS = [{
@@ -197,6 +180,29 @@ class TokenEconomyTest(unittest.TestCase):
                 else:
                     self.assertEqual(result.value, golden_data, f'{result.value} != {test}')
 
+    def test_block_reward_sinks(self):
+        # Compare pot -> percent instead of the raw storage value: SinkPalletId
+        # is a [u8; 8] newtype whose decoded representation is not stable across
+        # scale-codec versions, so exact-matching the storage blob is brittle.
+        golden_data = self.get_info(BLOCK_REWARD_SINK_INFOS)
+        sinks = self._substrate.query(
+            module='BlockReward',
+            storage_function='Sinks',
+            params=[],
+            block_hash=self._block_hash,
+        ).value
+
+        targets = {'0x' + v.hex(): k for k, v in BLOCK_REWARD_SINK_IDS.items()}
+        now_data = {}
+        for sink in sinks:
+            name = targets.get(normalize_sink_target(sink['target']))
+            self.assertIsNotNone(
+                name, f'unknown block reward sink target: {sink}')
+            now_data[name] = sink['share'] // PERBILL_PERCENT
+
+        self.assertEqual(now_data, golden_data,
+                         f'{now_data} != {golden_data}')
+
     def test_constants(self):
         for test in CONSTANT_INFOS:
             module = test['module']
@@ -212,21 +218,27 @@ class TokenEconomyTest(unittest.TestCase):
 
     @pytest.mark.skipif(TestUtils.is_local_new_chain() is True, reason='Dont need to test on the new chain')
     def test_block_reward(self):
-        block_reward = {
-            'peaq-dev-fork': int(1.902587519 * 10 ** 18),
-            'krest-network-fork': int(3.805175038 * 10 ** 18),
-            'peaq-network-fork': int(27.96803653 * 10 ** 18),
-        }
+        # The per-block reward is disinflated every year, so a hardcoded golden
+        # drifts once a (forked) chain ages past year 1. Compare the emitted
+        # BlockRewardsDistributed event against the per-block reward the runtime
+        # actually stores in InflationManager.BlockRewards for the current year
+        # (formula-free, year- and chain-agnostic).
+        onchain_block_reward = self._substrate.query(
+            module='InflationManager',
+            storage_function='BlockRewards',
+            params=[],
+            block_hash=self._block_hash,
+        ).value
 
         result = get_event(
             self._substrate,
             self._substrate.get_block_hash(),
             'BlockReward', 'BlockRewardsDistributed')
         self.assertIsNotNone(result, 'BlockReward event not found')
-        self.assertAlmostEqual(
-            result.value['attributes'] / block_reward[self._chain_spec],
-            1, 7,
-            msg=f'{result.value["attributes"]} != {block_reward[self._chain_spec]}')
+        self.assertEqual(
+            result.value['attributes'], onchain_block_reward,
+            msg=f'distributed {result.value["attributes"]} != '
+                f'InflationManager.BlockRewards {onchain_block_reward}')
 
     # The krest failed because it's used the delayed TGE, but that's okay
     @pytest.mark.skipif(

@@ -140,30 +140,15 @@ TEST_LP_ASSET_TOKEN = get_asset_token_location(15)
 TEST_FEES_RANGE = {
     'peaq-dev': {
         'min': 0,
-        'max': 200000000000,
+        'max': 400000000000,
     },
     'krest-network': {
         'min': 0,
-        'max': 200000000000,
+        'max': 400000000000,
     },
     'peaq-network': {
         'min': 0,
-        'max': 40000000000000000,
-    },
-}
-
-TEST_FEES_RANGE = {
-    'peaq-dev': {
-        'min': 0,
-        'max': 200000000000,
-    },
-    'krest-network': {
-        'min': 0,
-        'max': 200000000000,
-    },
-    'peaq-network': {
-        'min': 0,
-        'max': 40000000000000000,
+        'max': 60000000000000000,
     },
 }
 
@@ -188,7 +173,7 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
         'reserve_transfer_assets',
         {
             'dest': {
-                'V5': {
+                'V4': {
                     'parents': 0,
                     'interior': {
                         'X1': [{
@@ -198,7 +183,7 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
                 }
             },
             'beneficiary': {
-                'V5': {
+                'V4': {
                     'parents': 0,
                     'interior': {
                         'X1': [{
@@ -211,7 +196,7 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
                 }
             },
             'assets': {
-                'V5': [[{
+                'V4': [[{
                     'id': {
                         'parents': 0,
                         'interior': 'Here'
