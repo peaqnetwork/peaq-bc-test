@@ -1,15 +1,18 @@
-"""API-1: stable2503 runtime-API bump.
+"""API-1: runtime-API surface across SDK upgrades.
 
-Verifies the runtime APIs that are new / version-bumped by the 110->112
-upgrade are actually EXPORTED and CALLABLE at spec 112 (single-core
-lookahead). Covers the gap left by debug_traceCall (which was already
-exercised by the tracing tests): GetCoreSelectorApi and the reworked
-GenesisBuilder API, plus the Core API version bump (4 -> 5).
+Verifies that the runtime APIs added or version-bumped by an upgrade are
+actually EXPORTED and CALLABLE, covering the gap left by debug_traceCall
+(already exercised by the tracing tests). Currently: RelayParentOffsetApi,
+the reworked GenesisBuilder API, and the Core API version floor.
+
+stable2503 (110 -> 112) introduced GetCoreSelectorApi; stable2603
+(112 -> 114) removed it again, moving core selection to the node, and
+added RelayParentOffsetApi in its place.
 
 Called via raw ``state_call`` because substrate-interface's runtime-call
-type registry does not know these newer stable2503 APIs; ``state_call``
-only succeeds when the runtime actually exports the method and it runs
-without trapping, so a non-error SCALE result proves "callable".
+type registry does not know these APIs; ``state_call`` only succeeds when
+the runtime actually exports the method and it runs without trapping, so a
+non-error SCALE result proves "callable".
 """
 import unittest
 
@@ -25,12 +28,12 @@ from tools.utils import get_modified_chain_spec
 CORE_API_HASH = '0xdf6acb689907609b'
 MIN_CORE_API_VERSION = 5
 
-# Minimum specVersion per chain after the stable2503 upgrade (peaq->112,
-# peaq-dev/krest->108). -fork chains resolve to their base name.
+# Minimum specVersion per chain after the stable2603 upgrade (peaq->114,
+# peaq-dev->110). -fork chains resolve to their base name. krest was dropped
+# from the node in the stable2603 port, so it has no entry.
 MIN_SPEC_VERSION = {
-    'peaq-network': 112,
-    'peaq-dev': 108,
-    'krest-network': 108,
+    'peaq-network': 114,
+    'peaq-dev': 110,
 }
 
 
@@ -72,9 +75,10 @@ class TestRuntimeApi(unittest.TestCase):
         self.assertIsNotNone(preset, 'GenesisBuilder.get_preset(None) not callable')
 
     def test_core_api_version_at_least_5(self):
-        # Durable invariant: the stable2503 upgrade brought a per-chain minimum
+        # Durable invariant: each upgrade raises a per-chain minimum
         # specVersion and Core API >= 5, and neither regresses on later
-        # upgrades. (peaq->112, peaq-dev/krest->108; -fork resolves to base.)
+        # upgrades. (stable2603: peaq->114, peaq-dev->110; -fork resolves to
+        # base.)
         version = self.substrate.get_block_runtime_version(
             self.substrate.get_chain_head())
         chain_spec = get_modified_chain_spec(get_chain(self.substrate))
