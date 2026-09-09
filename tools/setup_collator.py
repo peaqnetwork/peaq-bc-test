@@ -18,16 +18,24 @@ def setup_collator(ws_port, rpc_port, kp):
     substrate = SubstrateInterface(
         url=f'ws://127.0.0.1:{ws_port}',
     )
-    aura_key = requests.post(
+    # stable2603 made `Keys::ownership_proof_is_valid` a required method that
+    # actually verifies the proof (it used to be a defaulted `-> true` that
+    # ignored the argument), and pallet_session now rejects a bad one with
+    # Error::InvalidProof. `author_rotateKeys` throws the proof away, so it can
+    # no longer be used to build `set_keys`; `author_rotateKeysWithOwner` takes
+    # the caller's public key and returns {keys, proof}.
+    generated = requests.post(
         f'http://127.0.0.1:{rpc_port}',
         headers={'Content-Type': 'application/json'},
         json={
             'id': 1,
             'jsonrpc': '2.0',
-            'method': 'author_rotateKeys',
-            'params': [],
+            'method': 'author_rotateKeysWithOwner',
+            'params': [f'0x{kp.public_key.hex()}'],
         }
     ).json()['result']
+    aura_key = generated['keys']
+    proof = generated['proof']
 
     batch = ExtrinsicBatch(substrate, kp)
     batch.compose_call(
@@ -36,7 +44,7 @@ def setup_collator(ws_port, rpc_port, kp):
             'keys': {
                 'aura': aura_key,
             },
-            'proof': '0x00',
+            'proof': proof,
         })
     batch.compose_call(
         'ParachainStaking',

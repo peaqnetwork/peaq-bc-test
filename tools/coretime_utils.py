@@ -26,7 +26,14 @@ def _cores_assigned_to(relay, parachain_id):
     """Count relay cores whose descriptor currently serves `parachain_id`."""
     count = 0
     try:
-        for _, descriptor in relay.query_map('CoretimeAssignmentProvider', 'CoreDescriptors'):
+        # stable2603 removed the CoretimeAssignmentProvider pallet from the relay
+        # runtime; CoreDescriptors moved under Scheduler (polkadot-sdk #10184).
+        # Older relays still expose the old pallet, so try both.
+        try:
+            entries = relay.query_map('Scheduler', 'CoreDescriptors')
+        except Exception:
+            entries = relay.query_map('CoretimeAssignmentProvider', 'CoreDescriptors')
+        for _, descriptor in entries:
             if descriptor is None:
                 continue
             if f"'Task': {parachain_id}" in str(descriptor.value):

@@ -207,6 +207,9 @@ class SmartContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'nested_gas_used', 'actual_timestamp',
+                      # raw gasUsed reported by calldata_heavy; previously compared
+                      # strictly, so any per-fork gas change failed the diff
+                      'short_hop_gas', 'long_hop_gas', 'gas_per_operation',
                       'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
                       'calldata_counter', 'total_stored', 'current_block']
 
@@ -226,7 +229,8 @@ class SmartContractBehavior:
 
     def _get_gas_differences(self, before, after):
         """Extract gas field differences for logging"""
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas']
+        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
+                      'short_hop_gas', 'long_hop_gas', 'gas_per_operation']
         differences = {}
 
         for field in gas_fields:
@@ -457,6 +461,9 @@ class SmartMultipleContractBehavior:
         gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
                       'gas_cost', 'gas_estimate', 'mcopy_estimate', 'manual_estimate',
                       'gas_savings', 'total_gas_savings', 'nested_gas_used', 'actual_timestamp',
+                      # raw gasUsed reported by calldata_heavy; previously compared
+                      # strictly, so any per-fork gas change failed the diff
+                      'short_hop_gas', 'long_hop_gas', 'gas_per_operation',
                       'actual_block_number', 'block_hash', 'base_fee', 'execution_time',
                       'calldata_counter', 'total_stored', 'current_block']
 
@@ -476,7 +483,8 @@ class SmartMultipleContractBehavior:
 
     def _get_gas_differences(self, before, after):
         """Extract gas field differences for logging"""
-        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas']
+        gas_fields = ['gas_used', 'gasUsed', 'total_gas_used', 'transaction_gas',
+                      'short_hop_gas', 'long_hop_gas', 'gas_per_operation']
         differences = {}
 
         for field in gas_fields:

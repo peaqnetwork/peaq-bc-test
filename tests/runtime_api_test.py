@@ -45,16 +45,19 @@ class TestRuntimeApi(unittest.TestCase):
     def setUp(self):
         self.substrate = SubstrateInterface(url=PARACHAIN_WS_URL)
 
-    def test_get_core_selector_api(self):
-        # GetCoreSelectorApi_core_selector() -> (CoreSelector(u8), ClaimQueueOffset(u8))
-        result = state_call(self.substrate, 'GetCoreSelectorApi_core_selector')
-        self.assertIsNotNone(result, 'GetCoreSelectorApi.core_selector not callable')
+    def test_relay_parent_offset_api(self):
+        # stable2603 removed GetCoreSelectorApi -- core selection moved to the
+        # node, which writes it into a digest the runtime only validates -- and
+        # added RelayParentOffsetApi in its place.
+        result = state_call(self.substrate, 'RelayParentOffsetApi_relay_parent_offset')
+        self.assertIsNotNone(result, 'RelayParentOffsetApi.relay_parent_offset not callable')
         raw = bytes.fromhex(result[2:])
-        # Two u8 newtypes -> exactly 2 bytes; value rotates per block so we
-        # only assert the shape, not a fixed value.
-        self.assertEqual(
-            len(raw), 2,
-            f'expected 2-byte (CoreSelector, ClaimQueueOffset), got {result}')
+        self.assertEqual(len(raw), 4, f'expected a 4-byte u32, got {result}')
+        offset = int.from_bytes(raw, 'little')
+        # The runtime pins Config::RelayParentOffset and this API to one
+        # constant; parachain_system::on_initialize asserts they agree and
+        # halts the chain when they do not. peaq ships 0.
+        self.assertEqual(offset, 0, f'expected RelayParentOffset 0, got {offset}')
 
     def test_genesis_builder_api(self):
         # GenesisBuilder_preset_names() -> Vec<PresetId> (SCALE compact-len prefixed)
