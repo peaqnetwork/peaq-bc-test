@@ -15,13 +15,16 @@ from tools.peaq_eth_utils import get_eth_info
 from peaq.utils import get_chain
 from tools.utils import batch_fund
 from web3 import Web3
+from web3.exceptions import ContractLogicError
 from eth_account import Account as ETHAccount
 from eth_account.messages import encode_structured_data
 
 
 BALANCE_ERC20_ABI_FILE = 'ETH/balance-erc20/abi'
 BALANCE_ERC20_PERMIT_ABI_FILE = 'ETH/balance-erc20-permit/abi'
+BALANCE_ERC20_BURNABLE_ABI_FILE = 'ETH/balance-erc20-burnable/abi'
 BALANCE_ERC20_ADDR = '0x0000000000000000000000000000000000000809'
+ZERO_ADDR = '0x0000000000000000000000000000000000000000'
 
 
 TEST_METADATA = {
@@ -101,6 +104,16 @@ class balance_erc20_asset_test(unittest.TestCase):
         w3 = self._w3
         nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
         tx = contract.functions.transferToAccountId(ss58_kp_src.public_key, amount).build_transaction({
+            'from': eth_kp_src.ss58_address,
+            'nonce': nonce,
+            'chainId': self._eth_chain_id})
+
+        return sign_and_submit_evm_transaction(tx, w3, eth_kp_src)
+
+    def evm_balance_erc20_burn(self, contract, eth_kp_src, token_num):
+        w3 = self._w3
+        nonce = w3.eth.get_transaction_count(eth_kp_src.ss58_address)
+        tx = contract.functions.burn(token_num).build_transaction({
             'from': eth_kp_src.ss58_address,
             'nonce': nonce,
             'chainId': self._eth_chain_id})
@@ -252,6 +265,67 @@ class balance_erc20_asset_test(unittest.TestCase):
         self.assertEqual(
             aft_dst_balance, pre_dst_balance + erc_transfer_num,
             f'Error: {aft_dst_balance} != {pre_dst_balance + erc_transfer_num}')
+
+    def test_balance_erc20_burn(self):
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        batch_fund(batch, self._eth_kp_dst['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+        burnable = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_BURNABLE_ABI_FILE)
+        pre_src_balance = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
+        pre_dst_balance = contract.functions.balanceOf(self._eth_kp_dst['eth']).call()
+        erc_burn_num = 2 * 10 ** 18
+
+        evm_receipt = self.evm_balance_erc20_burn(burnable, self._eth_kp_src['kp'], erc_burn_num)
+        self.assertEqual(evm_receipt['status'], 1, f'Error: {evm_receipt}: {evm_receipt["status"]}')
+
+        # ERC20 convention: a burn is logged as Transfer(caller, address(0), value)
+        logs = burnable.events.Transfer().process_receipt(evm_receipt)
+        self.assertEqual(len(logs), 1, f'Error: {logs}')
+        self.assertEqual(logs[0]['address'], Web3.to_checksum_address(BALANCE_ERC20_ADDR))
+        self.assertEqual(logs[0]['args']['from'], self._eth_kp_src['eth'])
+        self.assertEqual(logs[0]['args']['to'], ZERO_ADDR)
+        self.assertEqual(logs[0]['args']['value'], erc_burn_num)
+
+        # Substrate side: Balances.Burned for the caller's mapped account, in the same block
+        block_hash = self._substrate.get_block_hash(evm_receipt['blockNumber'])
+        burned = [
+            e.value['event']['attributes'] for e in self._substrate.get_events(block_hash)
+            if e.value['event']['module_id'] == 'Balances' and e.value['event']['event_id'] == 'Burned'
+        ]
+        src_pk = self._substrate.ss58_decode(self._eth_kp_src['substrate'])
+        matched = [b for b in burned if self._substrate.ss58_decode(b['who']) == src_pk]
+        self.assertEqual(
+            [b['amount'] for b in matched], [erc_burn_num],
+            f'Error: expected one Balances.Burned of {erc_burn_num} for {self._eth_kp_src["substrate"]}: {burned}')
+
+        # The caller loses the burned amount plus the tx fee; nobody else is touched
+        aft_src_balance = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
+        aft_dst_balance = contract.functions.balanceOf(self._eth_kp_dst['eth']).call()
+        self.assertGreater(
+            pre_src_balance - aft_src_balance, erc_burn_num,
+            f'Error: {pre_src_balance} - {aft_src_balance} <= {erc_burn_num}')
+        self.assertEqual(
+            aft_dst_balance, pre_dst_balance,
+            f'Error: {aft_dst_balance} != {pre_dst_balance}')
+
+    def test_balance_erc20_burn_not_enough_funds(self):
+        batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
+        batch_fund(batch, self._eth_kp_src['substrate'], 100 * 10 ** 18)
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success)
+
+        contract = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_ABI_FILE)
+        burnable = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_BURNABLE_ABI_FILE)
+        balance = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
+
+        # Burning more than the caller holds reverts
+        with self.assertRaises(ContractLogicError) as ctx:
+            burnable.functions.burn(balance + 1).call({'from': self._eth_kp_src['eth']})
+        self.assertIn('FundsUnavailable', str(ctx.exception), f'Error: {ctx.exception}')
 
     def test_balance_erc20_approval(self):
         batch = ExtrinsicBatch(self._substrate, KP_GLOBAL_SUDO)
