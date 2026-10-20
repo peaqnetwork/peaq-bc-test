@@ -46,6 +46,18 @@ assert len(P256_INVALID) == 160
 # RFC 8032 "TEST 1" secret seed; standard, well-known ed25519 test key.
 ED25519_TEST_SEED = '0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60'
 
+# Small-order ed25519 public key (the identity point) and a signature that passes the
+# cofactorless check s*B == R + k*A for EVERY message under it: R = base point, s = 1.
+# A strict verifier must reject it.
+ED25519_WEAK_PUBLIC_KEY = b'\x01' + b'\x00' * 31
+ED25519_WEAK_KEY_SIGNATURE = b'\x58' + b'\x66' * 31 + b'\x01' + b'\x00' * 31
+
+# Gas each precompile charges per call, whatever the input. Both are priced from their
+# measured execution time (P256 2.5 ms, Ed25519 200 us at 25,000 ps per gas), so a value
+# below these would let callers fill blocks with underpriced verification.
+P256VERIFY_GAS = 100_000
+ED25519_VERIFY_GAS = 8_000
+
 
 @pytest.mark.eth
 class TestSigVerifyPrecompiles(unittest.TestCase):
@@ -58,6 +70,16 @@ class TestSigVerifyPrecompiles(unittest.TestCase):
             'to': Web3.to_checksum_address(address),
             'data': '0x' + data.hex(),
         }))
+
+    def _precompile_gas(self, address, data):
+        # Gas the call needs beyond the transaction's intrinsic cost
+        # (21000 base + 16 per non-zero / 4 per zero calldata byte).
+        estimate = self.w3.eth.estimate_gas({
+            'to': Web3.to_checksum_address(address),
+            'data': '0x' + data.hex(),
+        })
+        intrinsic = 21000 + sum(16 if b else 4 for b in data)
+        return estimate - intrinsic
 
     # --- P256VERIFY (0x100) ---
 
@@ -73,6 +95,13 @@ class TestSigVerifyPrecompiles(unittest.TestCase):
     def test_p256_wrong_length_returns_empty(self):
         out = self._call_precompile(P256VERIFY_ADDRESS, P256_TOO_SHORT)
         self.assertEqual(out, b'', 'short P256 input must return empty output')
+
+    def test_p256_gas_charged(self):
+        # Charged in full for valid, invalid and malformed input alike.
+        for data in [P256_VALID_1, P256_INVALID, P256_TOO_SHORT, b'']:
+            with self.subTest(input_len=len(data)):
+                used = self._precompile_gas(P256VERIFY_ADDRESS, data)
+                self.assertGreaterEqual(used, P256VERIFY_GAS, f'P256VERIFY charged {used} gas')
 
     # --- Ed25519 (0x403) ---
 
@@ -103,3 +132,24 @@ class TestSigVerifyPrecompiles(unittest.TestCase):
         for bad in [data[:-1], data + b'\x00', b'']:
             out = self._call_precompile(ED25519_ADDRESS, bad)
             self.assertEqual(out, b'', f'ed25519 input of length {len(bad)} must return empty output')
+
+    def test_ed25519_weak_public_key_rejected(self):
+        # Positive control: the precompile is live, so an empty result below is a rejection.
+        valid = self._ed25519_signed_input(b'abcdefghijklmnopqrstuvwxyz123456')
+        self.assertEqual(self._call_precompile(ED25519_ADDRESS, valid), VALID_OUTPUT)
+        # Under a small-order key one signature would verify every message.
+        for message in [b'\x00' * 32, b'\xab' * 32]:
+            with self.subTest(message=message.hex()[:4]):
+                data = message + ED25519_WEAK_PUBLIC_KEY + ED25519_WEAK_KEY_SIGNATURE
+                self.assertEqual(len(data), 128)
+                out = self._call_precompile(ED25519_ADDRESS, data)
+                self.assertEqual(out, b'', 'ed25519 signature under a small-order key must not verify')
+
+    def test_ed25519_gas_charged(self):
+        message = b'abcdefghijklmnopqrstuvwxyz123456'
+        data = self._ed25519_signed_input(message)
+        # Charged in full for valid, tampered and malformed input alike.
+        for case in [data, bytes([data[0] ^ 0x01]) + data[1:], data[:-1], b'']:
+            with self.subTest(input_len=len(case)):
+                used = self._precompile_gas(ED25519_ADDRESS, case)
+                self.assertGreaterEqual(used, ED25519_VERIFY_GAS, f'Ed25519 verify charged {used} gas')
