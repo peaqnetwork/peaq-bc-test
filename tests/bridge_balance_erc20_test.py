@@ -15,7 +15,6 @@ from tools.peaq_eth_utils import get_eth_info
 from peaq.utils import get_chain
 from tools.utils import batch_fund
 from web3 import Web3
-from web3.exceptions import ContractLogicError
 from eth_account import Account as ETHAccount
 from eth_account.messages import encode_structured_data
 
@@ -322,8 +321,9 @@ class balance_erc20_asset_test(unittest.TestCase):
         burnable = get_contract(self._w3, BALANCE_ERC20_ADDR, BALANCE_ERC20_BURNABLE_ABI_FILE)
         balance = contract.functions.balanceOf(self._eth_kp_src['eth']).call()
 
-        # Burning more than the caller holds reverts
-        with self.assertRaises(ContractLogicError) as ctx:
+        # Burning more than the caller holds reverts. peaq returns the revert as JSON-RPC
+        # error -32603, which web3 raises as ValueError, not ContractLogicError.
+        with self.assertRaises(ValueError) as ctx:
             burnable.functions.burn(balance + 1).call({'from': self._eth_kp_src['eth']})
         self.assertIn('FundsUnavailable', str(ctx.exception), f'Error: {ctx.exception}')
 
