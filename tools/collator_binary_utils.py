@@ -17,17 +17,26 @@ def stop_collator_binary():
     """
     Stops any running peaq-node binary collator processes.
 
-    Uses pkill to forcefully terminate all peaq-node processes
-    and waits for cleanup to complete.
+    Uses pkill to forcefully terminate the peaq-node processes started
+    on the host and waits for cleanup to complete.
+
+    Only processes in this shell's PID namespace are matched. The peaq
+    docker image runs peaq-node as UID 1000, so on a host where the test
+    user is also UID 1000 a plain pkill would kill the parachain nodes
+    inside the containers too.
     """
-    command = "pkill -9 peaq-node"
-    subprocess.run(
+    command = "pkill -9 --ns $$ --nslist pid peaq-node"
+    result = subprocess.run(
         command,
         shell=True,
         capture_output=True,
         executable="/bin/bash",
         text=True,
     )
+    # pkill exits 1 when nothing matched; 2 or more means it could not run,
+    # e.g. a pkill without --ns support.
+    if result.returncode > 1:
+        raise RuntimeError(f'{command} failed: {result.stderr.strip()}')
     time.sleep(COLLATOR_STOP_WAIT_TIME)
     print('Collator binary processes stopped.')
 
