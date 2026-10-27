@@ -26,13 +26,17 @@ def stop_collator_binary():
     inside the containers too.
     """
     command = "pkill -9 --ns $$ --nslist pid peaq-node"
-    subprocess.run(
+    result = subprocess.run(
         command,
         shell=True,
         capture_output=True,
         executable="/bin/bash",
         text=True,
     )
+    # pkill exits 1 when nothing matched; 2 or more means it could not run,
+    # e.g. a pkill without --ns support.
+    if result.returncode > 1:
+        raise RuntimeError(f'{command} failed: {result.stderr.strip()}')
     time.sleep(COLLATOR_STOP_WAIT_TIME)
     print('Collator binary processes stopped.')
 
