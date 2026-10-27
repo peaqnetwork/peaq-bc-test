@@ -45,10 +45,19 @@ STATE_INFOS = [{
 # pot names in tools.utils.BLOCK_REWARD_SINK_IDS. Mirrors BLOCK_REWARD_SINKS in
 # runtime/<chain>/src/lib.rs. PR #395 split peaq/peaq-dev (70/30) away from the
 # krest six-way distribution.
+# A forked chain keeps the sinks stored on mainnet instead of the runtime
+# default. peaq mainnet also pays two EVM addresses, which are keyed by their
+# lowercase address. Values read from peaq mainnet BlockReward.Sinks at block
+# 12143814 (2026-10-27); update them if governance changes the sinks.
 BLOCK_REWARD_SINK_INFOS = {
     'peaq-dev': {'treasury': 70, 'stake': 30},
     'peaq-network': {'treasury': 70, 'stake': 30},
-    'peaq-network-fork': {'treasury': 70, 'stake': 30},
+    'peaq-network-fork': {
+        'treasury': 20,
+        'stake': 30,
+        '0x9e37ad189c334c92e6b8a812ca4c02f35ac43895': 30,
+        '0x7088cf400081428a41a4287b75ac633071c0e92a': 20,
+    },
     'krest-network': {
         'treasury': 25,
         'stake': 40,
@@ -195,7 +204,11 @@ class TokenEconomyTest(unittest.TestCase):
         targets = {'0x' + v.hex(): k for k, v in BLOCK_REWARD_SINK_IDS.items()}
         now_data = {}
         for sink in sinks:
-            name = targets.get(normalize_sink_target(sink['target']))
+            target = sink['target']
+            if isinstance(target, dict) and 'Evm' in target:
+                name = target['Evm'].lower()
+            else:
+                name = targets.get(normalize_sink_target(target))
             self.assertIsNotNone(
                 name, f'unknown block reward sink target: {sink}')
             now_data[name] = sink['share'] // PERBILL_PERCENT
