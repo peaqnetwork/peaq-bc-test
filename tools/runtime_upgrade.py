@@ -285,7 +285,11 @@ def should_handle_upgrade_error(error, collator_dict):
 
 def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     """Handles the transition from docker to binary collator."""
+    # Stop the docker collator before copying its volume. With the copy taken
+    # from a running node, the binary collator produced no blocks after the
+    # switch.
     stop_collator_binary()
+    stop_peaq_docker_container()
 
     # If collator_folder_same is True, use chain_data for both source and destination
     # Otherwise, copy from Docker volume
@@ -298,7 +302,6 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     copy_all_chain_data(collator_dict, docker_volume_path)
 
     print(f'docker info: {docker_info}')
-    stop_peaq_docker_container()
     wakeup_latest_collator(collator_dict, docker_info)
 
     # Reconnect to the new collator
