@@ -670,6 +670,7 @@ def payment_multi_tx_no_free_execution_test(si_peaq, asset_id):
     show_test('payment_multi_tx_no_free_execution_test', True)
 
 
+@pytest.mark.skip(reason='Zenlink DEX tests are paused')
 class TestZenlinkDex(unittest.TestCase):
     def setUp(self):
         wait_until_block_height(SubstrateInterface(url=PARACHAIN_WS_URL), 1)

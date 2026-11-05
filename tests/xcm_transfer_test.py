@@ -560,6 +560,7 @@ class TestXCMTransfer(unittest.TestCase):
 
     # Note, lp asset should create by zenlink protocol
     @pytest.mark.xcm
+    @pytest.mark.skip(reason='Zenlink DEX tests are paused')
     def test_lp_asset_from_peaq_to_aca(self):
         # Setup
         kp_peaq = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
