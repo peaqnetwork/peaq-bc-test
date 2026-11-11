@@ -307,6 +307,12 @@ def switch_to_binary_collator(collator_dict, docker_volume_path, docker_info):
     # Reconnect to the new collator
     substrate = SubstrateInterface(url=WS_URL)
     substrate.connect_websocket()
+    # Load the new node's metadata first. Otherwise the first height query in
+    # wait_for_n_blocks fetches it between reading the best block hash and
+    # fetching that block, which takes tens of seconds; if the best block was a
+    # fork that got finalized away meanwhile, the node has pruned it and
+    # chain_getBlock returns null.
+    substrate.init_runtime()
     wait_for_n_blocks(substrate, 3, 3*DEFAULT_BLOCK_TIME*3)
     return substrate
 
