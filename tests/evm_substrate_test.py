@@ -42,7 +42,8 @@ def create_constract(substrate, kp_src, eth_src, erc20_bytecode):
             'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
-            'access_list': []
+            'access_list': [],
+            'authorization_list': []
         }
     )
     return batch.execute()
@@ -68,7 +69,8 @@ def call_eth_transfer(substrate, kp_src, eth_src, eth_dst):
             'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
-            'access_list': []
+            'access_list': [],
+            'authorization_list': []
         }
     )
     return batch.execute()
@@ -88,7 +90,8 @@ def transfer_erc20_token(substrate, kp_src, eth_src, eth_dst, contract_addr):
             'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 2 * 10 ** 9,
             'nonce': None,
-            'access_list': []
+            'access_list': [],
+            'authorization_list': []
         }
     )
     return batch.execute()

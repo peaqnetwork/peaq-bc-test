@@ -43,7 +43,8 @@ def call_eth_transfer_a_lot(substrate, kp_src, eth_src, eth_dst):
             'max_fee_per_gas': 21000 * 10 ** 9,
             'max_priority_fee_per_gas': 1 * 10 ** 9,
             'nonce': None,
-            'access_list': []
+            'access_list': [],
+            'authorization_list': []
         })
     return batch.execute()
 
