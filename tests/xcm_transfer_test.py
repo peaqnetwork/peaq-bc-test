@@ -167,10 +167,13 @@ def aca_fund(substrate, kp_sudo, kp_dst, new_free):
 
 
 def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
+    # reserve_transfer_assets refuses the relay token from polkadot-sdk stable2506-2 on
+    # (prdoc/stable2506-2/pr_9544.prdoc); transfer_assets_using_type_and_then is the replacement it
+    # names, with the reserve given explicitly: the relay holds its own token, so LocalReserve.
     batch = ExtrinsicBatch(substrate, kp_sign)
     batch.compose_call(
         'XcmPallet',
-        'reserve_transfer_assets',
+        'transfer_assets_using_type_and_then',
         {
             'dest': {
                 'V4': {
@@ -178,19 +181,6 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
                     'interior': {
                         'X1': [{
                             'Parachain': paraid,
-                        }]
-                    },
-                }
-            },
-            'beneficiary': {
-                'V4': {
-                    'parents': 0,
-                    'interior': {
-                        'X1': [{
-                            'AccountId32': {
-                                'network': None,
-                                'id': kp_dst.public_key,
-                            }
                         }]
                     },
                 }
@@ -206,7 +196,33 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
                     }
                 }]]
             },
-            'fee_asset_item': 0,
+            'assets_transfer_type': 'LocalReserve',
+            'remote_fees_id': {
+                'V4': {
+                    'parents': 0,
+                    'interior': 'Here'
+                }
+            },
+            'fees_transfer_type': 'LocalReserve',
+            'custom_xcm_on_dest': {
+                'V4': [{
+                    'DepositAsset': {
+                        'assets': {'Wild': {'AllCounted': 1}},
+                        'beneficiary': {
+                            'parents': 0,
+                            'interior': {
+                                'X1': [{
+                                    'AccountId32': {
+                                        'network': None,
+                                        'id': kp_dst.public_key,
+                                    }
+                                }]
+                            },
+                        },
+                    }
+                }]
+            },
+            'weight_limit': 'Unlimited',
         }
     )
     return batch.execute()

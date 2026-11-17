@@ -17,6 +17,9 @@ Two tests:
     eth_subscribe in parallel with substrate's chain head polling and verifies
     notifications track 1:1 with live block production. Catches the case where
     notifications only arrive during startup catchup but not for live blocks.
+    A reorg makes the node announce the new best block at a height it already
+    announced, so the test counts distinct heights and allows a height to come
+    again only with a different hash.
 """
 import json
 import threading
@@ -95,13 +98,14 @@ class TestEthSubscribeNewHeads(unittest.TestCase):
         """Run eth_subscribe in parallel with substrate polling for ALIGN_WINDOW.
 
         Asserts (a) the chain produced at least one live block and (b) the eth
-        subscription delivered roughly one notification per block. Without the
-        fix, (b) would be zero even when (a) is non-zero.
+        subscription delivered roughly one distinct height per block, with no
+        height skipped. Without the fix, (b) would be zero even when (a) is
+        non-zero.
         """
         substrate = SubstrateInterface(url=WS_URL)
         ws, sub_id = _open_eth_sub(WS_URL)
 
-        eth_numbers = []
+        eth_heads = []  # (number, hash) in arrival order
         listener_done = threading.Event()
 
         def listener():
@@ -117,7 +121,8 @@ class TestEthSubscribeNewHeads(unittest.TestCase):
                         continue
                     if frame.get("params", {}).get("subscription") != sub_id:
                         continue
-                    eth_numbers.append(int(frame["params"]["result"]["number"], 16))
+                    head = frame["params"]["result"]
+                    eth_heads.append((int(head["number"], 16), head["hash"]))
             finally:
                 listener_done.set()
 
@@ -132,7 +137,9 @@ class TestEthSubscribeNewHeads(unittest.TestCase):
             ws.close()
 
         substrate_delta = best_after - best_before
-        eth_count = len(eth_numbers)
+        eth_numbers = [n for n, _ in eth_heads]
+        heights = sorted(set(eth_numbers))
+        eth_count = len(heights)
 
         self.assertGreater(
             substrate_delta, 0,
@@ -147,14 +154,17 @@ class TestEthSubscribeNewHeads(unittest.TestCase):
         diff = abs(eth_count - substrate_delta)
         self.assertLessEqual(
             diff, ALIGN_TOLERANCE_BLOCKS,
-            f"eth_subscribe delivered {eth_count} notifications but substrate "
+            f"eth_subscribe delivered {eth_count} distinct heights but substrate "
             f"produced {substrate_delta} blocks "
             f"(diff {diff} > tolerance {ALIGN_TOLERANCE_BLOCKS}); "
             f"eth numbers: {eth_numbers}",
         )
 
-        sorted_nums = sorted(eth_numbers)
         self.assertEqual(
-            eth_numbers, sorted_nums,
-            f"eth_subscribe delivered out of order: {eth_numbers}",
+            heights, list(range(heights[0], heights[-1] + 1)),
+            f"eth_subscribe skipped a height: {eth_numbers}",
+        )
+        self.assertEqual(
+            len(eth_heads), len(set(eth_heads)),
+            f"eth_subscribe delivered the same block twice: {eth_heads}",
         )
