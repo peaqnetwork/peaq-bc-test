@@ -205,7 +205,7 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
             },
             'fees_transfer_type': 'LocalReserve',
             'custom_xcm_on_dest': {
-                'V4': [{
+                'V4': [[{
                     'DepositAsset': {
                         'assets': {'Wild': {'AllCounted': 1}},
                         'beneficiary': {
@@ -220,7 +220,7 @@ def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
                             },
                         },
                     }
-                }]
+                }]]
             },
             'weight_limit': 'Unlimited',
         }
