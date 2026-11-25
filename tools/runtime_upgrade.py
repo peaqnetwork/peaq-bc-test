@@ -113,6 +113,58 @@ def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
     wait_until_block_height(relay_substrate, int(result.value[0][1]))
 
 
+# How long to wait for the parachain to finalize the block that applied the upgrade.
+UPGRADE_FINALIZE_TIMEOUT = 300
+
+
+def chain_heights(substrate):
+    best = substrate.get_block_number(substrate.get_chain_head())
+    finalized = substrate.get_block_number(substrate.get_chain_finalised_head())
+    return best, finalized
+
+
+def describe_heights(substrate, relay_substrate):
+    para_best, para_finalized = chain_heights(substrate)
+    relay_best, relay_finalized = chain_heights(relay_substrate)
+    return (f'parachain best #{para_best} finalized #{para_finalized}, '
+            f'relay best #{relay_best} finalized #{relay_finalized}')
+
+
+def fail_upgrade_check(substrate, relay_substrate, reason):
+    message = f'{reason}; {describe_heights(substrate, relay_substrate)}'
+    print(f'Upgrade check failed: {message}')
+    raise IOError(message)
+
+
+def check_upgrade_landed(substrate, relay_substrate, block_hash, timeout=UPGRADE_FINALIZE_TIMEOUT):
+    """
+    Checks that a sent upgrade took effect on the parachain, so that an upgrade that was sent
+    but did nothing fails here with its reason instead of later as "Runtime upgrade fails".
+
+    (a) The block with apply_authorized_upgrade is on the finalized chain.
+    (b) ParachainSystem.PendingValidationCode was set at that block or a later one.
+    """
+    block_number = substrate.get_block_number(block_hash)
+    start = time.time()
+    while chain_heights(substrate)[1] < block_number and time.time() - start < timeout:
+        time.sleep(DEFAULT_BLOCK_TIME)
+    if chain_heights(substrate)[1] < block_number or substrate.get_block_hash(block_number) != block_hash:
+        fail_upgrade_check(
+            substrate, relay_substrate,
+            f'(a) the upgrade block #{block_number} {block_hash} is not on the finalized chain')
+
+    best = chain_heights(substrate)[0]
+    for number in range(block_number, best + 1):
+        code = substrate.query(
+            'ParachainSystem', 'PendingValidationCode', block_hash=substrate.get_block_hash(number)).value
+        if code and code != '0x':
+            print(f'PendingValidationCode is set at block #{number}')
+            return
+    fail_upgrade_check(
+        substrate, relay_substrate,
+        f'(b) ParachainSystem.PendingValidationCode stayed empty from block #{block_number} to #{best}')
+
+
 def upgrade(runtime_path):
     """
     Performs the actual runtime upgrade process.
@@ -132,6 +184,8 @@ def upgrade(runtime_path):
     if not receipt.is_success:
         raise IOError('Cannot upgrade')
     wait_for_n_blocks(substrate, 10, 1800)
+    relay_substrate = SubstrateInterface(url=RELAYCHAIN_WS_URL, type_registry_preset='rococo')
+    check_upgrade_landed(substrate, relay_substrate, receipt.block_hash)
     wait_relay_upgrade_block()
 
 
