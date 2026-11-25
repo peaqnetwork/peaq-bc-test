@@ -70,6 +70,11 @@ def fetch_collator_dict_from_env():
     return enable_collator_dict
 
 
+def wasm_code_hash(wasm_file):
+    with open(wasm_file, 'rb', buffering=0) as f:
+        return f'0x{blake2_256(f.read()).hex()}'
+
+
 def send_upgrade_call(substrate, kp_sudo, wasm_file):
     with open(wasm_file, 'rb', buffering=0) as f:
         data = f.read()
@@ -114,7 +119,10 @@ def wait_relay_upgrade_block(url=RELAYCHAIN_WS_URL):
 
 
 # How long to wait for the parachain to finalize the block that applied the upgrade.
-UPGRADE_FINALIZE_TIMEOUT = 300
+UPGRADE_FINALIZE_TIMEOUT = UPGRADE_TIMEOUT
+# How many finalized blocks on each side of the upgrade block to search for the upgrade tx when
+# that block was replaced by a fork.
+UPGRADE_SEARCH_BLOCKS = 10
 
 
 def chain_heights(substrate):
@@ -136,33 +144,62 @@ def fail_upgrade_check(substrate, relay_substrate, reason):
     raise IOError(message)
 
 
-def check_upgrade_landed(substrate, relay_substrate, block_hash, timeout=UPGRADE_FINALIZE_TIMEOUT):
+def find_finalized_extrinsic(substrate, extrinsic_hash, first, last):
+    """Returns the number of the finalized block in [first, last] that holds the extrinsic, or None."""
+    wanted = extrinsic_hash.removeprefix('0x')
+    for number in range(max(first, 0), last + 1):
+        for extrinsic in substrate.get_block(substrate.get_block_hash(number))['extrinsics']:
+            if extrinsic.extrinsic_hash.hex() == wanted:
+                return number
+    return None
+
+
+def check_upgrade_landed(substrate, relay_substrate, receipt, code_hash, timeout=UPGRADE_FINALIZE_TIMEOUT):
     """
     Checks that a sent upgrade took effect on the parachain, so that an upgrade that was sent
     but did nothing fails here with its reason instead of later as "Runtime upgrade fails".
 
-    (a) The block with apply_authorized_upgrade is on the finalized chain.
-    (b) ParachainSystem.PendingValidationCode was set at that block or a later one.
+    (a) The upgrade tx is in a block on the finalized chain: the block the receipt names, or,
+        when a fork replaced that block, a finalized block near it.
+    (b) ParachainSystem.PendingValidationCode holds this wasm at that block.
     """
-    block_number = substrate.get_block_number(block_hash)
+    # None when the node no longer has the header of a fork block.
+    block_number = substrate.get_block_number(receipt.block_hash)
+    wait_for = block_number if block_number is not None else chain_heights(substrate)[0]
     start = time.time()
-    while chain_heights(substrate)[1] < block_number and time.time() - start < timeout:
+    while chain_heights(substrate)[1] < wait_for:
+        if time.time() - start > timeout:
+            fail_upgrade_check(
+                substrate, relay_substrate,
+                f'(a) the parachain did not finalize block #{wait_for} within {timeout}s')
         time.sleep(DEFAULT_BLOCK_TIME)
-    if chain_heights(substrate)[1] < block_number or substrate.get_block_hash(block_number) != block_hash:
+
+    if block_number is not None and substrate.get_block_hash(block_number) == receipt.block_hash:
+        landed = block_number
+    else:
+        first = wait_for - UPGRADE_SEARCH_BLOCKS
+        last = min(wait_for + UPGRADE_SEARCH_BLOCKS, chain_heights(substrate)[1])
+        landed = find_finalized_extrinsic(substrate, receipt.extrinsic_hash, first, last)
+        if landed is None:
+            fail_upgrade_check(
+                substrate, relay_substrate,
+                f'(a) the upgrade block {receipt.block_hash} is not on the finalized chain and the '
+                f'upgrade tx is in none of the finalized blocks #{max(first, 0)} to #{last}')
+        print(f'The upgrade block was replaced; the upgrade tx is in finalized block #{landed}')
+
+    code = substrate.query(
+        'ParachainSystem', 'PendingValidationCode', block_hash=substrate.get_block_hash(landed)).value
+    if not code:
         fail_upgrade_check(
             substrate, relay_substrate,
-            f'(a) the upgrade block #{block_number} {block_hash} is not on the finalized chain')
-
-    best = chain_heights(substrate)[0]
-    for number in range(block_number, best + 1):
-        code = substrate.query(
-            'ParachainSystem', 'PendingValidationCode', block_hash=substrate.get_block_hash(number)).value
-        if code and code != '0x':
-            print(f'PendingValidationCode is set at block #{number}')
-            return
-    fail_upgrade_check(
-        substrate, relay_substrate,
-        f'(b) ParachainSystem.PendingValidationCode stayed empty from block #{block_number} to #{best}')
+            f'(b) ParachainSystem.PendingValidationCode is empty at block #{landed}')
+    pending_hash = f'0x{blake2_256(bytes.fromhex(code.removeprefix("0x"))).hex()}'
+    if pending_hash != code_hash:
+        fail_upgrade_check(
+            substrate, relay_substrate,
+            f'(b) ParachainSystem.PendingValidationCode at block #{landed} is another code '
+            f'{pending_hash}, not this wasm {code_hash}')
+    print(f'PendingValidationCode holds this wasm at block #{landed}')
 
 
 def upgrade(runtime_path):
@@ -185,7 +222,7 @@ def upgrade(runtime_path):
         raise IOError('Cannot upgrade')
     wait_for_n_blocks(substrate, 10, 1800)
     relay_substrate = SubstrateInterface(url=RELAYCHAIN_WS_URL, type_registry_preset='rococo')
-    check_upgrade_landed(substrate, relay_substrate, receipt.block_hash)
+    check_upgrade_landed(substrate, relay_substrate, receipt, wasm_code_hash(runtime_path))
     wait_relay_upgrade_block()
 
 

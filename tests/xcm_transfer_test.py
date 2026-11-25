@@ -167,6 +167,18 @@ def aca_fund(substrate, kp_sudo, kp_dst, new_free):
     return batch.execute()
 
 
+def count_failed_messages_from_relay(substrate, first, last):
+    """Counts the MessageQueue.Processed events from the relay with success False in blocks first..last."""
+    count = 0
+    for number in range(first, last + 1):
+        for event in substrate.get_events(block_hash=substrate.get_block_hash(number)):
+            ev = event.value['event']
+            if (ev['module_id'], ev['event_id']) == ('MessageQueue', 'Processed') \
+                    and ev['attributes']['origin'] == 'Parent' and not ev['attributes']['success']:
+                count += 1
+    return count
+
+
 def send_token_from_relay_to_peaq(substrate, kp_sign, kp_dst, paraid, token):
     # reserve_transfer_assets refuses the relay token from polkadot-sdk stable2506-2 on
     # (prdoc/stable2506-2/pr_9544.prdoc); transfer_assets_using_type_and_then is the replacement it
@@ -409,12 +421,14 @@ class TestXCMTransfer(unittest.TestCase):
         parachain_id = self.get_parachain_id(self.si_peaq)
         sovereign = self.si_relay.ss58_encode(
             b'para' + parachain_id.to_bytes(4, 'little') + bytes(24))
-        prev_sovereign = get_account_balance(self.si_relay, sovereign)
         prev_token = get_tokens_account_from_pallet_assets(
             self.si_peaq, kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
+        peaq_block_num = self.si_peaq.get_block_number(None)
 
         receipt = self.send_relay_token_from_relay_to_peaq(kp_remote_src, kp_self_dst, TEST_TOKEN_NUM)
         self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
+        parent_hash = self.si_relay.get_block_header(receipt.block_hash)['header']['parentHash']
+        prev_sovereign = get_account_balance(self.si_relay, sovereign, parent_hash)
         now_sovereign = get_account_balance(self.si_relay, sovereign, receipt.block_hash)
         self.assertEqual(
             now_sovereign, prev_sovereign + TEST_TOKEN_NUM,
@@ -425,6 +439,10 @@ class TestXCMTransfer(unittest.TestCase):
         now_token = get_tokens_account_from_pallet_assets(
             self.si_peaq, kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
         self.assertEqual(now_token, prev_token, f'peaq received the relay token: {prev_token} -> {now_token}')
+        # peaq got the message and refused it; without this, a message that never arrived would pass too.
+        self.assertGreater(
+            count_failed_messages_from_relay(self.si_peaq, peaq_block_num, self.si_peaq.get_block_number(None)), 0,
+            f'no failed MessageQueue.Processed from Parent on peaq since block {peaq_block_num}')
 
     # No fund dst account before receive the relay chain's token
     # Remove test_from_relay_to_peaq_with_sufficient, because we've tested it in other asset
