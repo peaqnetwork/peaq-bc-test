@@ -28,6 +28,7 @@ from tools.asset import wait_for_account_asset_change_wrap
 from tools.asset import get_balance_account_from_pallet_balance
 from tools.asset import get_tokens_account_from_pallet_assets
 from peaq.utils import get_chain
+from peaq.utils import wait_for_n_blocks
 
 
 PEAQ_PD_CHAIN_ID = get_peaq_chain_id()
@@ -342,6 +343,8 @@ class TestXCMTransfer(unittest.TestCase):
         return wait_for_account_asset_change_wrap(
             self.si_peaq, kp_dst.ss58_address, None, prev_token, block_num, get_balance_account_from_pallet_balance)
 
+    @pytest.mark.skip(reason='the relay token reserve is Asset Hub since ORML #1035, '
+                             'and the local network has no para 1000')
     @pytest.mark.xcm
     def test_from_relay_to_peaq(self):
         receipt = setup_asset_if_not_exist(self.si_peaq, KP_GLOBAL_SUDO, RELAY_ASSET_ID['peaq'], RELAY_METADATA)
@@ -382,6 +385,46 @@ class TestXCMTransfer(unittest.TestCase):
         self.assertGreater(
             now_balance, prev_balance,
             f'Actual {now_balance} should > expected {prev_balance} tokens')
+
+    # Since ORML #1035 peaq takes the relay token only with Asset Hub as its reserve, so a relay
+    # token sent straight from the relay chain is refused on peaq, while the relay has already
+    # moved it into peaq's sovereign account there: the money is stuck. Before the stable2603
+    # upgrade peaq still accepted it, so this test fails on an old runtime.
+    @pytest.mark.xcm
+    def test_relay_token_from_relay_to_peaq_is_stuck(self):
+        receipt = setup_asset_if_not_exist(self.si_peaq, KP_GLOBAL_SUDO, RELAY_ASSET_ID['peaq'], RELAY_METADATA)
+        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
+        receipt = setup_xc_register_if_not_exist(
+            self.si_peaq, KP_GLOBAL_SUDO,
+            RELAY_ASSET_ID['peaq'], RELAY_ASSET_LOCATION['peaq'], UNITS_PER_SECOND)
+        self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
+
+        kp_remote_src = KP_CHARLIE
+        kp_self_dst = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+        receipt = fund(self.si_peaq, KP_GLOBAL_SUDO, kp_self_dst, INIT_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
+        receipt = fund(self.si_relay, KP_GLOBAL_SUDO, kp_remote_src, INIT_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to fund account, {receipt.error_message}')
+
+        parachain_id = self.get_parachain_id(self.si_peaq)
+        sovereign = self.si_relay.ss58_encode(
+            b'para' + parachain_id.to_bytes(4, 'little') + bytes(24))
+        prev_sovereign = get_account_balance(self.si_relay, sovereign)
+        prev_token = get_tokens_account_from_pallet_assets(
+            self.si_peaq, kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
+
+        receipt = self.send_relay_token_from_relay_to_peaq(kp_remote_src, kp_self_dst, TEST_TOKEN_NUM)
+        self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
+        now_sovereign = get_account_balance(self.si_relay, sovereign, receipt.block_hash)
+        self.assertEqual(
+            now_sovereign, prev_sovereign + TEST_TOKEN_NUM,
+            f'peaq sovereign account {sovereign} on the relay: {prev_sovereign} -> {now_sovereign}')
+
+        # Long enough for the message to arrive: a delivered transfer shows up within a few blocks.
+        wait_for_n_blocks(self.si_peaq, 10)
+        now_token = get_tokens_account_from_pallet_assets(
+            self.si_peaq, kp_self_dst.ss58_address, RELAY_ASSET_ID['peaq'])
+        self.assertEqual(now_token, prev_token, f'peaq received the relay token: {prev_token} -> {now_token}')
 
     # No fund dst account before receive the relay chain's token
     # Remove test_from_relay_to_peaq_with_sufficient, because we've tested it in other asset
@@ -598,18 +641,27 @@ class TestXCMTransfer(unittest.TestCase):
             RELAY_ASSET_ID['peaq'], RELAY_ASSET_LOCATION['peaq'], UNITS_PER_SECOND)
         self.assertTrue(receipt.is_success, f'Failed to setup asset, {receipt.error_message}')
 
-        receipt = fund(self.si_relay, KP_GLOBAL_SUDO, KP_GLOBAL_SUDO, INIT_TOKEN_NUM)
-        self.assertTrue(receipt.is_success, f'Failed to fund tokens to peaq: {receipt.error_message}')
-
-        # Transfer dot
-        peaq_block_num = self.si_peaq.get_block_number(None)
-        receipt = self.send_relay_token_from_relay_to_peaq(KP_GLOBAL_SUDO, kp_peaq, TEST_TOKEN_NUM)
-        self.assertTrue(receipt.is_success, f'Failed to send tokens from relay chain, {receipt.error_message}')
-
-        now_token = self.wait_for_peaq_account_asset_change(kp_peaq.ss58_address, RELAY_ASSET_ID['peaq'], peaq_block_num)
-        self.assertGreater(
-            now_token, 0,
-            f'Actual {now_token} should > expected {TEST_TOKEN_NUM} tokens')
+        # Mint the relay token on peaq instead of sending it from the relay chain, which peaq
+        # refuses since ORML #1035 (see test_relay_token_from_relay_to_peaq_is_stuck). sudo_as the
+        # asset's issuer, because only the issuer may mint.
+        issuer = self.si_peaq.query('Assets', 'Asset', [RELAY_ASSET_ID['peaq']]).value['issuer']
+        prev_token = get_tokens_account_from_pallet_assets(
+            self.si_peaq, kp_peaq.ss58_address, RELAY_ASSET_ID['peaq'])
+        mint = self.si_peaq.compose_call('Assets', 'mint', {
+            'id': RELAY_ASSET_ID['peaq'],
+            'beneficiary': kp_peaq.ss58_address,
+            'amount': TEST_TOKEN_NUM,
+        })
+        batch = ExtrinsicBatch(self.si_peaq, KP_GLOBAL_SUDO)
+        batch.compose_call('Sudo', 'sudo_as', {'who': issuer, 'call': mint.value})
+        receipt = batch.execute()
+        self.assertTrue(receipt.is_success, f'Failed to mint the relay token: {receipt.error_message}')
+        # sudo_as succeeds even when the inner call fails, so check the balance.
+        now_token = get_tokens_account_from_pallet_assets(
+            self.si_peaq, kp_peaq.ss58_address, RELAY_ASSET_ID['peaq'])
+        self.assertEqual(
+            now_token, prev_token + TEST_TOKEN_NUM,
+            f'Minting the relay token: {prev_token} -> {now_token}')
 
         # Create lp asset
         liquity_token_num = int(TEST_TOKEN_NUM / 2)
