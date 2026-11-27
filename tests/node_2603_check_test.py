@@ -7,7 +7,7 @@ import unittest
 
 from tools.node_2603_checks import (
     aura_author, check_new_key_authored, check_no_drops, check_packed, check_pending_nonces,
-    check_rejected_for_proof, check_replaced, extrinsic_hash, forks)
+    check_rejected_for_proof, check_replaced, extrinsic_hash, forks_in_window)
 
 B1, B2 = '0x' + '11' * 32, '0x' + '22' * 32
 SECOND = '0x' + 'ab' * 32
@@ -33,10 +33,11 @@ class TestNode2603Checks(unittest.TestCase):
                 check_replaced(*args)
 
     def test_packed(self):
-        check_packed([5, 5, 6, 14], 10)
-        for name, blocks in [('11 blocks', [5, 15]), ('one missing', [5, None])]:
+        check_packed([5, 5, 6, 14], 4, 10)
+        # 'late': in 10 consecutive blocks, but they started 100 blocks after sending
+        for name, blocks in [('11 blocks', [5, 15]), ('one missing', [5, None]), ('late', [104, 105])]:
             with self.subTest(name), self.assertRaises(AssertionError):
-                check_packed(blocks, 10)
+                check_packed(blocks, 4, 10)
 
     def test_pending_nonces(self):
         recorded = [8, 9, 10, 11]
@@ -45,9 +46,12 @@ class TestNode2603Checks(unittest.TestCase):
         with self.assertRaises(AssertionError):
             check_pending_nonces(7, [8, 9, 9, 11])
 
-    def test_forks(self):
-        self.assertEqual(forks([(5, 'a'), (6, 'b'), (6, 'b')]), 0)
-        self.assertEqual(forks([(5, 'a'), (6, 'b'), (6, 'c'), (7, 'd')]), 1)
+    def test_forks_in_window(self):
+        heads = [(1, 5, 'a'), (2, 6, 'b'), (3, 6, 'b'), (4, 6, 'c'), (9, 7, 'd'), (10, 7, 'e')]
+        self.assertEqual(forks_in_window(heads, 0, 20), [6, 7])
+        # the fork at height 6 had ended (second header at 4 s) before the window starts at 5 s
+        self.assertEqual(forks_in_window(heads, 5, 20), [7])
+        self.assertEqual(forks_in_window(heads, 5, 8), [])
 
     def test_no_drops(self):
         h1, h2 = '0x01', '0x02'

@@ -37,11 +37,12 @@ def check_replaced(first, second, second_hash, body_hashes):
     assert second_hash in body_hashes, f'{second_hash} is not in the block body {body_hashes}'
 
 
-def check_packed(blocks, most):
-    """AC-39 (b): every transaction is in a block, and the blocks span at most `most` heights."""
+def check_packed(blocks, best_at_send, most):
+    """AC-39 (b): every transaction is in a block, and all are in the `most` blocks after the best block
+    at the time of sending (best_at_send)."""
     assert all(b is not None for b in blocks), f'not all included: {blocks}'
-    span = max(blocks) - min(blocks) + 1
-    assert span <= most, f'{len(blocks)} transactions spread over {span} blocks ({min(blocks)} to {max(blocks)})'
+    assert max(blocks) - best_at_send <= most, \
+        f'sent at best block {best_at_send}, the last one went into block {max(blocks)}: {blocks}'
 
 
 def check_pending_nonces(start, values):
@@ -50,12 +51,16 @@ def check_pending_nonces(start, values):
     assert values == want, f'pending nonces {values}, want {want}'
 
 
-def forks(heads):
-    """How many heights got two different headers. heads: (number, header as JSON text) as they arrived."""
-    seen = {}
-    for number, header in heads:
-        seen.setdefault(number, set()).add(header)
-    return sum(1 for h in seen.values() if len(h) > 1)
+def forks_in_window(heads, start, end):
+    """The heights that got a second, different header between `start` and `end` (seconds, the clock
+    of `heads`), so a fork that had already ended before `start` does not count.
+    heads: (seconds, number, header as JSON text) in arrival order."""
+    first, forked = {}, set()
+    for at, number, header in heads:
+        first.setdefault(number, header)
+        if header != first[number] and start <= at <= end:
+            forked.add(number)
+    return sorted(forked)
 
 
 def latest_status(recording, at):
