@@ -70,6 +70,30 @@ on this branch.
   the types it can sign) and the checks above, offline, on node answers copied from the runs
   below and on the answers each check exists to reject.
 
+- `tools/node_2603_checks.py`: the checks the node tests below make on what they record (watch
+  statuses, block bodies, pending nonces, headers), so they can be tested offline.
+- `tests/node_2603_test.py`, the node behaviour of stable2603-8. It needs a local network with
+  two collators (ferdie and eve) and the names of their containers in `PR12_COLLATOR_CONTAINER`
+  and `PR12_PAUSE_CONTAINER`; without them it is skipped. To fork the chain it pauses eve's
+  container for 30 seconds, and it counts a fork only when a height gets a second, different
+  header while the test is sending.
+  - The fork-aware transaction pool: a second transaction with the same sender and nonce and a
+    higher tip pushes the first one out (`usurped`), and it is the one in the block; with a lower
+    tip the first one stays. 50 EVM transactions with consecutive nonces are all in the 10 blocks
+    after sending. `peaq-node --help` has `--pool-best-blocks-only`.
+  - `session.set_keys` with proof `0x00` fails with `Session.InvalidProof`; with the keys and
+    proof from `author_rotateKeysWithOwner` it succeeds, and once the key is an aura authority
+    the collator authors a block with it.
+  - While the chain forks: 600 Substrate transfers, one a second, each watched with
+    `author_submitAndWatchExtrinsic`, are all finalized and none is dropped, invalid or usurped,
+    and a transaction that is not in a block is in `author_pendingExtrinsics`; and
+    `eth_getTransactionCount(sender, "pending")` counts every one of 20 EVM transactions sent,
+    which are then finalized in canonical blocks.
+
+  Each part tries up to 3 times to fork the chain, and is skipped as partial when it never forks.
+- `tests/node_2603_check_test.py`: the checks above, offline, each on a good recording and on
+  the same recording with the one change the check exists to catch.
+
 ### Changed
 
 - `tests/runtime_api_test.py`: `MIN_SPEC_VERSION` is peaq 114 and peaq-dev 110.
@@ -140,3 +164,14 @@ node" is v0.0.109 (spec 109). Logs of every run are in the PR-11 evidence of the
 - AC-37: `toBlock - fromBlock` of 1,025 is refused ("block range is too wide (maximum 1024)") and 1,024 returns the log; `eth_newFilter` from latest - 2000 is refused the same way and from latest - 1024 is accepted; 5 topics are refused as invalid params ("out of bounds") by `eth_getLogs` and `eth_newFilter`, and 4 are accepted; 1,025 addresses are refused as invalid params ("too big array") by both, and 1,024 addresses, the emitter among them, return the log.
 - AC-38: gas 72,000,000 - 1 is refused "exceeds block gas limit", which is Frontier's message for `ExhaustsResources`, not for its per-transaction cap; an unprotected legacy transaction is accepted; a wrong chain id is refused "invalid chain id".
 - AC-77: the collator and the RPC node both answer "invalid sender" to a high-s signature of each of the 4 types; an unfunded sender gets "insufficient funds for gas * price + value".
+
+The IDs below (AC-39, AC-40, AC-41, AC-74) are the node acceptance criteria. The run is a new
+local network (relay `parity/polkadot:stable2506-2`, rococo-local; para 2000 on `dev-local` with
+two collators, ferdie and eve, both on the node from peaq-network-node `ef7ed7d2`). Run `green2`
+on 2026-11-27, at aef3742, ran `tests/node_2603_test.py` and `tests/node_2603_check_test.py`: 16
+passed, 0 skipped. Logs of every run are in the PR-12 evidence of the upgrade report.
+
+- AC-39: (a) the first transaction got `usurped` by the second, which was in block 0xcc4e19a0; with the second tip lower, the second one got `usurped` and the first was in its block, so the replace check fails on it as it should; (b) all 50 EVM transactions were in block #10, sent at best block #9; (c) `peaq-node --help` lists `--pool-best-blocks-only`.
+- AC-40: `set_keys` with proof `0x00` failed with `Session.InvalidProof`; with the keys and proof from `author_rotateKeysWithOwner` it succeeded, and block #81, in session 4, was authored by the new key 0xc8805a21. The collator steps are in the runbook draft of the PR-12 evidence.
+- AC-41: eve was paused 30 s; 10 heights got a second header while sending, on the first try; all 600 transfers were finalized and none was dropped, invalid or usurped; the same check fails on the recording with a Dropped inserted.
+- AC-74: eve was paused 30 s; height 190 got a second header 38.3 s after the first send, on the first try; `eth_getTransactionCount(sender, "pending")` returned 1 to 20 after each of the 20 sends, none was refused, all 20 were finalized in canonical blocks; the same check fails on the recording with one value lowered by 1.
