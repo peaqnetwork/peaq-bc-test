@@ -49,7 +49,8 @@ on this branch.
     accepted and use exactly that; `eth_estimateGas` is at least that. Also prints the gas of a
     DID `addAttribute` with a 2 KB value.
   - Legacy transactions without a chain id are accepted, a wrong chain id is refused, and gas of
-    72,000,000 - 1 is refused for the block gas limit, not for a per-transaction cap.
+    72,000,000 - 1 is not refused by Frontier's per-transaction gas cap
+    (`TransactionGasLimitExceedsCap`): it is accepted, or refused for the block's resources.
   - A transaction signed with a high-s signature is refused ("invalid sender") by the collator
     and by the RPC node, for all 4 transaction types.
   - Tracing: `debug_traceTransaction` with callTracer and `withLog` returns the log in the
@@ -57,12 +58,14 @@ on this branch.
     runtime is traced through that runtime's override.
   - The logs journal: blocks whose logs are just under and just over each limit, with a logs
     subscription and a filter open on the contract. Over a limit, the node sends none of the
-    block's logs, closes the subscription and drops the filter ("recreate the filter", then
-    "Filter id N does not exist").
-  - `eth_blockNumber` keeps answering, and keeps up with the chain, from 30 to 60 seconds after
-    the RPC node restarts.
-  - `eth_getLogs` and `eth_newFilter` refuse a range over 1,024 blocks, more than 4 topics and
-    more than 1,024 addresses.
+    block's logs, closes the subscription (`eth_unsubscribe` answers false) and drops the filter
+    ("incomplete reorg journal entry ... recreate the filter", then "Filter id N does not
+    exist"). Its last block, 129 logs of 32 KiB, stops the chain (the relay validators refuse
+    it), so the test runs only with `PR11_AC35=1`, alone on its network.
+  - `eth_blockNumber` keeps answering, keeps up with the chain and never goes back, from 30 to 60
+    seconds after the RPC node restarts.
+  - `eth_getLogs` and `eth_newFilter` refuse a range with `to - from` over 1,024, more than 4
+    topics and more than 1,024 addresses, each by its own message, and accept 1,024, 4 and 1,024.
 - `tests/evm_2603_check_test.py`: the raw transaction encoding (checked against eth-account for
   the types it can sign) and the checks above, offline, on node answers copied from the runs
   below and on the answers each check exists to reject.
@@ -126,14 +129,14 @@ peaq-network-node `ef7ed7d2`; "the tracing node" is the same commit built with t
 runtime, with the spec-110 (and, for an upgrade, spec-109) tracing wasm as overrides; "the 2503
 node" is v0.0.109 (spec 109). Logs of every run are in the PR-11 evidence of the upgrade report.
 
-- AC-31, AC-32, AC-33, AC-34, AC-36, AC-37, AC-38, AC-77: run `green3` on 2026-11-26, the 2603 node with the tracing node as RPC node: 12 passed, with AC-35 and the earlier-runtime trace left for their own runs. It waited until block 2010 for AC-37.
+- AC-31, AC-32, AC-33, AC-34, AC-36, AC-37, AC-38, AC-77: run `green4` on 2026-11-26, the 2603 node with the tracing node as RPC node, the whole of `tests/evm_2603_test.py`: 12 passed, 2 skipped (AC-35, which runs only with `PR11_AC35=1`, and the earlier-runtime trace, which has no earlier runtime on a new chain). It waited until block 2010 for AC-37.
 - AC-31: on the 2503 node the type-4 transaction is refused ("decode transaction failed"); on the 2603 node the delegation and the clearing both took effect.
 - AC-32: from the delegated EOA, `eth_call` of Batch.batchAll and of XcmUtils reverts "Function not callable by smart contracts" and the sent transaction fails; from a plain EOA both succeed.
 - AC-33: on the 2603 node, (a) is refused "intrinsic gas too low" and the nonce does not move, (b) uses 184,840 gas, exactly the floor, and the estimate is 185,640. On the 2503 node (a) is accepted, using 86,536, and the estimate is 88,108. The DID `addAttribute` with a 2 KB value uses 106,370 gas on the 2603 node and 82,469 on the 2503 node.
-- AC-34: callTracer with `withLog` returned the receipt's log; the trace of "latest" had the transaction and eth latest was the same block. Run `upgrade2`: a chain started on spec 109 (2503 genesis), upgrade set at block #21 and spec 110 running by #37; block #18 (spec 109) traced with the spec-109 override, 2 passed with `tests/test_evm_event_only.py`, and simple-ci's 4 debug traces and 3 txpool reads (`evm.wasm.test.py`'s checks) passed against the RPC node.
+- AC-34: callTracer with `withLog` returned the receipt's log; the trace of "latest" had the transaction and eth latest was the same block. Run `upgrade3`: a chain started on spec 109 (2503 genesis), upgrade set at block #21 and spec 110 running by #37; block #17 (spec 109, the emitter's deployment) traced with the spec-109 override, 2 passed with `tests/test_evm_event_only.py`, and simple-ci's 4 debug traces and 3 txpool reads (`evm.wasm.test.py`'s checks) passed against the RPC node.
 - AC-34 red check: run `nooverride`, the same node as RPC node with an empty override directory: both trace tests fail on their assertions (`DispatchError: Other("")`). The node has no evm-tracing feature of its own, so a node "built without evm-tracing" still serves `debug_*` and traces with a tracing override (run `notracing`, 2 passed); the override is what matters.
-- AC-35: run `ac35d`, alone on its network: 1 passed. Journal entries close at 8,193 LOG0 (8,192 does not) and at 127 logs of 32 KiB (126 does not): Frontier counts each block's bytes by Vec capacity. On default settings a logs subscription also closes after 64 logs of one block, for its buffers (the 2503 node does the same, run `ac35-2503b`); so only 50 LOG0 is checked in full, and the other open cases check that logs arrived and that the filter returned all of them. The 129 x 32 KiB block is refused by the relay validators and stops the chain; run AC-35 alone and last.
-- AC-36: largest lag between `eth_blockNumber` and the RPC node's best block was 0 and it never went back; the last sample (second 59) was #100 on both, and the collator was at #100 right after.
-- AC-37: a range of 1,025 blocks is refused ("block range is too wide (maximum 1024)") and 1,024 returns the log; `eth_newFilter` from latest - 2000 is refused the same way; 5 topics and 1,025 addresses are refused as invalid params.
-- AC-38: gas 72,000,000 - 1 is refused "exceeds block gas limit"; an unprotected legacy transaction is accepted; a wrong chain id is refused "invalid chain id".
+- AC-35: run `ac35e`, alone on its network with `PR11_AC35=1`: 1 passed. Journal entries close at 8,193 LOG0 (8,192 does not) and at 127 logs of 32 KiB (126 does not): Frontier counts each block's bytes by Vec capacity. On default settings a logs subscription also closes after 64 logs of one block, for its buffers (the 2503 node does the same, run `ac35-2503b`); so only 50 LOG0 is checked in full, and the other open cases check that logs arrived and that the filter returned all of them. The 129 x 32 KiB block is refused by the relay validators and stops the chain; run AC-35 alone and last.
+- AC-36: largest lag between `eth_blockNumber` and the RPC node's best block was 0 and it never went back; the last sample (second 59) was #102 on both, and the collator was at #102 right after.
+- AC-37: a range of 1,025 blocks is refused ("block range is too wide (maximum 1024)") and 1,024 returns the log; `eth_newFilter` from latest - 2000 is refused the same way and from latest - 1024 is accepted; 5 topics are refused as invalid params ("out of bounds") by `eth_getLogs` and `eth_newFilter`, and 4 are accepted; 1,025 addresses are refused as invalid params ("too big array") by both, and 1,024 addresses, the emitter among them, return the log.
+- AC-38: gas 72,000,000 - 1 is refused "exceeds block gas limit", which is Frontier's message for `ExhaustsResources`, not for its per-transaction cap; an unprotected legacy transaction is accepted; a wrong chain id is refused "invalid chain id".
 - AC-77: the collator and the RPC node both answer "invalid sender" to a high-s signature of each of the 4 types; an unfunded sender gets "insufficient funds for gas * price + value".
