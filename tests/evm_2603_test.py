@@ -98,6 +98,13 @@ class Chain:
     def receipt(self, tx_hash):
         return self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
 
+    def wait_funded(self, *addresses, timeout=120):
+        """new_funded_accounts waits for the collator; another node may not have imported that block yet."""
+        end = time.time() + timeout
+        while any(self.w3.eth.get_balance(a) == 0 for a in addresses):
+            assert time.time() < end, f'{addresses} not funded on this node after {timeout} s'
+            time.sleep(2)
+
     def send_ok(self, key, tx):
         response = self.send(T.sign(tx, key))
         assert 'result' in response, f'transaction refused: {response}'
@@ -280,6 +287,7 @@ class TestEvm2603HighS(unittest.TestCase):
     def _check_all_types(self, url):
         c = Chain(url)
         (key, sender), (auth_key, _) = new_funded_accounts(2)
+        c.wait_funded(sender)
         target = c.deploy(key, sender, RETURN_42)
         authorization = [T.sign_authorization(c.chain_id, target, 0, auth_key)]
         kinds = {'legacy': {'tx_type': 0}, 'EIP-2930': {'tx_type': 1}, 'EIP-1559': {'tx_type': 2},
@@ -330,6 +338,7 @@ class TestEvm2603RpcNode(unittest.TestCase):
             raise unittest.SkipTest(f'no RPC node at {RPC_NODE_URL}')
         cls.chain = Chain(RPC_NODE_URL)
         (cls.key, cls.addr), = new_funded_accounts(1)
+        cls.chain.wait_funded(cls.addr)
 
     def _emit_log1(self, emitter):
         return self.chain.send_ok(self.key, self.chain.tx(self.addr, to=emitter, gas=100_000))
@@ -371,7 +380,9 @@ class TestEvm2603RpcNode(unittest.TestCase):
             count = int(self.chain.rpc('eth_getBlockTransactionCountByNumber', [hex(number)])['result'], 16)
             if count == 0:
                 continue
-            spec = substrate.rpc_request('state_getRuntimeVersion', [substrate.get_block_hash(number)])['result']
+            # state_getRuntimeVersion at a block is its post-state; the runtime that ran the block is the parent's
+            parent = substrate.get_block_header(substrate.get_block_hash(number))['header']['parentHash']
+            spec = substrate.rpc_request('state_getRuntimeVersion', [parent])['result']
             if spec['specVersion'] >= current:
                 break
             trace = self.chain.rpc('debug_traceBlockByNumber', [hex(number), {'tracer': 'callTracer'}])
@@ -403,7 +414,8 @@ class TestEvm2603RpcNode(unittest.TestCase):
                     message = json.loads(ws.recv())
                 except websocket.WebSocketTimeoutException:
                     continue
-                except (websocket.WebSocketConnectionClosedException, ConnectionError) as e:
+                except (websocket.WebSocketConnectionClosedException, OSError, ValueError) as e:
+                    # ValueError: json of the empty string ws.recv() returns for a close frame
                     state['unsubscribe'] = f'connection closed: {e!r}'
                     return
                 if message.get('method') == 'eth_subscription':
@@ -418,7 +430,7 @@ class TestEvm2603RpcNode(unittest.TestCase):
         def stop(sub):
             try:
                 ws.send(json.dumps({'jsonrpc': '2.0', 'id': 2, 'method': 'eth_unsubscribe', 'params': [sub]}))
-            except (websocket.WebSocketConnectionClosedException, ConnectionError) as e:
+            except (websocket.WebSocketConnectionClosedException, OSError) as e:
                 state['unsubscribe'] = f'connection closed: {e!r}'
             thread.join(10)
             state['stop'] = True
@@ -429,22 +441,26 @@ class TestEvm2603RpcNode(unittest.TestCase):
         c = self.chain
         ws, sub = self._subscribe_logs(emitter)
         state, stop = self._read_subscription(ws)
-        filter_id = c.rpc('eth_newFilter', [{'address': emitter}])['result']
-        data = count.to_bytes(32, 'big') + size.to_bytes(32, 'big')
-        estimate = int(c.rpc('eth_estimateGas', [{'from': self.addr, 'to': emitter, 'data': '0x' + data.hex()}])
-                       ['result'], 16)
-        receipt = c.send_ok(self.key, c.tx(self.addr, to=emitter, data=data, gas=estimate))
-        time.sleep(30)
-        stop(sub)
-        ws.close()
+        try:
+            filter_id = c.rpc('eth_newFilter', [{'address': emitter}])['result']
+            data = count.to_bytes(32, 'big') + size.to_bytes(32, 'big')
+            estimate = int(c.rpc('eth_estimateGas', [{'from': self.addr, 'to': emitter, 'data': '0x' + data.hex()}])
+                           ['result'], 16)
+            receipt = c.send_ok(self.key, c.tx(self.addr, to=emitter, data=data, gas=estimate))
+            time.sleep(30)
+        finally:
+            stop(sub)
+            ws.close()
         received, unsubscribe = state['received'], state['unsubscribe']
         changes = c.rpc('eth_getFilterChanges', [filter_id])
         again = c.rpc('eth_getFilterChanges', [filter_id])
+        c.rpc('eth_uninstallFilter', [filter_id])
         result = {
             'logs': count, 'size': size, 'status': receipt['status'], 'gasUsed': receipt['gasUsed'],
             'block': receipt['blockNumber'], 'received': received, 'unsubscribe': unsubscribe,
-            # eth_unsubscribe answers true only for a subscription that is still open
-            'subscribed': isinstance(unsubscribe, dict) and unsubscribe.get('result') is True,
+            # eth_unsubscribe answers true for a subscription that is still open and false for one the node closed;
+            # anything else (no reply, the connection gone) is neither
+            'subscribed': unsubscribe.get('result') if isinstance(unsubscribe, dict) else None,
             'changes': len(changes['result']) if 'result' in changes else changes['error']['message'],
             'again': len(again['result']) if 'result' in again else again['error']['message'],
         }
@@ -471,6 +487,8 @@ class TestEvm2603RpcNode(unittest.TestCase):
         which fits the default buffers, must arrive in full with the subscription still open. 100 LOG0 is printed,
         not checked.
         """
+        if os.environ.get('PR11_AC35') != '1':
+            self.skipTest('AC-35 stops the chain (its 129 x 32 KiB block): run it alone, with PR11_AC35=1')
         emitter = self.chain.deploy(self.key, self.addr, LOG0_LOOP)
         kib = 1024
         cases = {name: self._journal_case(emitter, count, size) for name, (count, size) in {
@@ -485,8 +503,8 @@ class TestEvm2603RpcNode(unittest.TestCase):
                 r = cases[name]
                 self.assertEqual(r['status'], 1)
                 self.assertEqual(r['received'], 0, f'{name}: logs of an incomplete entry were sent')
-                self.assertFalse(r['subscribed'], f'{name}: the subscription is still open')
-                self.assertIn('recreate the filter', str(r['changes']))
+                self.assertIs(r['subscribed'], False, f'{name}: not closed by the node: {r["unsubscribe"]}')
+                self.assertIn('incomplete reorg journal entry', str(r['changes']))
                 self.assertRegex(str(r['again']), r'Filter id .* does not exist')
         for name, logs in [('8,192 LOG0', 8_192), ('126 x 32 KiB', 126)]:
             with self.subTest(name):
@@ -496,7 +514,7 @@ class TestEvm2603RpcNode(unittest.TestCase):
                 self.assertEqual(r['changes'], logs)
         r = cases['50 LOG0']
         self.assertEqual(r['status'], 1)
-        self.assertTrue(r['subscribed'], '50 LOG0: the subscription was closed')
+        self.assertIs(r['subscribed'], True, f'50 LOG0: the subscription was closed: {r["unsubscribe"]}')
         self.assertEqual(r['received'], 50)
         self.assertEqual(r['changes'], 50)
 
@@ -506,16 +524,17 @@ class TestEvm2603RpcNode(unittest.TestCase):
         if not restart:
             self.skipTest('PR11_RPC_RESTART is not set')
         before = self.chain.w3.eth.block_number
-        subprocess.run([restart], check=True)
+        subprocess.run([restart], check=True)  # a script with no arguments
         samples, t0 = [], time.time()
         for second in range(60):
             time.sleep(max(0, t0 + second - time.time()))
+            at = round(time.time() - t0)  # the real time since the restart: one slow call delays the next samples
             try:
                 eth = int(self.chain.rpc('eth_blockNumber', [])['result'], 16)
                 header = int(self.chain.rpc('chain_getHeader', [])['result']['number'], 16)
-                samples.append((second, eth, header))
+                samples.append((at, eth, header))
             except Exception as e:
-                samples.append((second, None, type(e).__name__))
+                samples.append((at, None, type(e).__name__))
         print('AC-36 eth_blockNumber before the restart:', before)
         for s in samples:
             print('AC-36', s)
@@ -530,12 +549,18 @@ class TestEvm2603RpcNode(unittest.TestCase):
         print('AC-36 collator best after the samples:', collator_best)
         self.assertGreaterEqual(late[-1][2], collator_best - 2, f'the RPC node is not following the chain: {late[-1]}')
         self.assertTrue(all(abs(h - e) <= 1 for _, e, h in late), f'lag above 1 in seconds 30 to 60: {late}')
+        self.assertFalse(went_back, f'eth_blockNumber went back: before {before}, samples {valid}')
 
     def test_ac37_log_query_limits(self):
         c = self.chain
         wanted = int(os.environ.get('PR11_WAIT_FOR_HEIGHT', '0'))
-        while c.w3.eth.block_number < wanted:
+        last, moved = c.w3.eth.block_number, time.time()
+        while last < wanted:
             time.sleep(60)
+            now = c.w3.eth.block_number
+            if now != last:
+                last, moved = now, time.time()
+            self.assertLess(time.time() - moved, 600, f'the chain has stayed at #{last} for 10 minutes')
         latest = c.w3.eth.block_number
         if latest <= 2000:
             self.skipTest(f'the chain is at #{latest}, AC-37 needs more than 2000 blocks')
@@ -544,23 +569,42 @@ class TestEvm2603RpcNode(unittest.TestCase):
         latest = c.w3.eth.block_number
         other = '0x' + keccak(b'pr11 other topic').hex()
         topic0 = '0x' + LOG1_TOPIC.hex()
+        addresses = [to_checksum_address(i.to_bytes(20, 'big')) for i in range(1, 1025)]  # 1,024
+        one_block = {'fromBlock': hex(block), 'toBlock': hex(block)}
+        too_wide = 'block range is too wide (maximum 1024)'
+        # Frontier compares to - from with 1,024 (client/rpc/src/eth/filter.rs), so "range 1024" spans 1,025 blocks
         queries = [
-            ('eth_getLogs range 1025', 'error', 'eth_getLogs',
-             {'address': emitter, 'fromBlock': hex(latest - 1025), 'toBlock': hex(latest)}),
-            ('eth_getLogs range 1024', 'result', 'eth_getLogs',
-             {'address': emitter, 'fromBlock': hex(latest - 1024), 'toBlock': hex(latest)}),
-            ('eth_newFilter from latest - 2000', 'error', 'eth_newFilter', {'fromBlock': hex(latest - 2000)}),
-            ('5 topics', 'error', 'eth_getLogs',
-             {'address': emitter, 'fromBlock': hex(block), 'toBlock': hex(block), 'topics': [topic0] * 5}),
-            ('1025 addresses', 'error', 'eth_getLogs',
-             {'address': [to_checksum_address(i.to_bytes(20, 'big')) for i in range(1, 1026)],
-              'fromBlock': hex(block), 'toBlock': hex(block)}),
+            ('eth_getLogs range 1025', 'eth_getLogs',
+             {'address': emitter, 'fromBlock': hex(latest - 1025), 'toBlock': hex(latest)}, too_wide),
+            ('eth_getLogs range 1024', 'eth_getLogs',
+             {'address': emitter, 'fromBlock': hex(latest - 1024), 'toBlock': hex(latest)}, 1),
+            ('eth_newFilter from latest - 2000', 'eth_newFilter', {'fromBlock': hex(latest - 2000)}, too_wide),
+            ('eth_newFilter from latest - 1024', 'eth_newFilter', {'fromBlock': hex(latest - 1024)}, 'filter'),
+            ('eth_getLogs 5 topics', 'eth_getLogs', dict(one_block, address=emitter, topics=[topic0] * 5),
+             'out of bounds'),
+            ('eth_getLogs 4 topics', 'eth_getLogs', dict(one_block, address=emitter, topics=[topic0] * 4), 0),
+            ('eth_newFilter 5 topics', 'eth_newFilter', dict(one_block, address=emitter, topics=[topic0] * 5),
+             'out of bounds'),
+            ('eth_getLogs 1025 addresses', 'eth_getLogs', dict(one_block, address=addresses + [emitter]),
+             'too big array'),
+            ('eth_getLogs 1024 addresses', 'eth_getLogs', dict(one_block, address=addresses[1:] + [emitter]), 1),
+            ('eth_newFilter 1025 addresses', 'eth_newFilter', dict(one_block, address=addresses + [emitter]),
+             'too big array'),
         ]
-        for name, outcome, method, params in queries:
+        for name, method, params, expected in queries:
             with self.subTest(name):
                 response = c.rpc(method, [params])
                 print(f'AC-37 {name}:', json.dumps(response)[:300])
-                self.assertIn(outcome, response)
+                if isinstance(expected, str) and expected != 'filter':
+                    self.assertIn('error', response, f'{name} was accepted')
+                    error = response['error']
+                    self.assertIn(expected, f"{error['message']} {error.get('data', '')}")
+                elif expected == 'filter':
+                    self.assertIn('result', response, f'{name} was refused')
+                    c.rpc('eth_uninstallFilter', [response['result']])
+                else:  # the number of logs the accepted query must return
+                    self.assertIn('result', response, f'{name} was refused')
+                    self.assertEqual(len(response['result']), expected)
         with self.subTest('topic[1] given, the log has topic0 only'):
             params = {'address': emitter, 'fromBlock': hex(block), 'toBlock': hex(block)}
             only_topic0 = c.rpc('eth_getLogs', [dict(params, topics=[topic0])])
