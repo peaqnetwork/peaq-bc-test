@@ -399,7 +399,7 @@ class TestEvm2603RpcNode(unittest.TestCase):
         return ws, json.loads(ws.recv())['result']
 
     @staticmethod
-    def _read_subscription(ws):
+    def _read_subscription(ws):  # noqa: C901 (one reader loop; split, it would be harder to follow)
         """Reads the connection on its own thread from before the transaction is sent, as a client would: a reader
         that only starts after the receipt leaves the node's buffers full (sc-rpc's BoundedVecDeque of 16 for the
         logs subscription, plus the connection's message buffer, 64 by default), and the node then drops the
